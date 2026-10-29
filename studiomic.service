@@ -1,0 +1,14 @@
+[Unit]
+Description=StudioMic Linux Audio Engine & PipeWire Virtual Sinks Daemon
+After=pipewire.service wireplumber.service
+Requires=pipewire.service
+PartOf=pipewire.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/studiomic --daemon
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

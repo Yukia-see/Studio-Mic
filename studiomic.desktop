@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=StudioMic
+Comment=Professional Broadcast Microphone Tuning & Virtual Mixing Suite
+Exec=studiomic
+Icon=audio-input-microphone
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Mixer;Recorder;
+Keywords=microphone;equalizer;motiv;pipewire;mixer;stream;broadcast;
+StartupNotify=true

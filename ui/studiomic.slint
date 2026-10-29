@@ -1,0 +1,1150 @@
+// ============================================================================
+// StudioMic: Pure Rust (Slint) Complete UI Markup Definition
+// Target Platform: Omarchy / Arch Linux (PipeWire & WirePlumber)
+// Design Standard: Google Material Design 3 (Material You) + Google Material Symbols
+// 100% Feature & Component Parity with mic-studio-mockup.html
+// ============================================================================
+
+import { Button, Slider, ComboBox, ScrollView, LineEdit } from "std-widgets.slint";
+
+// ==================== MATERIAL DESIGN 3 THEME TOKENS ====================
+global Theme {
+    out property <color> surface: #111318;
+    out property <color> surface-dim: #111318;
+    out property <color> surface-container-lowest: #0c0e13;
+    out property <color> surface-container-low: #191c20;
+    out property <color> surface-container: #1d2024;
+    out property <color> surface-container-high: #272a2f;
+    out property <color> surface-container-highest: #32353a;
+    out property <color> on-surface: #e2e2e9;
+    out property <color> on-surface-variant: #c4c6d0;
+    out property <color> outline: #8e9099;
+    out property <color> outline-variant: #44474f;
+    out property <color> primary: #a8c7fa;
+    out property <color> on-primary: #062e6f;
+    out property <color> primary-container: #0842a0;
+    out property <color> on-primary-container: #d3e3fd;
+    out property <color> secondary: #7fcfff;
+    out property <color> secondary-container: #004d68;
+    out property <color> on-secondary-container: #c2e7ff;
+    out property <color> tertiary: #d0bcff;
+    out property <color> tertiary-container: #4f378b;
+    out property <color> on-tertiary-container: #eaddff;
+    out property <color> error: #f2b8b5;
+    out property <color> error-container: #8c1d18;
+    out property <color> success: #6dd58c;
+    out property <color> success-container: #0a5323;
+}
+
+// Google Material Symbols Outlined Icon Component (Strictly zero Unicode emojis)
+component MaterialIcon inherits Text {
+    in property <string> icon-name;
+    in property <length> icon-size: 20px;
+    in property <color> icon-color: Theme.on-surface;
+
+    text: root.icon-name;
+    font-family: "Material Symbols Outlined";
+    font-size: root.icon-size;
+    color: root.icon-color;
+    vertical-alignment: center;
+    horizontal-alignment: center;
+}
+
+// ============================================================================
+// 1. HERO MICROPHONE CARD (THE VERY FIRST COMPONENT AT THE TOP)
+// ============================================================================
+component HeroMicHeader inherits Rectangle {
+    in property <string> active-mic-name: "FIFINE AmpliGame AM8";
+    in property <float> input-peak-db: -14.2; // dBFS
+    in property <bool> is-monitoring: false;
+    in property <bool> is-processed-active: true;
+
+    callback mic-selected(string);
+    callback toggle-monitor();
+    callback toggle-ab-compare();
+
+    background: Theme.surface-container;
+    border-radius: 32px;
+    border-width: 2px;
+    border-color: Theme.primary;
+
+    HorizontalLayout {
+        spacing: 24px;
+        alignment: center;
+
+        // Microphone Capsule Hero Avatar
+        Rectangle {
+            width: 64px;
+            height: 64px;
+            border-radius: 24px;
+            background: Theme.primary-container;
+
+            MaterialIcon {
+                icon-name: "mic";
+                icon-size: 32px;
+                icon-color: Theme.on-primary-container;
+            }
+        }
+
+        // Active Input Microphone & Brand-Sorted Selector
+        VerticalLayout {
+            alignment: center;
+            spacing: 6px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: "ACTIVE INPUT MICROPHONE";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: Theme.primary;
+                    letter-spacing: 0.8px;
+                }
+                Rectangle {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: Theme.success;
+                    y: 3px;
+                }
+                Text {
+                    text: "Connected · 48 kHz / 24-bit";
+                    font-size: 11px;
+                    font-weight: 500;
+                    color: Theme.success;
+                }
+            }
+
+            // Microphone Selector Label / Dropdown Pill
+            Rectangle {
+                height: 40px;
+                border-radius: 16px;
+                background: Theme.surface-container-highest;
+                border-width: 1px;
+                border-color: Theme.outline-variant;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: center;
+                    Text {
+                        text: root.active-mic-name;
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: Theme.on-surface;
+                        vertical-alignment: center;
+                    }
+                    MaterialIcon {
+                        icon-name: "arrow_drop_down";
+                        icon-size: 20px;
+                        icon-color: Theme.on-surface-variant;
+                    }
+                }
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; }
+
+        // Live VU Level Meter
+        Rectangle {
+            width: 240px;
+            background: Theme.surface-container-low;
+            border-radius: 16px;
+            border-width: 1px;
+            border-color: Theme.outline-variant;
+
+            VerticalLayout {
+                spacing: 6px;
+
+                HorizontalLayout {
+                    Text {
+                        text: "Input Peak Level";
+                        font-size: 12px;
+                        font-weight: 500;
+                        color: Theme.on-surface-variant;
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    Text {
+                        text: Math.round(root.input-peak-db) + " dBFS";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: root.input-peak-db > -3.0 ? Theme.error : Theme.success;
+                    }
+                }
+
+                // Meter Bar
+                Rectangle {
+                    height: 12px;
+                    border-radius: 6px;
+                    background: Theme.surface-container-highest;
+                    clip: true;
+
+                    Rectangle {
+                        x: 0;
+                        width: Math.clamp((root.input-peak-db + 60.0) / 60.0 * parent.width, 0px, parent.width);
+                        height: parent.height;
+                        border-radius: 6px;
+                        background: root.input-peak-db > -3.0 ? Theme.error : Theme.success;
+                    }
+                }
+
+                // PipeWire Telemetry
+                HorizontalLayout {
+                    Text {
+                        text: "PipeWire Buffer: 128 spl";
+                        font-size: 10px;
+                        color: Theme.on-surface-variant;
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    Text {
+                        text: "Latency: 2.6ms";
+                        font-size: 10px;
+                        color: Theme.on-surface-variant;
+                    }
+                }
+            }
+        }
+
+        // Quick Actions: Listen to Myself (Sidetone) & A/B Compare
+        HorizontalLayout {
+            spacing: 10px;
+
+            // Sidetone Monitor Button
+            Rectangle {
+                height: 44px;
+                border-radius: 22px;
+                background: Theme.surface-container-low;
+                border-width: 1px;
+                border-color: Theme.outline-variant;
+
+                TouchArea { clicked => { root.toggle-monitor(); } }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+
+                    MaterialIcon {
+                        icon-name: "headphones";
+                        icon-size: 18px;
+                        icon-color: Theme.on-surface;
+                    }
+                    Text {
+                        text: "Listen to Myself";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: Theme.on-surface;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 4px;
+                        background: root.is-monitoring ? Theme.success : Theme.outline;
+                        y: 5px;
+                    }
+                }
+            }
+
+            // A/B Compare Button
+            Rectangle {
+                height: 44px;
+                border-radius: 22px;
+                background: Theme.surface-container-low;
+                border-width: 1px;
+                border-color: Theme.outline-variant;
+
+                TouchArea { clicked => { root.toggle-ab-compare(); } }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+
+                    MaterialIcon {
+                        icon-name: "compare_arrows";
+                        icon-size: 18px;
+                        icon-color: Theme.on-surface;
+                    }
+                    Text {
+                        text: "A/B Compare:";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: Theme.on-surface;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        height: 22px;
+                        border-radius: 11px;
+                        background: root.is-processed-active ? Theme.primary : Theme.tertiary-container;
+
+                        Text {
+                            text: root.is-processed-active ? "Processed" : "Bypass";
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: root.is-processed-active ? Theme.on-primary : Theme.on-tertiary-container;
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 2. M3 NAVIGATION TABS BAR
+// ============================================================================
+component NavigationTabsBar inherits HorizontalLayout {
+    in property <int> active-tab: 0; // 0: EQ, 1: Mixer, 2: Noise, 3: Calib
+    callback tab-selected(int);
+
+    spacing: 8px;
+    height: 48px;
+
+    // Tab 1: Microphone EQ Studio
+    Rectangle {
+        border-radius: 24px;
+        background: root.active-tab == 0 ? Theme.primary : Theme.surface-container;
+
+        TouchArea { clicked => { root.tab-selected(0); } }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            MaterialIcon {
+                icon-name: "equalizer";
+                icon-size: 18px;
+                icon-color: root.active-tab == 0 ? Theme.on-primary : Theme.on-surface-variant;
+            }
+            Text {
+                text: "Microphone EQ Studio";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-tab == 0 ? Theme.on-primary : Theme.on-surface-variant;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Tab 2: 5-Channel Mixer & OBS Matrix
+    Rectangle {
+        border-radius: 24px;
+        background: root.active-tab == 1 ? Theme.primary : Theme.surface-container;
+
+        TouchArea { clicked => { root.tab-selected(1); } }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            MaterialIcon {
+                icon-name: "instant_mix";
+                icon-size: 18px;
+                icon-color: root.active-tab == 1 ? Theme.on-primary : Theme.on-surface-variant;
+            }
+            Text {
+                text: "5-Channel Mixer & OBS Matrix";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-tab == 1 ? Theme.on-primary : Theme.on-surface-variant;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Tab 3: Noise Clean & Hygiene
+    Rectangle {
+        border-radius: 24px;
+        background: root.active-tab == 2 ? Theme.primary : Theme.surface-container;
+
+        TouchArea { clicked => { root.tab-selected(2); } }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            MaterialIcon {
+                icon-name: "shield";
+                icon-size: 18px;
+                icon-color: root.active-tab == 2 ? Theme.on-primary : Theme.on-surface-variant;
+            }
+            Text {
+                text: "Noise Clean & Hygiene";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-tab == 2 ? Theme.on-primary : Theme.on-surface-variant;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Tab 4: VoiceMatch Calibration
+    Rectangle {
+        border-radius: 24px;
+        background: root.active-tab == 3 ? Theme.primary : Theme.surface-container;
+
+        TouchArea { clicked => { root.tab-selected(3); } }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            MaterialIcon {
+                icon-name: "tune";
+                icon-size: 18px;
+                icon-color: root.active-tab == 3 ? Theme.on-primary : Theme.on-surface-variant;
+            }
+            Text {
+                text: "VoiceMatch Calibration";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-tab == 3 ? Theme.on-primary : Theme.on-surface-variant;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    Rectangle { horizontal-stretch: 1; }
+}
+
+// ============================================================================
+// 3. VIRTUAL MIXER CHANNEL STRIP (CHANNELS 1 - 5)
+// ============================================================================
+component MixerChannelStrip inherits Rectangle {
+    in property <string> channel-number: "CH 1";
+    in property <string> channel-type: "Mic Stream";
+    in property <string> channel-name: "Fifine AM8";
+    in property <string> sub-profile: "Recommended EQ for Fifine AM8";
+    in property <string> icon-name: "mic";
+    in property <bool> is-locked: false; // True for Channel 1 Hardware Mic
+    in property <bool> is-game: false;
+    in property <bool> is-vod-shield: false;
+    in property <string> source-app: "Active Microphone";
+    in property <string> isolated-target: "Auto-Hook Active Window";
+    in property <string> telemetry-text: "PID: 4892 · Node #89";
+    in property <float> volume: 0.85;
+    in property <float> peak-db: -14.0;
+    in property <bool> is-muted: false;
+    in property <bool> is-solo: false;
+    in property <string> obs-routing: "OBS: T1 / T2 / T3";
+
+    callback volume-changed(float);
+    callback toggle-mute();
+    callback toggle-solo();
+    callback rename-channel();
+    callback remove-channel();
+
+    background: Theme.surface-container-low;
+    border-radius: 28px;
+    border-width: 1px;
+    border-color: root.is-locked ? Theme.primary : (root.is-vod-shield ? #9c27b0 : Theme.outline-variant);
+
+    VerticalLayout {
+        spacing: 12px;
+
+        // Top Header: Channel Number & Lock / Close Action
+        HorizontalLayout {
+            Text {
+                text: root.channel-number + " · " + root.channel-type;
+                font-size: 11px;
+                font-weight: 700;
+                color: root.is-locked ? Theme.primary : (root.is-vod-shield ? #ba68c8 : Theme.on-surface-variant);
+                letter-spacing: 0.8px;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            if root.is-locked : Rectangle {
+                height: 18px;
+                border-radius: 9px;
+                background: Theme.primary-container;
+                Text {
+                    text: "MIC LOCKED";
+                    font-size: 9px;
+                    font-weight: 700;
+                    color: Theme.on-primary-container;
+                    vertical-alignment: center;
+                }
+            }
+            if !root.is-locked : Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 12px;
+                TouchArea { clicked => { root.remove-channel(); } }
+                MaterialIcon {
+                    icon-name: "close";
+                    icon-size: 16px;
+                    icon-color: Theme.on-surface-variant;
+                }
+            }
+        }
+
+        // Channel Title & Inline Rename
+        HorizontalLayout {
+            spacing: 6px;
+            MaterialIcon {
+                icon-name: root.icon-name;
+                icon-size: 18px;
+                icon-color: root.is-vod-shield ? #ce93d8 : Theme.primary;
+            }
+            Text {
+                text: root.channel-name;
+                font-size: 14px;
+                font-weight: 700;
+                color: root.is-vod-shield ? #e1bee7 : Theme.on-surface;
+                overflow: elide;
+                vertical-alignment: center;
+            }
+            if !root.is-locked : MaterialIcon {
+                icon-name: "edit";
+                icon-size: 14px;
+                icon-color: Theme.on-surface-variant;
+            }
+        }
+
+        // Sub-profile or Active Profile
+        Text {
+            text: root.sub-profile;
+            font-size: 10px;
+            font-weight: 600;
+            color: Theme.on-surface-variant;
+            overflow: elide;
+        }
+
+        // Hooked Stream Target Card (For Game Audio or Isolated Browser Tab)
+        if root.is-game : Rectangle {
+            background: #0f241a;
+            border-radius: 16px;
+            border-width: 1px;
+            border-color: #1b5e20;
+
+            VerticalLayout {
+                spacing: 4px;
+                HorizontalLayout {
+                    MaterialIcon {
+                        icon-name: "sports_esports";
+                        icon-size: 14px;
+                        icon-color: Theme.success;
+                    }
+                    Text {
+                        text: "Hooked: " + root.isolated-target;
+                        font-size: 10px;
+                        font-weight: 700;
+                        color: Theme.success;
+                        overflow: elide;
+                    }
+                }
+                Text {
+                    text: root.telemetry-text;
+                    font-size: 9px;
+                    color: #81c784;
+                }
+            }
+        }
+
+        if root.is-vod-shield : Rectangle {
+            background: #2a103c;
+            border-radius: 16px;
+            border-width: 1px;
+            border-color: #6a1b9a;
+
+            VerticalLayout {
+                spacing: 4px;
+                HorizontalLayout {
+                    MaterialIcon {
+                        icon-name: "tab";
+                        icon-size: 14px;
+                        icon-color: #ce93d8;
+                    }
+                    Text {
+                        text: root.isolated-target;
+                        font-size: 10px;
+                        font-weight: 700;
+                        color: #e1bee7;
+                        overflow: elide;
+                    }
+                }
+                Text {
+                    text: root.telemetry-text;
+                    font-size: 9px;
+                    color: #ba68c8;
+                }
+            }
+        }
+
+        // Vertical Meter and Fader Section
+        HorizontalLayout {
+            height: 160px;
+            alignment: center;
+            spacing: 16px;
+
+            // Vertical Peak VU Meter Bar
+            Rectangle {
+                width: 12px;
+                height: 140px;
+                border-radius: 6px;
+                background: Theme.surface-container-highest;
+                clip: true;
+
+                Rectangle {
+                    y: parent.height - self.height;
+                    width: parent.width;
+                    height: Math.clamp((root.peak-db + 60.0) / 60.0 * parent.height, 0px, parent.height);
+                    border-radius: 6px;
+                    background: root.is-vod-shield ? #ba68c8 : Theme.success;
+                }
+            }
+
+            // M3 Vertical Fader Track
+            VerticalLayout {
+                alignment: center;
+                spacing: 6px;
+
+                Text {
+                    text: Math.round((root.volume - 1.0) * 20.0) + " dB";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: Theme.on-surface-variant;
+                    horizontal-alignment: center;
+                }
+
+                Slider {
+                    height: 120px;
+                    minimum: 0.0;
+                    maximum: 1.25;
+                    value: root.volume;
+                    changed(val) => { root.volume-changed(val); }
+                }
+
+                Text {
+                    text: "FADER";
+                    font-size: 9px;
+                    font-weight: 700;
+                    color: Theme.primary;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // Bottom Controls: MUTE and SOLO Buttons + OBS Routing Readout
+        VerticalLayout {
+            spacing: 6px;
+
+            HorizontalLayout {
+                spacing: 6px;
+
+                // MUTE Button
+                Rectangle {
+                    height: 36px;
+                    border-radius: 18px;
+                    background: root.is-muted ? Theme.error-container : Theme.surface-container-highest;
+                    TouchArea { clicked => { root.toggle-mute(); } }
+                    Text {
+                        text: "MUTE";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: root.is-muted ? Theme.error : Theme.on-surface;
+                        vertical-alignment: center;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // SOLO Button
+                Rectangle {
+                    height: 36px;
+                    border-radius: 18px;
+                    background: root.is-solo ? Theme.primary-container : Theme.surface-container-highest;
+                    TouchArea { clicked => { root.toggle-solo(); } }
+                    Text {
+                        text: "SOLO";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: root.is-solo ? Theme.on-primary-container : Theme.on-surface;
+                        vertical-alignment: center;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            Text {
+                text: root.obs-routing;
+                font-size: 10px;
+                color: Theme.on-surface-variant;
+                horizontal-alignment: center;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 4. MASTER DESKTOP WINDOW CONTAINER
+// ============================================================================
+export component StudioMicWindow inherits Window {
+    title: "StudioMic · Material Design 3";
+    preferred-width: 1440px;
+    preferred-height: 920px;
+    background: Theme.surface;
+
+    in-out property <string> active-mic-name: "FIFINE AmpliGame AM8";
+    in-out property <float> input-peak-db: -14.2;
+    in-out property <bool> is-monitoring: false;
+    in-out property <bool> is-processed-active: true;
+    in-out property <int> active-tab: 1;
+
+    callback toggle-monitor();
+    callback toggle-ab-compare();
+    callback mic-selected(string);
+    callback tab-selected(int);
+
+    VerticalLayout {
+        spacing: 16px;
+
+        // 1. Hero Card: Active Microphone Hardware Header
+        HeroMicHeader {
+            active-mic-name: root.active-mic-name;
+            input-peak-db: root.input-peak-db;
+            is-monitoring: root.is-monitoring;
+            is-processed-active: root.is-processed-active;
+            toggle-monitor => { root.toggle-monitor(); }
+            toggle-ab-compare => { root.toggle-ab-compare(); }
+            mic-selected(name) => { root.mic-selected(name); }
+        }
+
+        // 2. M3 Navigation Tabs Bar
+        NavigationTabsBar {
+            active-tab: root.active-tab;
+            tab-selected(idx) => {
+                root.active-tab = idx;
+                root.tab-selected(idx);
+            }
+        }
+
+        // 3. Workspace: Tab Content Switcher
+        if root.active-tab == 0 : VerticalLayout {
+            spacing: 16px;
+            vertical-stretch: 1;
+
+            Rectangle {
+                background: Theme.surface-container;
+                border-radius: 28px;
+                border-width: 1px;
+                border-color: Theme.outline-variant;
+
+                VerticalLayout {
+                    spacing: 16px;
+
+                    // EQ Header
+                    HorizontalLayout {
+                        Text {
+                            text: "Microphone Equalization Studio";
+                            font-size: 16px;
+                            font-weight: 700;
+                            color: Theme.on-surface;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 14px;
+                            background: Theme.surface-container-highest;
+                            Text {
+                                text: "10 Bands Active (Max 10)";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: Theme.primary;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Industry Target Presets Grid
+                    HorizontalLayout {
+                        spacing: 12px;
+
+                        // Card 1: Active Recommended
+                        Rectangle {
+                            border-radius: 20px;
+                            background: #0842a0;
+                            border-width: 2px;
+                            border-color: Theme.primary;
+                            horizontal-stretch: 1;
+                            height: 100px;
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    MaterialIcon { icon-name: "workspace_premium"; icon-size: 20px; icon-color: #ffd700; }
+                                    Text { text: "Active"; font-size: 10px; font-weight: 700; color: Theme.primary; }
+                                }
+                                Text { text: "Recommended EQ for " + root.active-mic-name; font-size: 12px; font-weight: 700; color: Theme.on-surface; overflow: elide; }
+                                Text { text: "Corrects proximity boom, lifts speech presence, smooths sizzle."; font-size: 10px; color: Theme.on-primary-container; overflow: elide; }
+                            }
+                        }
+
+                        // Card 2: Warm Radio Host
+                        Rectangle {
+                            border-radius: 20px;
+                            background: Theme.surface-container-low;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            horizontal-stretch: 1;
+                            height: 100px;
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    MaterialIcon { icon-name: "mic"; icon-size: 20px; icon-color: Theme.primary; }
+                                    Text { text: "Broadcast Standard"; font-size: 10px; font-weight: 700; color: Theme.on-surface-variant; }
+                                }
+                                Text { text: "Warm Radio Host Depth"; font-size: 12px; font-weight: 700; color: Theme.on-surface; }
+                                Text { text: "Chest warmth below 200Hz with velvety smooth highs."; font-size: 10px; color: Theme.on-surface-variant; overflow: elide; }
+                            }
+                        }
+
+                        // Card 3: Live Streamer Pro
+                        Rectangle {
+                            border-radius: 20px;
+                            background: Theme.surface-container-low;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            horizontal-stretch: 1;
+                            height: 100px;
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    MaterialIcon { icon-name: "sensors"; icon-size: 20px; icon-color: #ce93d8; }
+                                    Text { text: "OBS Music Mix"; font-size: 10px; font-weight: 700; color: #ce93d8; }
+                                }
+                                Text { text: "Live Streamer Pro"; font-size: 12px; font-weight: 700; color: Theme.on-surface; }
+                                Text { text: "Tight low-cut and scoop so voice floats above game sound."; font-size: 10px; color: Theme.on-surface-variant; overflow: elide; }
+                            }
+                        }
+
+                        // Card 4: Dialogue Master
+                        Rectangle {
+                            border-radius: 20px;
+                            background: Theme.surface-container-low;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            horizontal-stretch: 1;
+                            height: 100px;
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                HorizontalLayout {
+                                    MaterialIcon { icon-name: "record_voice_over"; icon-size: 20px; icon-color: #80deea; }
+                                    Text { text: "Podcast Core"; font-size: 10px; font-weight: 700; color: Theme.on-surface-variant; }
+                                }
+                                Text { text: "Dialogue Master"; font-size: 12px; font-weight: 700; color: Theme.on-surface; }
+                                Text { text: "Neutral, natural vocal reproduction with zero phase distortion."; font-size: 10px; color: Theme.on-surface-variant; overflow: elide; }
+                            }
+                        }
+                    }
+
+                    // Macro Quick Tone Adjusters
+                    Rectangle {
+                        background: Theme.surface-container-low;
+                        border-radius: 20px;
+                        border-width: 1px;
+                        border-color: Theme.outline-variant;
+
+                        HorizontalLayout {
+                            spacing: 24px;
+                            alignment: center;
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                horizontal-stretch: 1;
+                                HorizontalLayout {
+                                    Text { text: "Vocal Warmth / Body"; font-size: 12px; font-weight: 600; color: Theme.on-surface; }
+                                    Rectangle { horizontal-stretch: 1; }
+                                    Text { text: "+2.0 dB"; font-size: 12px; font-weight: 700; color: Theme.primary; }
+                                }
+                                Slider { minimum: -6.0; maximum: 6.0; value: 2.0; }
+                                Text { text: "150Hz - 250Hz low-end tilt"; font-size: 10px; color: Theme.on-surface-variant; }
+                            }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                horizontal-stretch: 1;
+                                HorizontalLayout {
+                                    Text { text: "Speech Presence"; font-size: 12px; font-weight: 600; color: Theme.on-surface; }
+                                    Rectangle { horizontal-stretch: 1; }
+                                    Text { text: "+3.5 dB"; font-size: 12px; font-weight: 700; color: Theme.primary; }
+                                }
+                                Slider { minimum: -6.0; maximum: 6.0; value: 3.5; }
+                                Text { text: "2.5kHz - 4.5kHz consonant intelligibility"; font-size: 10px; color: Theme.on-surface-variant; }
+                            }
+
+                            VerticalLayout {
+                                spacing: 4px;
+                                horizontal-stretch: 1;
+                                HorizontalLayout {
+                                    Text { text: "Air Sheen / Polish"; font-size: 12px; font-weight: 600; color: Theme.on-surface; }
+                                    Rectangle { horizontal-stretch: 1; }
+                                    Text { text: "+1.5 dB"; font-size: 12px; font-weight: 700; color: Theme.primary; }
+                                }
+                                Slider { minimum: -6.0; maximum: 6.0; value: 1.5; }
+                                Text { text: "10kHz - 16kHz studio sparkle"; font-size: 10px; color: Theme.on-surface-variant; }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Workspace: Tab 1 - 5-Channel Virtual Mixer Matrix
+        if root.active-tab == 1 : ScrollView {
+            vertical-stretch: 1;
+
+            HorizontalLayout {
+                spacing: 16px;
+                alignment: start;
+
+                // CH 1: Mic Stream (Locked to FIFINE AM8)
+                MixerChannelStrip {
+                    channel-number: "CH 1";
+                    channel-type: "Mic Stream";
+                    channel-name: root.active-mic-name;
+                    sub-profile: "Recommended EQ for " + root.active-mic-name;
+                    icon-name: "mic";
+                    is-locked: true;
+                    volume: 1.0;
+                    obs-routing: "OBS: T1 / T2 / T3";
+                }
+
+                // CH 2: Game Audio (Auto-Hooked Counter-Strike 2)
+                MixerChannelStrip {
+                    channel-number: "CH 2";
+                    channel-type: "Sink";
+                    channel-name: "Game Audio";
+                    sub-profile: "Steam / Proton Hook";
+                    icon-name: "sports_esports";
+                    is-locked: false;
+                    is-game: true;
+                    isolated-target: "Counter-Strike 2";
+                    telemetry-text: "PID: 4892 · Node #89";
+                    volume: 0.85;
+                    obs-routing: "OBS: T1 / T2 / T4";
+                }
+
+                // CH 3: Discord Voice Chat
+                MixerChannelStrip {
+                    channel-number: "CH 3";
+                    channel-type: "Sink";
+                    channel-name: "Voice Chat";
+                    sub-profile: "Discord Desktop";
+                    icon-name: "chat";
+                    is-locked: false;
+                    volume: 0.90;
+                    obs-routing: "OBS: T1 / T5 (Comms)";
+                }
+
+                // CH 4: Music / VOD Shield (Zen Browser Tab Isolated)
+                MixerChannelStrip {
+                    channel-number: "CH 4";
+                    channel-type: "VOD Shield";
+                    channel-name: "Music (Isolated Tab)";
+                    sub-profile: "Zen Browser Sub-stream";
+                    icon-name: "music_note";
+                    is-locked: false;
+                    is-vod-shield: true;
+                    isolated-target: "[Tab] YouTube Music";
+                    telemetry-text: "PipeWire Node #78";
+                    volume: 0.70;
+                    obs-routing: "OBS: Track 1 (Excluded from VOD)";
+                }
+
+                // CH 5: Sound Alerts & SFX
+                MixerChannelStrip {
+                    channel-number: "CH 5";
+                    channel-type: "Sink";
+                    channel-name: "Sound Alerts";
+                    sub-profile: "OBS Sound Alerts Hook";
+                    icon-name: "notifications";
+                    is-locked: false;
+                    volume: 0.80;
+                    obs-routing: "OBS: T1 / T2";
+                }
+            }
+        }
+
+        // 5. Workspace: Tab 2 - Noise Clean & Hygiene
+        if root.active-tab == 2 : VerticalLayout {
+            spacing: 16px;
+            vertical-stretch: 1;
+
+            Rectangle {
+                background: Theme.surface-container;
+                border-radius: 28px;
+                border-width: 1px;
+                border-color: Theme.outline-variant;
+
+                VerticalLayout {
+                    spacing: 16px;
+                    HorizontalLayout {
+                        MaterialIcon { icon-name: "shield"; icon-size: 24px; icon-color: Theme.primary; }
+                        Text { text: "Real-Time Acoustic Noise Cancellation"; font-size: 16px; font-weight: 700; color: Theme.on-surface; }
+                    }
+
+                    // 4 Clean Tiles
+                    HorizontalLayout {
+                        spacing: 12px;
+
+                        Rectangle {
+                            background: Theme.surface-container-low;
+                            border-radius: 20px;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            horizontal-stretch: 1;
+                            height: 90px;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                alignment: center;
+                                MaterialIcon { icon-name: "smart_toy"; icon-size: 24px; icon-color: Theme.primary; }
+                                VerticalLayout {
+                                    Text { text: "AI Voice Isolation"; font-size: 13px; font-weight: 700; color: Theme.on-surface; }
+                                    Text { text: "RNNoise Neural Network Model"; font-size: 11px; color: Theme.on-surface-variant; }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: Theme.surface-container-low;
+                            border-radius: 20px;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            horizontal-stretch: 1;
+                            height: 90px;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                alignment: center;
+                                MaterialIcon { icon-name: "record_voice_over"; icon-size: 24px; icon-color: Theme.primary; }
+                                VerticalLayout {
+                                    Text { text: "Digital Popper Stopper"; font-size: 13px; font-weight: 700; color: Theme.on-surface; }
+                                    Text { text: "Suppresses P and B plosive bursts"; font-size: 11px; color: Theme.on-surface-variant; }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+
+                        Rectangle {
+                            background: Theme.surface-container-low;
+                            border-radius: 20px;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            horizontal-stretch: 1;
+                            height: 90px;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                alignment: center;
+                                MaterialIcon { icon-name: "electrical_services"; icon-size: 24px; icon-color: Theme.primary; }
+                                VerticalLayout {
+                                    Text { text: "Electrical Hum Notch (50/60 Hz)"; font-size: 13px; font-weight: 700; color: Theme.on-surface; }
+                                    Text { text: "Surgically eliminates AC ground buzz"; font-size: 11px; color: Theme.on-surface-variant; }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: Theme.surface-container-low;
+                            border-radius: 20px;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            horizontal-stretch: 1;
+                            height: 90px;
+
+                            HorizontalLayout {
+                                spacing: 12px;
+                                alignment: center;
+                                MaterialIcon { icon-name: "keyboard"; icon-size: 24px; icon-color: Theme.primary; }
+                                VerticalLayout {
+                                    Text { text: "Keyboard & Mouse Gate"; font-size: 13px; font-weight: 700; color: Theme.on-surface; }
+                                    Text { text: "Silences typing clicks when not speaking"; font-size: 11px; color: Theme.on-surface-variant; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Workspace: Tab 3 - VoiceMatch Calibration
+        if root.active-tab == 3 : VerticalLayout {
+            spacing: 16px;
+            vertical-stretch: 1;
+
+            Rectangle {
+                background: Theme.surface-container;
+                border-radius: 28px;
+                border-width: 1px;
+                border-color: Theme.outline-variant;
+
+                VerticalLayout {
+                    spacing: 16px;
+                    alignment: center;
+
+                    MaterialIcon { icon-name: "mic_external_on"; icon-size: 40px; icon-color: Theme.primary; }
+                    Text { text: "VoiceMatch Acoustic Calibration"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; }
+                    Text { text: "Measures speaking loudness and room acoustics to calculate optimal preamp gain."; font-size: 12px; color: Theme.on-surface-variant; horizontal-alignment: center; }
+
+                    HorizontalLayout {
+                        spacing: 20px;
+                        Rectangle {
+                            background: Theme.surface-container-low;
+                            border-radius: 20px;
+                            border-width: 1px;
+                            border-color: Theme.outline-variant;
+                            width: 220px;
+                            height: 100px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                alignment: center;
+                                Text { text: "BEFORE GAIN"; font-size: 10px; font-weight: 700; color: Theme.on-surface-variant; horizontal-alignment: center; }
+                                Text { text: "+12.0 dB"; font-size: 24px; font-weight: 800; color: Theme.on-surface; horizontal-alignment: center; }
+                                Text { text: "Pre-calibration level"; font-size: 10px; color: Theme.on-surface-variant; horizontal-alignment: center; }
+                            }
+                        }
+
+                        Rectangle {
+                            background: #0842a0;
+                            border-radius: 20px;
+                            border-width: 2px;
+                            border-color: Theme.primary;
+                            width: 240px;
+                            height: 100px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                alignment: center;
+                                Text { text: "AFTER CALIBRATED GAIN"; font-size: 10px; font-weight: 700; color: Theme.primary; horizontal-alignment: center; }
+                                Text { text: "+24.5 dB"; font-size: 24px; font-weight: 800; color: Theme.on-primary-container; horizontal-alignment: center; }
+                                Text { text: "+12.5 dB added for broadcast loudness"; font-size: 10px; color: Theme.success; horizontal-alignment: center; }
+                            }
+                        }
+                    }
+
+                    // Gain Reduction Slider
+                    Rectangle {
+                        background: Theme.surface-container-low;
+                        border-radius: 20px;
+                        border-width: 1px;
+                        border-color: Theme.outline-variant;
+                        width: 500px;
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            HorizontalLayout {
+                                Text { text: "Gain Reduction / Trim Slider:"; font-size: 12px; font-weight: 600; color: Theme.on-surface; }
+                                Rectangle { horizontal-stretch: 1; }
+                                Text { text: "0.0 dB"; font-size: 12px; font-weight: 700; color: Theme.primary; }
+                            }
+                            Slider { minimum: -12.0; maximum: 0.0; value: 0.0; }
+                            Text { text: "Reduce sensitivity if room has ambient noise"; font-size: 10px; color: Theme.on-surface-variant; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
