@@ -150,6 +150,65 @@ impl Default for CalibrationConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserPreset {
+    pub id: u64,
+    pub title: String,
+    pub mic: String,
+    pub date: String,
+    pub bands: Vec<EqBand>,
+    #[serde(default = "default_true")]
+    pub is_custom: bool,
+    #[serde(default)]
+    pub summary: Option<String>,
+}
+
+pub fn default_user_presets() -> Vec<UserPreset> {
+    vec![
+        UserPreset {
+            id: 1,
+            title: "Late Night Warm Broadcast".into(),
+            mic: "Fifine AM8".into(),
+            date: "Factory Custom".into(),
+            bands: vec![
+                EqBand { freq: 85.0, gain_db: 0.0, q: 0.7, filter_type: crate::models::microphone::FilterType::HighPass },
+                EqBand { freq: 200.0, gain_db: 2.5, q: 1.1, filter_type: crate::models::microphone::FilterType::Peaking },
+                EqBand { freq: 2800.0, gain_db: 2.0, q: 1.4, filter_type: crate::models::microphone::FilterType::Peaking },
+                EqBand { freq: 11000.0, gain_db: 1.5, q: 0.8, filter_type: crate::models::microphone::FilterType::HighShelf },
+            ],
+            is_custom: true,
+            summary: Some("Bass +2.5 dB @ 200 Hz · Presence +2.0 dB @ 2.8 kHz · Air +1.5 dB @ 11 kHz".into()),
+        },
+        UserPreset {
+            id: 2,
+            title: "Twitch Gaming Voice Clarity".into(),
+            mic: "Shure MV7".into(),
+            date: "Factory Custom".into(),
+            bands: vec![
+                EqBand { freq: 95.0, gain_db: 0.0, q: 0.7, filter_type: crate::models::microphone::FilterType::HighPass },
+                EqBand { freq: 300.0, gain_db: -3.5, q: 1.3, filter_type: crate::models::microphone::FilterType::Peaking },
+                EqBand { freq: 3800.0, gain_db: 4.0, q: 1.6, filter_type: crate::models::microphone::FilterType::Peaking },
+            ],
+            is_custom: true,
+            summary: Some("Mud Cut -3.5 dB @ 300 Hz · Speech Clarity +4.0 dB @ 3.8 kHz".into()),
+        },
+        UserPreset {
+            id: 3,
+            title: "Voiceover Narration Master".into(),
+            mic: "Shure SM7B".into(),
+            date: "Factory Custom".into(),
+            bands: vec![
+                EqBand { freq: 80.0, gain_db: 0.0, q: 0.7, filter_type: crate::models::microphone::FilterType::HighPass },
+                EqBand { freq: 240.0, gain_db: -2.0, q: 1.2, filter_type: crate::models::microphone::FilterType::Peaking },
+                EqBand { freq: 4200.0, gain_db: 3.5, q: 1.5, filter_type: crate::models::microphone::FilterType::Peaking },
+                EqBand { freq: 11500.0, gain_db: 4.0, q: 0.7, filter_type: crate::models::microphone::FilterType::HighShelf },
+            ],
+            is_custom: true,
+            summary: Some("Boom Cut -2.0 dB @ 240 Hz · Articulation +3.5 dB @ 4.2 kHz · Air +4.0 dB @ 11.5 kHz".into()),
+        },
+    ]
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StudioMicConfig {
     pub default_mic_id: String,
     pub active_hw_mic: Option<String>,
@@ -157,8 +216,16 @@ pub struct StudioMicConfig {
     pub eq_bands: Vec<EqBand>,
     pub virtual_channels: Vec<VirtualChannelConfig>,
     pub sidetone_default: bool,
+    #[serde(default)]
+    pub start_minimized: bool,
     #[serde(default = "default_autostart")]
     pub autostart: bool,
+    #[serde(default = "default_true")]
+    pub autostart_minimized: bool,
+    #[serde(default = "default_user_presets")]
+    pub user_presets: Vec<UserPreset>,
+    #[serde(default)]
+    pub capture_card_source: Option<String>,
     #[serde(default)]
     pub dual_mic: DualMicConfig,
     #[serde(default)]
@@ -182,12 +249,16 @@ impl Default for StudioMicConfig {
             eq_bands: default_bands,
             virtual_channels: vec![
                 VirtualChannelConfig { id: "game".into(), name: "Game Audio".into(), icon: "sports_esports".into() },
-                VirtualChannelConfig { id: "voice".into(), name: "Discord Voice".into(), icon: "chat".into() },
+                VirtualChannelConfig { id: "voice".into(), name: "Discord Voice".into(), icon: "forum".into() },
                 VirtualChannelConfig { id: "music".into(), name: "Music / Media".into(), icon: "music_note".into() },
-                VirtualChannelConfig { id: "alerts".into(), name: "Sound Alerts".into(), icon: "notifications".into() },
+                VirtualChannelConfig { id: "capture".into(), name: "Capture Card".into(), icon: "videocam".into() },
             ],
             sidetone_default: false,
+            start_minimized: false,
             autostart: true,
+            autostart_minimized: true,
+            user_presets: default_user_presets(),
+            capture_card_source: None,
             dual_mic: DualMicConfig::default(),
             noise_clean: NoiseCleanConfig::default(),
             calibration: CalibrationConfig::default(),
@@ -206,11 +277,19 @@ impl StudioMicConfig {
         if path.exists() {
             if let Ok(content) = fs::read_to_string(&path) {
                 if let Ok(mut cfg) = serde_json::from_str::<Self>(&content) {
-                    // Clean up legacy VOD Shield channel title if present
+                    // Clean up legacy VOD Shield / alerts channel titles if present
                     for ch in &mut cfg.virtual_channels {
                         if ch.name.contains("VOD Shield") {
                             ch.name = "Music / Media".into();
                         }
+                        if ch.id == "alerts" || ch.name.contains("Sound Alerts") {
+                            ch.id = "capture".into();
+                            ch.name = "Capture Card".into();
+                            ch.icon = "videocam".into();
+                        }
+                    }
+                    if cfg.user_presets.is_empty() {
+                        cfg.user_presets = default_user_presets();
                     }
                     println!("Loaded persistent configuration from {:?}", path);
                     return cfg;

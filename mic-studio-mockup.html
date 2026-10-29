@@ -223,31 +223,37 @@
         <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)] mr-1">Quick Mute:</span>
         <button id="qa-mute-mic" onclick="qaToggleMute('mic')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Mic 1">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
+          <span class="material-symbols-outlined text-[13px]">mic</span>
           <span>Mic 1</span>
         </button>
         <button id="qa-mute-mic2" onclick="qaToggleMute('mic2')" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 hover:bg-[var(--md-sys-color-surface-container-high)] border border-cyan-500/40 m3-transition items-center gap-1.5" title="Quick Mute Mic 2 (Guest)">
           <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+          <span class="material-symbols-outlined text-[13px]">mic_external_on</span>
           <span>Mic 2</span>
         </button>
         <button id="qa-mute-game" onclick="qaToggleMute('game')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Game Audio">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
+          <span class="material-symbols-outlined text-[13px]">sports_esports</span>
           <span>Game</span>
         </button>
         <button id="qa-mute-voice" onclick="qaToggleMute('voice')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Discord Voice">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
+          <span class="material-symbols-outlined text-[13px]">forum</span>
           <span>Voice</span>
         </button>
         <button id="qa-mute-music" onclick="qaToggleMute('music')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Music">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
+          <span class="material-symbols-outlined text-[13px]">music_note</span>
           <span>Music</span>
         </button>
-        <button id="qa-mute-alerts" onclick="qaToggleMute('alerts')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Sound Alerts">
+        <button id="qa-mute-capture" onclick="qaToggleMute('capture')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Capture Card (Video In)">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
-          <span>Alerts</span>
+          <span class="material-symbols-outlined text-[13px]">videocam</span>
+          <span>Capture</span>
         </button>
       </div>
 
-      <!-- Right: Sidetone Monitor, Live Peak Meter & Calibration -->
+      <!-- Right: Vocal Compressor, Monitoring, Autostart, Start Minimized, Live Peak Meter & Calibration -->
       <div class="flex items-center gap-2">
         <!-- Vocal Compressor Quick Access -->
         <button onclick="toggleCompressorQuick()" id="qa-comp-btn" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-emerald-500/40 text-emerald-200 hover:border-emerald-400 m3-transition flex items-center gap-1.5" title="Vocal Compressor & Auto Leveler">
@@ -267,6 +273,13 @@
           <span class="material-symbols-outlined text-[15px] text-[var(--md-sys-color-primary)]">power_settings_new</span>
           <span>Autostart</span>
           <span id="qa-autostart-pill" class="w-2 h-2 rounded-full bg-[var(--md-sys-color-success)] shadow-[0_0_8px_#6dd58c]"></span>
+        </button>
+
+        <!-- Start Minimized Quick Access -->
+        <button onclick="toggleStartMinimizedQuick()" id="qa-minimized-btn" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface-variant)] hover:border-[var(--md-sys-color-primary)] m3-transition flex items-center gap-1.5" title="Launch StudioMic directly minimized to tray in background">
+          <span class="material-symbols-outlined text-[15px]">expand_more</span>
+          <span>Minimized</span>
+          <span id="qa-minimized-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span>
         </button>
 
         <!-- Peak Meter badge -->
@@ -762,12 +775,12 @@
           </div>
         </div>
 
-        <!-- Dynamic Channels Grid: 5-Channel Studio Console Strip Layout -->
-        <div class="overflow-x-auto pb-2">
-          <div id="mixer-channels-grid" class="grid grid-cols-5 gap-2.5 min-w-[720px]">
+        <!-- Dynamic Channels Grid: 5-Channel Studio Console Strip Layout (Full Width Responsive) -->
+        <div class="overflow-x-auto pb-2 w-full">
+          <div id="mixer-channels-grid" class="w-full grid grid-cols-5 gap-3 min-w-0">
           
           <!-- Ch 1: Mic Voice Output (Locked to Active Microphone Hardware & Profile) -->
-          <div class="channel-strip bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-primary)]/40 rounded-[24px] p-2.5 flex flex-col justify-between shadow-sm" data-channel-id="mic">
+          <div class="channel-strip bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-primary)]/40 rounded-[24px] p-2.5 flex flex-col justify-between shadow-sm min-w-0" data-channel-id="mic">
             <div class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-bold text-[var(--md-sys-color-primary)] uppercase tracking-wider">CH 1 · Mic Stream</span>
@@ -806,18 +819,21 @@
               </div>
             </div>
 
-            <div class="py-1.5 flex items-center justify-center gap-3.5 my-auto">
-              <!-- Active Audio Waveform Visualizer on the Left -->
-              <div class="flex flex-col items-center space-y-1">
-                <span class="text-[9px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)]">Waveform</span>
-                <div class="w-12 h-24 bg-[var(--md-sys-color-surface-container-lowest)] rounded-2xl border border-[var(--md-sys-color-outline-variant)] overflow-hidden relative shadow-inner flex items-center justify-center p-0.5">
+            <!-- Baseline Aligned Waveform & Fader (Full Width Waveform + Fader) -->
+            <div class="mt-auto pt-3 pb-1 border-t border-[var(--md-sys-color-outline-variant)]/60 flex items-end justify-between gap-2.5 h-44">
+              <!-- Active Audio Waveform Visualizer on the Left (Full Channel Width) -->
+              <div class="flex-1 flex flex-col h-full space-y-1 min-w-0">
+                <div class="flex items-center justify-between">
+                  <span class="text-[9px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)]">Waveform</span>
+                  <span id="ch1-wave-status" class="text-[9px] font-mono font-bold text-emerald-400">ACTIVE</span>
+                </div>
+                <div class="flex-1 w-full bg-[var(--md-sys-color-surface-container-lowest)] rounded-2xl border border-[var(--md-sys-color-outline-variant)] overflow-hidden relative shadow-inner p-1">
                   <canvas class="channel-waveform-canvas w-full h-full block" data-channel-id="mic"></canvas>
                 </div>
-                <span id="ch1-wave-status" class="text-[9px] font-mono font-bold text-emerald-400">ACTIVE</span>
               </div>
 
               <!-- Interactive Fader & Direct dB Entry -->
-              <div class="flex flex-col items-center space-y-1.5">
+              <div class="flex flex-col items-center space-y-1.5 shrink-0">
                 <!-- Clickable Numeric dB input badge -->
                 <div class="fader-db-badge cursor-pointer px-2 py-0.5 rounded-lg bg-[var(--md-sys-color-surface-container-highest)] hover:border hover:border-[var(--md-sys-color-primary)] border border-transparent transition-all" onclick="editFaderDb(this, 'mic')" title="Click to enter exact dB value (e.g. -3.0 dB, 0 dB, +2.5 dB)">
                   <span class="fader-db-text text-[11px] font-mono font-bold text-[var(--md-sys-color-primary)]">0.0 dB</span>
@@ -1349,6 +1365,34 @@
     </div>
   </div>
 
+  <!-- ==================== M3 SUCCESS / STATUS MODAL (REPLACES BROWSER ALERT) ==================== -->
+  <div id="modal-m3-dialog" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[var(--md-sys-color-surface-container)] border border-emerald-500/40 rounded-[32px] p-6 max-w-md w-full shadow-2xl space-y-5 m3-transition">
+      <div class="flex items-center gap-3.5">
+        <div id="m3-modal-icon-box" class="w-12 h-12 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 flex items-center justify-center shrink-0">
+          <span id="m3-modal-icon" class="material-symbols-outlined text-2xl">check_circle</span>
+        </div>
+        <div>
+          <h3 id="m3-modal-title" class="text-base font-bold text-[var(--md-sys-color-on-surface)]">Acoustic Profile Saved</h3>
+          <p id="m3-modal-subtitle" class="text-xs text-[var(--md-sys-color-primary)] font-medium">Persistent configuration updated</p>
+        </div>
+      </div>
+
+      <div id="m3-modal-body" class="space-y-2.5 text-xs text-[var(--md-sys-color-on-surface-variant)] bg-[var(--md-sys-color-surface-container-low)] p-4 rounded-2xl border border-[var(--md-sys-color-outline-variant)]">
+        <!-- Dynamic content injected here -->
+      </div>
+
+      <div class="flex gap-2.5 pt-1">
+        <button id="m3-modal-primary-btn" onclick="closeM3Dialog(true)" class="m3-state-layer flex-1 py-3 px-5 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] font-bold text-xs flex items-center justify-center gap-2 shadow-sm">
+          <span>View in Profiles</span>
+        </button>
+        <button onclick="closeM3Dialog(false)" class="m3-state-layer px-5 py-3 rounded-full border border-[var(--md-sys-color-outline-variant)] text-xs font-semibold text-[var(--md-sys-color-on-surface)]">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== M3 BROWSE INSTALLED APPS MODAL ==================== -->
   <div id="browse-apps-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-[var(--md-sys-color-surface-container)] border border-[var(--md-sys-color-outline-variant)] rounded-[32px] p-6 max-w-2xl w-full shadow-2xl space-y-4 m3-transition max-h-[85vh] flex flex-col">
@@ -1847,7 +1891,7 @@
     }
 
     // =========================================================================
-    // CUSTOM PROFILES MANAGEMENT SYSTEM
+    // CUSTOM PROFILES MANAGEMENT SYSTEM & PERSISTENCE
     // =========================================================================
     let userCustomProfiles = [
       {
@@ -1860,7 +1904,9 @@
           { id: 2, type: "Bell", freq: 200, gain: 2.5, q: 1.1 },
           { id: 3, type: "Bell", freq: 2800, gain: 2.0, q: 1.4 },
           { id: 4, type: "High Shelf", freq: 11000, gain: 1.5, q: 0.8 }
-        ]
+        ],
+        is_custom: true,
+        summary: "Warm low-end proximity boost + smooth air shelf"
       },
       {
         id: 2,
@@ -1871,7 +1917,9 @@
           { id: 1, type: "High Pass", freq: 95, gain: 0, q: 0.7 },
           { id: 2, type: "Bell", freq: 300, gain: -3.5, q: 1.3 },
           { id: 3, type: "Bell", freq: 3800, gain: 4.0, q: 1.6 }
-        ]
+        ],
+        is_custom: true,
+        summary: "Mud scoop at 300Hz + crisp 3.8kHz vocal presence"
       },
       {
         id: 3,
@@ -1883,9 +1931,50 @@
           { id: 2, type: "Bell", freq: 240, gain: -2.0, q: 1.2 },
           { id: 3, type: "Bell", freq: 4200, gain: 3.5, q: 1.5 },
           { id: 4, type: "High Shelf", freq: 11500, gain: 4.0, q: 0.7 }
-        ]
+        ],
+        is_custom: true,
+        summary: "Broadcaster curve with high air shimmer"
       }
     ];
+
+    function getProfileEQPreview(bands, summary) {
+      if (!bands || !Array.isArray(bands) || bands.length === 0) {
+        return `<div class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">${summary || '10-Band Parametric EQ Curve'}</div>`;
+      }
+      const w = 180, h = 32;
+      let pathD = `M 0,${h / 2}`;
+      for (let x = 0; x <= w; x += 6) {
+        const normF = Math.pow(10, (x / w) * Math.log10(20000 / 20) + Math.log10(20));
+        let totalGain = 0;
+        bands.forEach(b => {
+          const f0 = b.freq || 1000;
+          const g = b.gain_db !== undefined ? b.gain_db : (b.gain || 0);
+          const q = b.q || 1.0;
+          const diff = Math.log2(normF / f0);
+          const bell = Math.exp(-0.5 * Math.pow(diff / (1 / (q * 1.4)), 2));
+          totalGain += g * bell;
+        });
+        const y = Math.max(2, Math.min(h - 2, (h / 2) - (totalGain * 1.5)));
+        pathD += ` L ${x.toFixed(1)},${y.toFixed(1)}`;
+      }
+
+      return `
+        <div class="space-y-1.5 pt-1">
+          <div class="h-8 w-full bg-[var(--md-sys-color-surface-container-lowest)] rounded-lg border border-[var(--md-sys-color-outline-variant)] overflow-hidden flex items-center justify-center px-1">
+            <svg viewBox="0 0 180 32" class="w-full h-full">
+              <line x1="0" y1="16" x2="180" y2="16" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="2,2"/>
+              <path d="${pathD}" fill="none" stroke="var(--md-sys-color-primary)" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="flex items-center justify-between text-[9px] text-[var(--md-sys-color-on-surface-variant)]">
+            <span class="truncate pr-1">${summary || bands.length + ' Parametric EQ Bands'}</span>
+            <span class="shrink-0 px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/30 text-[8px] flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[10px]">auto_awesome</span>STUDIOMIC EQ
+            </span>
+          </div>
+        </div>
+      `;
+    }
 
     function renderCustomProfiles() {
       const list = document.getElementById('custom-profiles-list');
@@ -1904,7 +1993,7 @@
               <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">${p.date}</span>
             </div>
             <h4 class="text-xs font-bold text-[var(--md-sys-color-on-surface)] pt-1">${p.title}</h4>
-            <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)]">${p.bands.length} Parametric EQ Bands · Custom Tuning</p>
+            ${getProfileEQPreview(p.bands, p.summary)}
           </div>
 
           <div class="flex items-center gap-2 pt-2 border-t border-[var(--md-sys-color-outline-variant)]">
@@ -1933,6 +2022,37 @@
       document.getElementById('save-profile-modal').classList.add('hidden');
     }
 
+    let m3DialogCallback = null;
+    function showM3SuccessModal(title, subtitle, itemsHtml, primaryLabel, onPrimary) {
+      const titleEl = document.getElementById('m3-modal-title');
+      const subEl = document.getElementById('m3-modal-subtitle');
+      const bodyEl = document.getElementById('m3-modal-body');
+      const pBtn = document.getElementById('m3-modal-primary-btn');
+      if (titleEl) titleEl.textContent = title || "Success";
+      if (subEl) subEl.textContent = subtitle || "";
+      if (bodyEl) bodyEl.innerHTML = itemsHtml || "";
+      if (pBtn) {
+        if (primaryLabel) {
+          pBtn.querySelector('span').textContent = primaryLabel;
+          pBtn.classList.remove('hidden');
+        } else {
+          pBtn.classList.add('hidden');
+        }
+      }
+      m3DialogCallback = onPrimary || null;
+      const modal = document.getElementById('modal-m3-dialog');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeM3Dialog(execPrimary) {
+      const modal = document.getElementById('modal-m3-dialog');
+      if (modal) modal.classList.add('hidden');
+      if (execPrimary && typeof m3DialogCallback === 'function') {
+        m3DialogCallback();
+      }
+      m3DialogCallback = null;
+    }
+
     function commitSaveCustomProfile() {
       const titleInput = document.getElementById('custom-profile-input');
       const title = titleInput.value.trim() || "My Custom Profile";
@@ -1943,13 +2063,42 @@
         title: title,
         mic: curMicName,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        bands: JSON.parse(JSON.stringify(currentBands))
+        bands: JSON.parse(JSON.stringify(getActiveBands())),
+        is_custom: true,
+        summary: `${getActiveBands().length} Bands · Calibrated Studio Curve`
       };
 
       userCustomProfiles.unshift(newProfile);
+      if (window.ipc) {
+        window.ipc.postMessage('save_user_preset:' + JSON.stringify(newProfile));
+      }
       closeSaveProfileModal();
       switchEQSubMode('custom');
-      alert(`Saved custom profile: "${title}"!`);
+      showM3SuccessModal(
+        "Custom Profile Saved",
+        "Stored in persistent configuration across all system reboots",
+        `
+        <div class="space-y-2">
+          <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-cyan-300">graphic_eq</span>Profile Name</span>
+            <span class="text-cyan-300 font-bold">${title}</span>
+          </div>
+          <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-emerald-300">mic</span>Microphone</span>
+            <span class="text-emerald-300 font-bold">${curMicName}</span>
+          </div>
+          <div class="flex items-center justify-between py-1">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-purple-300">tune</span>Parametric Bands</span>
+            <span class="text-purple-300 font-mono font-bold">${getActiveBands().length} Active Bands Saved</span>
+          </div>
+        </div>
+        `,
+        "View Profiles",
+        () => {
+          switchTab('tab-eq');
+          switchEQSubMode('custom');
+        }
+      );
     }
 
     function loadCustomProfile(id) {
@@ -1976,6 +2125,9 @@
     function deleteCustomProfile(id) {
       if (confirm("Delete this custom profile?")) {
         userCustomProfiles = userCustomProfiles.filter(p => p.id !== id);
+        if (window.ipc) {
+          window.ipc.postMessage('delete_user_preset:' + id);
+        }
         renderCustomProfiles();
       }
     }
@@ -1993,15 +2145,25 @@
     function importProfileFile() {
       const name = prompt("Enter a title for the imported profile:", "Imported Studio Profile");
       if (!name) return;
-      userCustomProfiles.unshift({
+      const curMicName = micData[currentMicKey] ? micData[currentMicKey].name : 'Microphone';
+      const imported = {
         id: Date.now(),
         title: name,
-        mic: micData[currentMicKey].name,
+        mic: curMicName,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        bands: JSON.parse(JSON.stringify(currentBands))
-      });
+        bands: JSON.parse(JSON.stringify(getActiveBands())),
+        is_custom: true,
+        summary: "Imported Studio Profile"
+      };
+      userCustomProfiles.unshift(imported);
+      if (window.ipc) {
+        window.ipc.postMessage('save_user_preset:' + JSON.stringify(imported));
+      }
       renderCustomProfiles();
-      alert(`Imported profile "${name}" successfully!`);
+      showM3SuccessModal("Profile Imported", `Profile "${name}" imported and saved to persistent storage.`, null, "View Profiles", () => {
+        switchTab('tab-eq');
+        switchEQSubMode('custom');
+      });
     }
 
     // =========================================================================
@@ -2122,6 +2284,7 @@
       game: false,
       voice: false,
       music: false,
+      capture: false,
       alerts: false
     };
 
@@ -3018,6 +3181,34 @@
       }
     }
 
+    // Start Minimized Quick Toggle
+    window.isStartMinimized = false;
+    function toggleStartMinimizedQuick() {
+      window.isStartMinimized = !window.isStartMinimized;
+      window.setStartMinimizedUI(window.isStartMinimized);
+      if (window.ipc) {
+        window.ipc.postMessage('toggle_start_minimized:' + (window.isStartMinimized ? '1' : '0'));
+      }
+    }
+
+    window.setStartMinimizedUI = function(enabled) {
+      window.isStartMinimized = Boolean(enabled);
+      const pill = document.getElementById('qa-minimized-pill');
+      if (pill) {
+        pill.className = window.isStartMinimized
+          ? "w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#38bdf8]"
+          : "w-2 h-2 rounded-full bg-neutral-600";
+      }
+      const btn = document.getElementById('qa-minimized-btn');
+      if (btn) {
+        if (window.isStartMinimized) {
+          btn.className = "px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-cyan-500/40 text-cyan-200 hover:border-cyan-400 m3-transition flex items-center gap-1.5";
+        } else {
+          btn.className = "px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface-variant)] hover:border-[var(--md-sys-color-primary)] m3-transition flex items-center gap-1.5";
+        }
+      }
+    };
+
     // External sync handlers called from Rust backend / Taskbar tray events
     window.setMicMuteUI = function(mute) {
       window.channelMuteStates.mic = mute;
@@ -3392,11 +3583,12 @@
           else if (chId === 'mic2') baseHue = 190; // cyan
           else if (chId === 'voice') baseHue = 215; // blue
           else if (chId === 'game') baseHue = 45; // amber/orange
+          else if (chId === 'capture') baseHue = 180; // teal
           else baseHue = 160;
 
-          const numBars = 6;
-          const spacing = 3;
-          const barWidth = Math.floor((w - (numBars - 1) * spacing) / numBars);
+          const numBars = Math.max(6, Math.min(24, Math.floor((w - 4) / 7)));
+          const spacing = 2;
+          const barWidth = Math.max(3, Math.floor((w - 4 - (numBars - 1) * spacing) / numBars));
           const isMuted = window.channelMuteStates && window.channelMuteStates[chId];
 
           const rawDb = (window.channelPeakLevels && window.channelPeakLevels[chId] !== undefined)
@@ -3470,21 +3662,21 @@
     // DYNAMIC VIRTUAL MIX CHANNELS & EQ DEFAULTS (TAB 2 & TAB 1)
     // =========================================================================
     let mixerChannels = [
-      { id: "game", name: "Game Audio" },
+      { id: "game", name: "Apps & Games" },
       { id: "voice", name: "Discord Voice" },
       { id: "music", name: "Music / Media" },
-      { id: "alerts", name: "Sound Alerts" }
+      { id: "capture", name: "Capture Card" }
     ];
 
     function getChannelIcon(id, name) {
       const s = (id + " " + name).toLowerCase();
-      if (s.includes("game") || s.includes("steam")) return "sports_esports";
-      if (s.includes("voice") || s.includes("discord") || s.includes("chat")) return "chat";
-      if (s.includes("music") || s.includes("spotify") || s.includes("vod")) return "music_note";
-      if (s.includes("alert") || s.includes("notif")) return "notifications";
+      if (s.includes("capture") || s.includes("cam") || s.includes("video") || s.includes("hdmi")) return "videocam";
+      if (s.includes("game") || s.includes("steam") || s.includes("app")) return "sports_esports";
+      if (s.includes("voice") || s.includes("discord") || s.includes("chat")) return "forum";
+      if (s.includes("music") || s.includes("spotify") || s.includes("media") || s.includes("vod")) return "music_note";
       if (s.includes("browser") || s.includes("chrome") || s.includes("zen")) return "language";
       if (s.includes("mic")) return "mic";
-      return "instant_mix";
+      return "developer_board";
     }
 
     function getAssignedRoute(chId) {
@@ -3492,15 +3684,18 @@
         const r = window.__SAVED_CONFIG__.assigned_channel_routes[chId];
         if (r) {
           if (r.startsWith('node:')) return 'browser';
+          if (r === 'steam') return 'browse';
+          if (r === 'alerts') return 'capture';
           return r;
         }
       }
-      if (chId === 'game') return 'steam';
+      if (chId === 'game') return 'browse';
       if (chId === 'voice') return 'discord';
       if (chId === 'music') return 'media_player';
-      if (chId === 'alerts') return 'alerts';
+      if (chId === 'capture' || chId === 'alerts') return 'capture';
       return 'bus';
     }
+
     function renderMixerChannelsGrid() {
       const container = document.getElementById('dynamic-channels-container');
       if (!container) return;
@@ -3515,7 +3710,7 @@
         const badgeColor = isVodShield ? "text-purple-400" : "text-[var(--md-sys-color-on-surface-variant)]";
 
         const card = document.createElement('div');
-        card.className = `channel-strip bg-[var(--md-sys-color-surface-container-low)] border ${borderClass} rounded-[24px] p-2.5 flex flex-col justify-between shadow-sm relative`;
+        card.className = `channel-strip bg-[var(--md-sys-color-surface-container-low)] border ${borderClass} rounded-[24px] p-2.5 flex flex-col justify-between shadow-sm relative min-w-0`;
         card.dataset.channelId = ch.id;
 
         card.innerHTML = `
@@ -3539,20 +3734,34 @@
             <div>
               <label class="text-[10px] text-[var(--md-sys-color-on-surface-variant)] block mb-1">Route Audio From:</label>
               <select onchange="updateChannelSource(this, '${ch.id}')" class="channel-route-dropdown w-full text-xs font-semibold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-2 py-1.5 border border-[var(--md-sys-color-outline-variant)] outline-none cursor-pointer" data-channel-id="${ch.id}">
-                <option value="steam" ${getAssignedRoute(ch.id) === 'steam' ? 'selected' : ''}>Steam & Proton Games</option>
+                <option value="browse" ${getAssignedRoute(ch.id) === 'browse' ? 'selected' : ''}>Active Apps &amp; Games (Auto-Detect)</option>
                 <option value="discord" ${getAssignedRoute(ch.id) === 'discord' ? 'selected' : ''}>Discord Voice Chat</option>
                 <option value="media_player" ${getAssignedRoute(ch.id) === 'media_player' ? 'selected' : ''}>Media Player</option>
                 <option value="browser" ${getAssignedRoute(ch.id) === 'browser' ? 'selected' : ''}>Web Browser</option>
+                <option value="capture" ${getAssignedRoute(ch.id) === 'capture' ? 'selected' : ''}>Hardware: Capture Card (Video &amp; Audio)</option>
                 <option value="mic2" ${getAssignedRoute(ch.id) === 'mic2' ? 'selected' : ''}>Microphone 2 (Secondary Mic - DSP)</option>
                 <option value="linein" ${getAssignedRoute(ch.id) === 'linein' ? 'selected' : ''}>Hardware: Line In (Physical Interface)</option>
-                <option value="alerts" ${getAssignedRoute(ch.id) === 'alerts' ? 'selected' : ''}>OBS Sound Alerts</option>
                 <option value="bus" ${getAssignedRoute(ch.id) === 'bus' ? 'selected' : ''}>PipeWire Virtual Bus</option>
-                <option value="browse">Browse Installed Apps...</option>
+              </select>
+            </div>
+
+            <!-- Dedicated Sub-Picker for Hardware Capture Cards (Video & Audio) -->
+            <div id="capture-picker-${ch.id}" class="${ch.id === 'capture' || getAssignedRoute(ch.id) === 'capture' ? '' : 'hidden'} channel-capture-picker p-2 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-1">
+              <div class="flex items-center justify-between">
+                <label class="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[13px]">videocam</span>
+                  <span>Hardware Capture Card:</span>
+                </label>
+                <button onclick="rescanCaptureCards('${ch.id}')" class="text-[9px] font-mono text-cyan-400 hover:underline flex items-center gap-0.5" title="Rescan hardware capture cards">
+                  <span class="material-symbols-outlined text-[11px]">refresh</span>Scan
+                </button>
+              </div>
+              <select onchange="updateSelectedCaptureCard(this, '${ch.id}')" class="w-full text-xs font-semibold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 rounded-xl px-2 py-1.5 border border-cyan-500/40 outline-none cursor-pointer" id="capture-select-${ch.id}">
               </select>
             </div>
 
             <!-- Dedicated Sub-Picker for Installed Linux Media Players -->
-            <div id="media-picker-${ch.id}" class="${ch.id === 'music' ? '' : 'hidden'} channel-media-picker p-2 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-1">
+            <div id="media-picker-${ch.id}" class="${ch.id === 'music' && getAssignedRoute(ch.id) === 'media_player' ? '' : 'hidden'} channel-media-picker p-2 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-1">
               <div class="flex items-center justify-between">
                 <label class="text-[10px] font-bold text-purple-300 flex items-center gap-1">
                   <span class="material-symbols-outlined text-[13px]">play_circle</span>
@@ -3565,7 +3774,7 @@
             </div>
 
             <!-- Dedicated Sub-Picker for Active Web Browser Audio Tabs -->
-            <div id="browser-picker-${ch.id}" class="hidden channel-browser-picker p-2 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-1">
+            <div id="browser-picker-${ch.id}" class="${getAssignedRoute(ch.id) === 'browser' ? '' : 'hidden'} channel-browser-picker p-2 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-1">
               <div class="flex items-center justify-between">
                 <label class="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
                   <span class="material-symbols-outlined text-[13px]">language</span>
@@ -3578,7 +3787,7 @@
             </div>
 
             <!-- Dedicated Sub-Picker for Hardware Line In (Physical Non-Virtual Devices) -->
-            <div id="linein-picker-${ch.id}" class="hidden channel-linein-picker p-2 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-1">
+            <div id="linein-picker-${ch.id}" class="${getAssignedRoute(ch.id) === 'linein' ? '' : 'hidden'} channel-linein-picker p-2 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-1">
               <div class="flex items-center justify-between">
                 <label class="text-[10px] font-bold text-emerald-300 flex items-center gap-1">
                   <span class="material-symbols-outlined text-[13px]">settings_input_component</span>
@@ -3591,18 +3800,21 @@
             </div>
           </div>
 
-          <div class="py-1.5 flex items-center justify-center gap-3.5 my-auto">
-            <!-- Active Audio Waveform Visualizer on the Left -->
-            <div class="flex flex-col items-center space-y-1">
-              <span class="text-[9px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)]">Waveform</span>
-              <div class="w-12 h-24 bg-[var(--md-sys-color-surface-container-lowest)] rounded-2xl border border-[var(--md-sys-color-outline-variant)] overflow-hidden relative shadow-inner flex items-center justify-center p-0.5">
+          <!-- Baseline Aligned Waveform & Fader (Full Width Waveform + Fader) -->
+          <div class="mt-auto pt-3 pb-1 border-t border-[var(--md-sys-color-outline-variant)]/60 flex items-end justify-between gap-2.5 h-44">
+            <!-- Active Audio Waveform Visualizer on the Left (Full Channel Width) -->
+            <div class="flex-1 flex flex-col h-full space-y-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="text-[9px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)]">Waveform</span>
+                <span class="channel-live-status text-[9px] font-mono font-bold ${isVodShield ? 'text-purple-400' : 'text-emerald-400'}">ACTIVE</span>
+              </div>
+              <div class="flex-1 w-full bg-[var(--md-sys-color-surface-container-lowest)] rounded-2xl border border-[var(--md-sys-color-outline-variant)] overflow-hidden relative shadow-inner p-1">
                 <canvas class="channel-waveform-canvas w-full h-full block" data-channel-id="${ch.id}"></canvas>
               </div>
-              <span class="channel-live-status text-[9px] font-mono font-bold ${isVodShield ? 'text-purple-400' : 'text-emerald-400'}">ACTIVE</span>
             </div>
 
             <!-- Fader Column: Direct dB entry & Active Fader Track with Thumb -->
-            <div class="flex flex-col items-center space-y-1.5">
+            <div class="flex flex-col items-center space-y-1.5 shrink-0">
               <div class="fader-db-badge cursor-pointer px-2 py-0.5 rounded-lg bg-[var(--md-sys-color-surface-container-highest)] hover:border hover:border-[var(--md-sys-color-primary)] border border-transparent transition-all" onclick="editFaderDb(this, '${ch.id}')" title="Click to enter exact dB value (e.g. -3.0 dB, 0 dB, +2.5 dB)">
                 <span class="fader-db-text text-[11px] font-mono font-bold ${isVodShield ? 'text-purple-400' : 'text-[var(--md-sys-color-primary)]'}">0.0 dB</span>
               </div>
@@ -3626,10 +3838,57 @@
           </div>
         `;
         container.appendChild(card);
-        if (ch.id === 'music') {
+        if (ch.id === 'music' || getAssignedRoute(ch.id) === 'media_player') {
           renderMediaPickerOptions(ch.id);
         }
+        if (ch.id === 'capture' || getAssignedRoute(ch.id) === 'capture') {
+          renderCaptureCardOptions(ch.id);
+        }
       });
+    }
+
+    function renderCaptureCardOptions(chId) {
+      const sel = document.getElementById(`capture-select-${chId}`);
+      if (!sel) return;
+      sel.innerHTML = '';
+
+      const cards = window.__INITIAL_CAPTURE_CARDS__ || [];
+      const savedSrc = window.__SAVED_CONFIG__ && window.__SAVED_CONFIG__.capture_card_source;
+
+      if (cards.length > 0) {
+        cards.forEach(card => {
+          const opt = document.createElement('option');
+          opt.value = card.audio_source;
+          opt.textContent = `${card.name} (${card.video_device})`;
+          if (savedSrc && (savedSrc === card.audio_source || savedSrc === card.name)) {
+            opt.selected = true;
+          }
+          sel.appendChild(opt);
+        });
+        if (sel.options.length > 0 && !savedSrc) {
+          updateSelectedCaptureCard(sel, chId);
+        }
+      } else {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.textContent = "No Hardware Capture Card Detected";
+        sel.appendChild(opt);
+      }
+    }
+
+    function rescanCaptureCards(chId) {
+      if (window.ipc) {
+        window.ipc.postMessage('route_capture_card:scan:' + chId);
+      }
+      renderCaptureCardOptions(chId);
+    }
+
+    function updateSelectedCaptureCard(selectElem, chId) {
+      const audioSrc = selectElem.value;
+      if (!audioSrc) return;
+      if (window.ipc) {
+        window.ipc.postMessage(`route_capture_card:${audioSrc}:${chId}`);
+      }
     }
 
     function updateChannelSource(selectElem, chId) {
@@ -3637,43 +3896,45 @@
       const mediaPicker = document.getElementById(`media-picker-${chId}`);
       const browserPicker = document.getElementById(`browser-picker-${chId}`);
       const lineinPicker = document.getElementById(`linein-picker-${chId}`);
+      const capturePicker = document.getElementById(`capture-picker-${chId}`);
 
       if (val === 'media_player') {
         if (mediaPicker) mediaPicker.classList.remove('hidden');
         if (browserPicker) browserPicker.classList.add('hidden');
         if (lineinPicker) lineinPicker.classList.add('hidden');
+        if (capturePicker) capturePicker.classList.add('hidden');
         renderMediaPickerOptions(chId);
         if (window.ipc) window.ipc.postMessage(`route_app:media_player:${chId}`);
       } else if (val === 'browser') {
         if (browserPicker) browserPicker.classList.remove('hidden');
         if (mediaPicker) mediaPicker.classList.add('hidden');
         if (lineinPicker) lineinPicker.classList.add('hidden');
+        if (capturePicker) capturePicker.classList.add('hidden');
         renderBrowserPickerOptions(chId);
         if (window.ipc) window.ipc.postMessage(`route_app:browser:${chId}`);
       } else if (val === 'discord') {
         if (mediaPicker) mediaPicker.classList.add('hidden');
         if (browserPicker) browserPicker.classList.add('hidden');
         if (lineinPicker) lineinPicker.classList.add('hidden');
+        if (capturePicker) capturePicker.classList.add('hidden');
         if (window.ipc) window.ipc.postMessage(`route_app:discord:${chId}`);
-      } else if (val === 'steam') {
+      } else if (val === 'capture') {
+        if (capturePicker) capturePicker.classList.remove('hidden');
         if (mediaPicker) mediaPicker.classList.add('hidden');
         if (browserPicker) browserPicker.classList.add('hidden');
         if (lineinPicker) lineinPicker.classList.add('hidden');
-        if (window.ipc) window.ipc.postMessage(`route_app:steam:${chId}`);
-      } else if (val === 'alerts') {
-        if (mediaPicker) mediaPicker.classList.add('hidden');
-        if (browserPicker) browserPicker.classList.add('hidden');
-        if (lineinPicker) lineinPicker.classList.add('hidden');
-        if (window.ipc) window.ipc.postMessage(`route_app:alerts:${chId}`);
+        renderCaptureCardOptions(chId);
       } else if (val === 'linein') {
         if (lineinPicker) lineinPicker.classList.remove('hidden');
         if (mediaPicker) mediaPicker.classList.add('hidden');
         if (browserPicker) browserPicker.classList.add('hidden');
+        if (capturePicker) capturePicker.classList.add('hidden');
         renderLineInPickerOptions(chId);
       } else if (val === 'mic2') {
         if (lineinPicker) lineinPicker.classList.add('hidden');
         if (mediaPicker) mediaPicker.classList.add('hidden');
         if (browserPicker) browserPicker.classList.add('hidden');
+        if (capturePicker) capturePicker.classList.add('hidden');
         const heroMic2Sel = document.getElementById('hw-mic2-selector');
         const hw2 = heroMic2Sel ? heroMic2Sel.value : null;
         if (hw2 && window.ipc) {
@@ -3683,11 +3944,13 @@
         if (mediaPicker) mediaPicker.classList.add('hidden');
         if (browserPicker) browserPicker.classList.add('hidden');
         if (lineinPicker) lineinPicker.classList.add('hidden');
+        if (capturePicker) capturePicker.classList.add('hidden');
         openBrowseAppsModal(selectElem, chId);
       } else {
         if (mediaPicker) mediaPicker.classList.add('hidden');
         if (browserPicker) browserPicker.classList.add('hidden');
         if (lineinPicker) lineinPicker.classList.add('hidden');
+        if (capturePicker) capturePicker.classList.add('hidden');
         if (window.ipc) window.ipc.postMessage(`route_app:${val}:${chId}`);
       }
     }
@@ -3905,15 +4168,15 @@
     }
 
     function resetChannelsToDefault() {
-      if (!confirm("Reset mixer channels to default 4 channels (Game, Voice, Music, Alerts)?")) return;
+      if (!confirm("Reset mixer channels to default 4 channels (Apps, Voice, Music, Capture Card)?")) return;
       if (window.ipc) {
         window.ipc.postMessage('reset_default_channels');
       }
       mixerChannels = [
-        { id: "game", name: "Game Audio" },
+        { id: "game", name: "Apps & Games" },
         { id: "voice", name: "Discord Voice" },
         { id: "music", name: "Music / Media" },
-        { id: "alerts", name: "Sound Alerts" }
+        { id: "capture", name: "Capture Card" }
       ];
       renderMixerChannelsGrid();
     }
@@ -4519,13 +4782,16 @@
       ncLabel();
       applyNoiseClean();
 
-      userCustomProfiles.unshift({
+      const newPreset = {
         id: Date.now(),
         title: profileName,
         mic: curMic,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        bands: JSON.parse(JSON.stringify(currentBands))
-      });
+        bands: JSON.parse(JSON.stringify(currentBands)),
+        is_custom: true,
+        summary: `Gate ${autoCalculatedGate.toFixed(1)}dB · De-Ess ${autoCalculatedDeess.toFixed(1)}dB · AI Clean`
+      };
+      userCustomProfiles.unshift(newPreset);
 
       const calibPayload = {
         preamp_gain_db: effGain,
@@ -4535,17 +4801,52 @@
         auto_deesser: true,
         auto_noise_removal: true,
         calculated_gate_db: autoCalculatedGate,
-        calculated_deess_db: autoCalculatedDeess
+        calculated_deess_db: autoCalculatedDeess,
+        profile_name: profileName,
+        bands: currentBands
       };
 
       if (window.ipc) {
         window.ipc.postMessage('save_calibration:' + JSON.stringify(calibPayload));
       }
-      if (window.__SAVED_CONFIG__) window.__SAVED_CONFIG__.calibration = calibPayload;
+      if (window.__SAVED_CONFIG__) {
+        window.__SAVED_CONFIG__.calibration = calibPayload;
+        window.__SAVED_CONFIG__.user_presets = userCustomProfiles;
+      }
 
-      alert(`Acoustic Profile Saved!\n\n• Activated DeepFilterNet (EasyEffects AI Core): 80 dB attenuation\n• Applied Auto Noise Gate: ${autoCalculatedGate.toFixed(1)} dBFS\n• Applied Auto De-Esser: ${autoCalculatedDeess.toFixed(1)} dB @ 5.8 kHz\n• Applied Auto-Gain / Compressor: +${(effGain * 0.5).toFixed(1)} dB Leveler\n• Activated Brick Wall Limiter (-2.0 dB ceiling for OBS)\n\nStored in persistent configuration across all system reboots.`);
-      switchTab('tab-eq');
-      switchEQSubMode('custom');
+      showM3SuccessModal(
+        "Acoustic Profile Calibrated & Saved",
+        "Stored in persistent config across all system reboots",
+        `
+        <div class="space-y-2">
+          <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-cyan-300">psychology</span>DeepFilterNet AI</span>
+            <span class="text-cyan-300 font-mono font-bold">80 dB Attenuation</span>
+          </div>
+          <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-emerald-300">door_sliding</span>Auto Noise Gate</span>
+            <span class="text-emerald-300 font-mono font-bold">${autoCalculatedGate.toFixed(1)} dBFS</span>
+          </div>
+          <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-amber-300">equalizer</span>Dynamic De-Esser</span>
+            <span class="text-amber-300 font-mono font-bold">${autoCalculatedDeess.toFixed(1)} dB @ 5.8kHz</span>
+          </div>
+          <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-purple-300">compress</span>Auto Gain / Leveler</span>
+            <span class="text-purple-300 font-mono font-bold">+${(effGain * 0.5).toFixed(1)} dB Leveler</span>
+          </div>
+          <div class="flex items-center justify-between py-1">
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-rose-300">shield</span>OBS Brickwall Limiter</span>
+            <span class="text-rose-300 font-mono font-bold">-2.0 dBFS Safe Ceiling</span>
+          </div>
+        </div>
+        `,
+        "View in Custom Profiles",
+        () => {
+          switchTab('tab-eq');
+          switchEQSubMode('custom');
+        }
+      );
     }
 
     function recalibrate() {
@@ -4590,9 +4891,15 @@
           if (cfg.calibration) { baseAfterGain = cfg.calibration.preamp_gain_db || 0; }
           if (Array.isArray(cfg.virtual_channels) && cfg.virtual_channels.length > 0) {
             mixerChannels = cfg.virtual_channels.map(c => ({
-              id: c.id,
-              name: c.name
+              id: c.id === 'alerts' ? 'capture' : c.id,
+              name: c.id === 'alerts' ? 'Capture Card' : (c.id === 'game' ? 'Apps & Games' : c.name)
             }));
+          }
+          if (Array.isArray(cfg.user_presets) && cfg.user_presets.length > 0) {
+            userCustomProfiles = cfg.user_presets;
+          }
+          if (cfg.start_minimized !== undefined) {
+            window.setStartMinimizedUI(cfg.start_minimized);
           }
           if (Array.isArray(cfg.eq_bands) && cfg.eq_bands.length === 10) {
             cfg.eq_bands.forEach((b, i) => {

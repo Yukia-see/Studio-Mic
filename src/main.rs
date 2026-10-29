@@ -28,6 +28,7 @@ pub enum AppEvent {
     SetDeepFilter(bool),
     SetChannelMute(String, bool),
     ToggleAutostart(bool),
+    ToggleStartMinimized(bool),
 }
 
 fn parse_client_bands(json_str: &str) -> Result<Vec<models::microphone::EqBand>, Box<dyn std::error::Error>> {
@@ -231,11 +232,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let args: Vec<String> = std::env::args().collect();
-    let start_in_background = args.iter().any(|a| a == "--background" || a == "--tray" || a == "-b");
+    let start_in_background = args.iter().any(|a| a == "--background" || a == "--tray" || a == "-b")
+        || persistent_config.start_minimized;
 
     let is_autostart = autostart::AutostartManager::is_enabled();
     if persistent_config.autostart && !is_autostart {
-        let _ = autostart::AutostartManager::set_enabled(true);
+        let _ = autostart::AutostartManager::set_enabled_with_minimized(true, persistent_config.autostart_minimized);
     }
 
     let tray_state = std::sync::Arc::new(std::sync::Mutex::new(tray::TrayState {
@@ -246,8 +248,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         game_muted: false,
         voice_muted: false,
         music_muted: false,
-        alerts_muted: false,
+        capture_muted: false,
         autostart: autostart::AutostartManager::is_enabled(),
+        start_minimized: persistent_config.start_minimized,
     }));
     let tray_state_ipc = tray_state.clone();
     let tray_state_loop = tray_state.clone();
@@ -260,11 +263,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let window = WindowBuilder::new()
         .with_title("StudioMic · Material Design 3")
         .with_inner_size(tao::dpi::LogicalSize::new(1440.0, 920.0))
+        .with_min_inner_size(tao::dpi::LogicalSize::new(960.0, 680.0))
+        .with_resizable(true)
         .with_visible(!start_in_background)
         .build(&event_loop)?;
 
     // Embed the complete, verified M3 HTML mockup
     let html_content = include_str!("../mic-studio-mockup.html");
+
+    // Discover capture cards (devices with both video and audio)
+    let capture_cards = audio::device_discovery::DeviceDiscovery::get_capture_cards();
+    let capture_cards_json = serde_json::to_string(&capture_cards)?;
 
     // Inject saved config and discovered system assets into webview before DOM load
     let initial_config_json = serde_json::to_string(&*config_arc.lock().unwrap())?;
@@ -276,17 +285,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let live_streams_json = serde_json::to_string(&active_streams)?;
     let is_autostart_now = autostart::AutostartManager::is_enabled();
 
+    let target_tab = if std::env::args().any(|a| a == "--eq") {
+        "tab-eq"
+    } else if std::env::args().any(|a| a == "--noise") {
+        "tab-noise"
+    } else if std::env::args().any(|a| a == "--calib") {
+        "tab-calib"
+    } else {
+        "tab-mixer"
+    };
+
     let init_script = format!(
-        "window.__INITIAL_TAB__ = 'tab-noise';\n\
+        "window.__INITIAL_TAB__ = '{}';\n\
          window.__SAVED_CONFIG__ = {};\n\
          window.__INITIAL_HARDWARE_MICS__ = {};\n\
+         window.__INITIAL_CAPTURE_CARDS__ = {};\n\
          window.__INITIAL_INSTALLED_PLAYERS__ = {};\n\
          window.__INITIAL_INSTALLED_BROWSERS__ = {};\n\
          window.__INITIAL_BROWSER_TABS__ = {};\n\
          window.__INITIAL_INSTALLED_APPS__ = {};\n\
          window.__INITIAL_LIVE_STREAMS__ = {};\n\
          window.__INITIAL_AUTOSTART__ = {};",
-        initial_config_json, hw_mics_json, players_json, browsers_json, browser_tabs_json, apps_json, live_streams_json, is_autostart_now
+        target_tab, initial_config_json, hw_mics_json, capture_cards_json, players_json, browsers_json, browser_tabs_json, apps_json, live_streams_json, is_autostart_now
     );
 
     let builder = WebViewBuilder::new()
@@ -396,13 +416,107 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             } else if body.starts_with("save_calibration:") {
                 let json_str = &body["save_calibration:".len()..];
-                if let Ok(calib) = serde_json::from_str::<config::CalibrationConfig>(json_str) {
+                #[derive(serde::Deserialize)]
+                struct CalibSaveMsg {
+                    preamp_gain_db: f32,
+                    calibrated_mic_id: Option<String>,
+                    voice_warmth_db: Option<f32>,
+                    voice_presence_db: Option<f32>,
+                    bands: Option<Vec<models::microphone::EqBand>>,
+                    profile_name: Option<String>,
+                }
+                if let Ok(calib) = serde_json::from_str::<CalibSaveMsg>(json_str) {
                     audio::daemon::PipeWireDaemon::set_preamp_trim(calib.preamp_gain_db);
                     let mut cfg = config_ipc.lock().unwrap();
-                    cfg.calibration = calib;
+                    cfg.calibration.preamp_gain_db = calib.preamp_gain_db;
+                    if let Some(ref mid) = calib.calibrated_mic_id {
+                        cfg.calibration.calibrated_mic_id = mid.clone();
+                    }
+                    if let Some(w) = calib.voice_warmth_db { cfg.calibration.voice_warmth_db = w; }
+                    if let Some(p) = calib.voice_presence_db { cfg.calibration.voice_presence_db = p; }
+                    if let Some(ref bands) = calib.bands {
+                        if !bands.is_empty() {
+                            cfg.eq_bands = bands.clone();
+                            if let Some(ref d) = *daemon_ipc.lock().unwrap() {
+                                let _ = d.reload_bands(bands);
+                            }
+                        }
+                    }
+                    if let Some(ref pname) = calib.profile_name {
+                        cfg.preset_name = pname.clone();
+                        if let Some(ref bands) = calib.bands {
+                            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+                            let summary_parts: Vec<String> = bands.iter()
+                                .filter(|b| b.gain_db.abs() > 0.4)
+                                .take(3)
+                                .map(|b| format!("{:.0}Hz: {:+.1}dB", b.freq, b.gain_db))
+                                .collect();
+                            let summary = if summary_parts.is_empty() { None } else { Some(summary_parts.join(" · ")) };
+                            let user_preset = config::UserPreset {
+                                id: now,
+                                title: pname.clone(),
+                                mic: calib.calibrated_mic_id.clone().unwrap_or_else(|| cfg.default_mic_id.clone()),
+                                date: "Calibrated Profile".into(),
+                                bands: bands.clone(),
+                                is_custom: true,
+                                summary,
+                            };
+                            cfg.user_presets.retain(|p| p.title != *pname);
+                            cfg.user_presets.insert(0, user_preset);
+                        }
+                    }
                     let _ = cfg.save();
-                    println!("Persisted Tab 4 VoiceMatch Calibration profile!");
+                    println!("Persisted Tab 4 VoiceMatch Calibration profile, EQ bands, and User Preset!");
                 }
+            } else if body.starts_with("save_user_preset:") {
+                let json_str = &body["save_user_preset:".len()..];
+                if let Ok(preset) = serde_json::from_str::<config::UserPreset>(json_str) {
+                    let mut cfg = config_ipc.lock().unwrap();
+                    cfg.user_presets.retain(|p| p.id != preset.id && p.title != preset.title);
+                    cfg.user_presets.insert(0, preset);
+                    let _ = cfg.save();
+                    println!("Persisted user custom preset to config.json");
+                }
+            } else if body.starts_with("delete_user_preset:") {
+                let id_str = &body["delete_user_preset:".len()..];
+                if let Ok(id) = id_str.parse::<u64>() {
+                    let mut cfg = config_ipc.lock().unwrap();
+                    cfg.user_presets.retain(|p| p.id != id);
+                    let _ = cfg.save();
+                    println!("Deleted user custom preset ID {}", id);
+                }
+            } else if body.starts_with("route_capture_card:") {
+                let parts: Vec<&str> = body.split(':').collect();
+                if parts.len() >= 3 {
+                    let audio_source = parts[1];
+                    let channel_id = parts[2];
+                    let _ = audio::device_discovery::DeviceDiscovery::link_capture_card_to_channel(audio_source, channel_id);
+                    let mut cfg = config_ipc.lock().unwrap();
+                    cfg.capture_card_source = Some(audio_source.to_string());
+                    let _ = cfg.save();
+                    println!("Linked capture card '{}' to Channel '{}'", audio_source, channel_id);
+                }
+            } else if body.starts_with("toggle_start_minimized:") {
+                let enable = body.ends_with(":1");
+                {
+                    let mut cfg = config_ipc.lock().unwrap();
+                    cfg.start_minimized = enable;
+                    let _ = cfg.save();
+                }
+                tray_state_ipc.lock().unwrap().start_minimized = enable;
+                if let Some(ref h) = *tray_handle_ipc.lock().unwrap() {
+                    let _ = h.update(|_| {});
+                }
+                println!("Toggled start minimized: {}", enable);
+            } else if body.starts_with("toggle_autostart_minimized:") {
+                let enable = body.ends_with(":1");
+                {
+                    let mut cfg = config_ipc.lock().unwrap();
+                    cfg.autostart_minimized = enable;
+                    let _ = cfg.save();
+                    let _ = autostart::AutostartManager::set_enabled_with_minimized(cfg.autostart, enable);
+                }
+                println!("Toggled autostart minimized: {}", enable);
             } else if body.starts_with("dual_mic:") {
                 let enable = body.ends_with(":1");
                 config_ipc.lock().unwrap().dual_mic.enabled = enable;
@@ -440,6 +554,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else if body.starts_with("eq_mic2:") {
                 let json_str = &body["eq_mic2:".len()..];
                 if let Ok(eq_bands) = parse_client_bands(json_str) {
+                    {
+                        let mut cfg = config_ipc.lock().unwrap();
+                        cfg.dual_mic.eq_bands = eq_bands.clone();
+                        let _ = cfg.save();
+                    }
                     if let Some(ref d) = *daemon_ipc.lock().unwrap() {
                         let _ = d.reload_mic2_bands(&eq_bands);
                     }
@@ -528,6 +647,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else if body.starts_with("eq:") {
                 let json_str = &body["eq:".len()..];
                 if let Ok(eq_bands) = parse_client_bands(json_str) {
+                    {
+                        let mut cfg = config_ipc.lock().unwrap();
+                        cfg.eq_bands = eq_bands.clone();
+                        let _ = cfg.save();
+                    }
                     if let Some(ref d) = *daemon_ipc.lock().unwrap() {
                         let _ = d.reload_bands(&eq_bands);
                     }
@@ -720,7 +844,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "game" => st.game_muted = *mute,
                         "voice" => st.voice_muted = *mute,
                         "music" => st.music_muted = *mute,
-                        "alerts" => st.alerts_muted = *mute,
+                        "capture" | "alerts" => st.capture_muted = *mute,
                         _ => (),
                     }
                 }
@@ -730,6 +854,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = _webview.evaluate_script(&format!(
                     "if (window.setChannelMuteUI) {{ window.setChannelMuteUI('{}', {}); }}",
                     channel, mute
+                ));
+            }
+            Event::UserEvent(AppEvent::ToggleStartMinimized(enable)) => {
+                {
+                    let mut cfg = config_arc.lock().unwrap();
+                    cfg.start_minimized = *enable;
+                    let _ = cfg.save();
+                }
+                tray_state_loop.lock().unwrap().start_minimized = *enable;
+                if let Some(ref h) = *tray_handle_loop.lock().unwrap() {
+                    let _ = h.update(|_| {});
+                }
+                let _ = _webview.evaluate_script(&format!(
+                    "if (window.setStartMinimizedUI) {{ window.setStartMinimizedUI({}); }}",
+                    enable
                 ));
             }
             Event::UserEvent(AppEvent::ToggleAutostart(enable)) => {

@@ -17,24 +17,36 @@ impl AutostartManager {
         Self::desktop_entry_path().exists()
     }
 
-    pub fn set_enabled(enabled: bool) -> std::io::Result<()> {
+    pub fn set_enabled_with_minimized(enabled: bool, minimized: bool) -> std::io::Result<()> {
         let path = Self::desktop_entry_path();
         if enabled {
             let dir = Self::autostart_dir();
             if !dir.exists() {
                 fs::create_dir_all(&dir)?;
             }
-            let desktop_content = r#"[Desktop Entry]
+            let current_exe = std::env::current_exe()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| "studiomic".into());
+            let exec_cmd = if minimized {
+                format!("{} --background", current_exe)
+            } else {
+                current_exe
+            };
+            let desktop_content = format!(
+r#"[Desktop Entry]
 Type=Application
 Name=StudioMic
 Comment=Professional Broadcast Microphone Tuning & Virtual Mixing Suite
-Exec=/home/yukia/.local/bin/studiomic --background
+Exec={}
 Icon=audio-input-microphone
 Terminal=false
 Categories=AudioVideo;Audio;Mixer;Recorder;
+StartupWMClass=studiomic
 X-GNOME-Autostart-enabled=true
 StartupNotify=false
-"#;
+"#,
+                exec_cmd
+            );
             fs::write(&path, desktop_content)?;
             println!("Installed StudioMic autostart entry: {:?}", path);
         } else if path.exists() {
@@ -42,5 +54,9 @@ StartupNotify=false
             println!("Removed StudioMic autostart entry: {:?}", path);
         }
         Ok(())
+    }
+
+    pub fn set_enabled(enabled: bool) -> std::io::Result<()> {
+        Self::set_enabled_with_minimized(enabled, true)
     }
 }

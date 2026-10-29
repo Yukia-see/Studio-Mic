@@ -1,10 +1,17 @@
 [Desktop Entry]
 Name=StudioMic
+GenericName=Microphone DSP & Virtual Mixer
 Comment=Professional Broadcast Microphone Tuning & Virtual Mixing Suite
-Exec=studiomic
-Icon=audio-input-microphone
+Exec=studiomic %U
+Icon=studiomic
 Terminal=false
 Type=Application
 Categories=AudioVideo;Audio;Mixer;Recorder;
-Keywords=microphone;equalizer;motiv;pipewire;mixer;stream;broadcast;
+Keywords=microphone;equalizer;motiv;pipewire;mixer;stream;broadcast;obs;easyeffects;
 StartupNotify=true
+StartupWMClass=studiomic
+Actions=Background;
+
+[Desktop Action Background]
+Name=Start Minimized to Tray
+Exec=studiomic --background

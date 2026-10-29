@@ -10,6 +10,16 @@ pub struct AudioDevice {
     pub ports: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CaptureCardDevice {
+    pub id: u32,
+    pub name: String,
+    pub description: String,
+    pub video_device: String,
+    pub audio_source: String,
+    pub ports: Vec<String>,
+}
+
 pub struct DeviceDiscovery;
 
 impl DeviceDiscovery {
@@ -170,5 +180,108 @@ impl DeviceDiscovery {
     /// Automatically links a chosen physical input device to StudioMic's filter-chain capture port
     pub fn link_source_to_studiomic(device_name: &str) -> Result<(), String> {
         Self::link_source_to_studiomic_target(device_name, "studiomic.capture")
+    }
+
+    /// Automatically discovers hardware capture cards that provide BOTH video and audio
+    pub fn get_capture_cards() -> Vec<CaptureCardDevice> {
+        let input_devices = Self::get_input_devices();
+        let mut cards = Vec::new();
+        let mut seen_audio_sources = std::collections::HashSet::new();
+
+        // 1. Inspect V4L2 video devices from /sys/class/video4linux
+        let v4l_path = std::path::Path::new("/sys/class/video4linux");
+        if v4l_path.exists() {
+            if let Ok(entries) = std::fs::read_dir(v4l_path) {
+                for entry in entries.flatten() {
+                    let dev_name = entry.file_name().to_string_lossy().to_string();
+                    let name_file = entry.path().join("name");
+                    let card_name = if name_file.exists() {
+                        std::fs::read_to_string(&name_file)
+                            .unwrap_or_else(|_| dev_name.clone())
+                            .trim()
+                            .to_string()
+                    } else {
+                        dev_name.clone()
+                    };
+
+                    // Check if parent hardware path matches an ALSA audio device
+                    let device_link = entry.path().join("device");
+                    let canonical_parent = device_link.canonicalize().ok();
+
+                    for audio_dev in &input_devices {
+                        let audio_lower = audio_dev.name.to_lowercase();
+                        let desc_lower = audio_dev.description.to_lowercase();
+                        let card_lower = card_name.to_lowercase();
+
+                        // Check name correlation or hardware path match
+                        let is_match = (card_lower.len() > 3 && desc_lower.contains(&card_lower))
+                            || (card_lower.len() > 3 && audio_lower.contains(&card_lower))
+                            || canonical_parent.as_ref().map_or(false, |cp| {
+                                let _cp_str = cp.to_string_lossy();
+                                // Check if this parent path appears in /sys/class/sound
+                                std::fs::read_dir("/sys/class/sound").ok().map_or(false, |sound_entries| {
+                                    sound_entries.flatten().any(|se| {
+                                        se.path().canonicalize().ok().map_or(false, |sp| {
+                                            sp.starts_with(cp.as_path()) || cp.starts_with(sp.as_path())
+                                        })
+                                    })
+                                })
+                            });
+
+                        if is_match && !seen_audio_sources.contains(&audio_dev.name) {
+                            seen_audio_sources.insert(audio_dev.name.clone());
+                            cards.push(CaptureCardDevice {
+                                id: audio_dev.id,
+                                name: format!("{} (Video & Audio)", card_name),
+                                description: format!("{} · /dev/{}", card_name, dev_name),
+                                video_device: format!("/dev/{}", dev_name),
+                                audio_source: audio_dev.name.clone(),
+                                ports: audio_dev.ports.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback check for any PipeWire audio source with capture card signatures
+        for audio_dev in &input_devices {
+            if seen_audio_sources.contains(&audio_dev.name) {
+                continue;
+            }
+            let desc_lower = audio_dev.description.to_lowercase();
+            let name_lower = audio_dev.name.to_lowercase();
+            let is_capture_signature = desc_lower.contains("cam link")
+                || desc_lower.contains("capture")
+                || desc_lower.contains("hdmi")
+                || desc_lower.contains("elgato")
+                || desc_lower.contains("avermedia")
+                || desc_lower.contains("ripsaw")
+                || desc_lower.contains("xr1")
+                || desc_lower.contains("video grabber")
+                || desc_lower.contains("uvc")
+                || name_lower.contains("cam_link")
+                || name_lower.contains("video_capture");
+
+            if is_capture_signature {
+                seen_audio_sources.insert(audio_dev.name.clone());
+                cards.push(CaptureCardDevice {
+                    id: audio_dev.id,
+                    name: audio_dev.description.clone(),
+                    description: format!("{} (Hardware Capture)", audio_dev.description),
+                    video_device: "V4L2 Video Source".into(),
+                    audio_source: audio_dev.name.clone(),
+                    ports: audio_dev.ports.clone(),
+                });
+            }
+        }
+
+        cards
+    }
+
+    /// Links a capture card audio source to Channel 5 (studiomic_capture.capture)
+    pub fn link_capture_card_to_channel(audio_source: &str, channel_id: &str) -> Result<(), String> {
+        let target_node = format!("studiomic_{}.capture", channel_id);
+        Self::link_source_to_studiomic_target(audio_source, &target_node)
     }
 }

@@ -13,8 +13,9 @@ pub struct TrayState {
     pub game_muted: bool,
     pub voice_muted: bool,
     pub music_muted: bool,
-    pub alerts_muted: bool,
+    pub capture_muted: bool,
     pub autostart: bool,
+    pub start_minimized: bool,
 }
 
 impl Default for TrayState {
@@ -27,8 +28,9 @@ impl Default for TrayState {
             game_muted: false,
             voice_muted: false,
             music_muted: false,
-            alerts_muted: false,
+            capture_muted: false,
             autostart: true,
+            start_minimized: false,
         }
     }
 }
@@ -83,7 +85,8 @@ impl Tray for StudioMicTray {
         let proxy_game = self.proxy.clone();
         let proxy_voice = self.proxy.clone();
         let proxy_music = self.proxy.clone();
-        let proxy_alerts = self.proxy.clone();
+        let proxy_capture = self.proxy.clone();
+        let proxy_start_min = self.proxy.clone();
         let proxy_auto = self.proxy.clone();
         let proxy_quit = self.proxy.clone();
 
@@ -162,10 +165,10 @@ impl Tray for StudioMicTray {
                         ..Default::default()
                     }.into(),
                     CheckmarkItem {
-                        label: "Mute Sound Alerts".into(),
-                        checked: st.alerts_muted,
+                        label: "Mute Capture Card (Video In)".into(),
+                        checked: st.capture_muted,
                         activate: Box::new(move |_| {
-                            let _ = proxy_alerts.send_event(AppEvent::SetChannelMute("alerts".into(), !st.alerts_muted));
+                            let _ = proxy_capture.send_event(AppEvent::SetChannelMute("capture".into(), !st.capture_muted));
                         }),
                         ..Default::default()
                     }.into(),
@@ -173,6 +176,15 @@ impl Tray for StudioMicTray {
                 ..Default::default()
             }.into(),
             MenuItem::Separator,
+            CheckmarkItem {
+                label: "Start Minimized (Background Mode)".into(),
+                icon_name: "window-minimize".into(),
+                checked: st.start_minimized,
+                activate: Box::new(move |_| {
+                    let _ = proxy_start_min.send_event(AppEvent::ToggleStartMinimized(!st.start_minimized));
+                }),
+                ..Default::default()
+            }.into(),
             CheckmarkItem {
                 label: "Launch on System Startup".into(),
                 icon_name: "system-run".into(),
