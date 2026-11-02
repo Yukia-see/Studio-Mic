@@ -1,149 +1,209 @@
 #!/usr/bin/env bash
-# StudioMic - Universal Linux Installer
-# Professional Broadcast Microphone Tuning & Virtual Mixing Suite
-set -e
+# Studio Mic - installer
+#
+#   ./install.sh            user install  (~/.local/bin, ~/.config/pipewire/pipewire.conf.d)
+#   sudo ./install.sh --system   system install (/usr/local), built as $SUDO_USER, never as root
+#   ./install.sh --package  build a native package (Arch: makepkg -> pacman -U, Fedora: rpmbuild -> dnf)
+#   ./install.sh -y         assume "yes" to the dependency prompt
+#
+# Safe for existing installs: settings in ~/.config/studiomic are migrated (not deleted) on first
+# launch, and the old engine is stopped cleanly before the new binary is copied in.
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_NAME="studiomic"
-APP_TITLE="StudioMic · Material Design 3"
+MODE="user"
+ASSUME_YES=0
+for a in "$@"; do
+    case "$a" in
+        --system) MODE="system" ;;
+        --package) MODE="package" ;;
+        -y|--yes) ASSUME_YES=1 ;;
+        -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+        *) echo "Unknown option: $a" >&2; exit 2 ;;
+    esac
+done
+
+say()  { printf '\033[1;36m>>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
+
+# ------------------------------------------------------------------ root safety
+# Never build or touch a user's home as root. Under sudo we drop back to the invoking user.
+BUILD_USER="$(id -un)"
+if [ "$(id -u)" -eq 0 ]; then
+    [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ] || die "Run as a normal user (or via sudo from one), not as root directly."
+    BUILD_USER="$SUDO_USER"
+    [ "$MODE" = "user" ] && MODE="system"
+fi
+TARGET_HOME="$(getent passwd "$BUILD_USER" | cut -d: -f6)"
+as_user() { if [ "$(id -u)" -eq 0 ]; then runuser -u "$BUILD_USER" -- "$@"; else "$@"; fi; }
+as_root() { if [ "$(id -u)" -eq 0 ]; then "$@"; elif command -v sudo >/dev/null; then sudo "$@"; else die "need root for: $*"; fi; }
 
 echo "======================================================"
-echo "  StudioMic - Universal Linux Installer"
-echo "  Professional Broadcast Audio & Virtual Mixing Suite"
+echo "  Studio Mic installer  ·  mode: $MODE  ·  user: $BUILD_USER"
 echo "======================================================"
 
-# Determine install prefix
-INSTALL_MODE="user"
-if [ "$1" == "--system" ] || [ "$EUID" -eq 0 ]; then
-    INSTALL_MODE="system"
+# ------------------------------------------------------------------ 1. dependencies
+say "[1/6] Checking PipeWire tools"
+missing=()
+for bin in pw-cli pw-dump pw-mon pw-loopback pw-play pw-record pw-link pw-metadata wpctl pactl; do
+    command -v "$bin" >/dev/null 2>&1 || missing+=("$bin")
+done
+[ ${#missing[@]} -gt 0 ] && warn "Missing tools: ${missing[*]}"
+
+run_deps="n"
+if [ "$ASSUME_YES" -eq 1 ]; then
+    run_deps="y"
+elif [ -t 0 ]; then
+    read -r -p "Would you like to download and install required PipeWire and Noise Suppression dependencies for Studio Mic (DeepFilterNet, RNNoise, Speex)? [Y/n] " run_deps || run_deps="n"
+    run_deps="${run_deps:-y}"
+fi
+case "$run_deps" in
+    [Yy]*)
+        chmod +x "$SCRIPT_DIR/setup-deps.sh"
+        as_user env HOME="$TARGET_HOME" "$SCRIPT_DIR/setup-deps.sh" $([ "$ASSUME_YES" -eq 1 ] && echo -y)
+        ;;
+    *) say "Skipping dependency setup (run ./setup-deps.sh any time)." ;;
+esac
+
+# ------------------------------------------------------------------ 2. native package path
+if [ "$MODE" = "package" ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    # Every package build gets the next build number (studio-mic-<version>-<N>). It is only
+    # recorded once the build succeeds, and the package is kept in dist/<distro>/.
+    ver="$(grep -m1 '^version' "$SCRIPT_DIR/Cargo.toml" | cut -d'"' -f2)"
+    num_file="$SCRIPT_DIR/packaging/BUILD_NUMBER"
+    build=$(( $(cat "$num_file" 2>/dev/null || echo 0) + 1 ))
+    say "Package version $ver, build $build"
+    keep_build() { # distro-dir package-file
+        printf '%s\n' "$build" | as_user tee "$num_file" >/dev/null
+        as_user mkdir -p "$SCRIPT_DIR/dist/$1"
+        as_user cp "$2" "$SCRIPT_DIR/dist/$1/"
+        say "Saved $(basename "$2") in dist/$1/"
+    }
+    case "${ID_LIKE:-} ${ID:-}" in
+        *arch*|*cachyos*|*manjaro*|*endeavouros*)
+            say "[2/6] Building Arch package with makepkg (as $BUILD_USER)"
+            work="$(as_user mktemp -d)"
+            as_user cp "$SCRIPT_DIR/packaging/arch/PKGBUILD" "$SCRIPT_DIR/packaging/arch/studio-mic.install" "$work/"
+            as_user bash -c "cd '$work' && STUDIOMIC_SRC='$SCRIPT_DIR' STUDIOMIC_BUILD='$build' makepkg -f --noconfirm"
+            # Only the main package (never a studio-mic-debug-* split package).
+            pkg="$work/studio-mic-$ver-$build-x86_64.pkg.tar.zst"
+            [ -f "$pkg" ] || die "makepkg did not produce $pkg"
+            keep_build arch "$pkg"
+            as_root pacman -U --noconfirm "$pkg"
+            ;;
+        *fedora*|*rhel*|*nobara*)
+            say "[2/6] Building RPM with rpmbuild (as $BUILD_USER)"
+            top="$(as_user mktemp -d)"
+            as_user mkdir -p "$top"/{SOURCES,SPECS}
+            as_user tar --exclude=./target --exclude=./.git --exclude=./dist --exclude=__pycache__ -czf "$top/SOURCES/studio-mic-$ver.tar.gz" \
+                --transform "s,^,studio-mic-$ver/," -C "$SCRIPT_DIR" .
+            as_user rpmbuild --define "_topdir $top" --define "app_version $ver" --define "build_number $build" \
+                -bb "$SCRIPT_DIR/packaging/fedora/studio-mic.spec"
+            rpm_file="$(ls "$top"/RPMS/*/studio-mic-"$ver"-"$build".*.rpm 2>/dev/null | head -1)"
+            [ -n "$rpm_file" ] || die "rpmbuild did not produce a studio-mic-$ver-$build RPM"
+            keep_build fedora "$rpm_file"
+            as_root dnf install -y "$rpm_file"
+            ;;
+        *) die "--package supports Arch/CachyOS and Fedora; use the default user install elsewhere." ;;
+    esac
+    say "Package installed. Launch 'studiomic' (or run 'studio-mic --status')."
+    exit 0
 fi
 
-if [ "$INSTALL_MODE" == "system" ]; then
-    BIN_DIR="/usr/local/bin"
-    DESKTOP_DIR="/usr/share/applications"
-    ICON_DIR="/usr/share/icons/hicolor/scalable/apps"
-    echo ">> Installing in SYSTEM mode (requires root privileges)"
+# ------------------------------------------------------------------ 3. build (always as the user)
+say "[2/6] Building release binary (as $BUILD_USER)"
+command -v cargo >/dev/null 2>&1 || as_user bash -lc 'command -v cargo' >/dev/null || die "Rust/cargo is required (pacman -S rust)"
+as_user bash -lc "cd '$SCRIPT_DIR' && cargo build --release"
+BIN_SRC="$SCRIPT_DIR/target/release/StudioMic-Package"
+[ -x "$BIN_SRC" ] || die "build failed: $BIN_SRC not found"
+
+if [ "$MODE" = "system" ]; then
+    BIN_DIR="/usr/local/bin"; DESKTOP_DIR="/usr/share/applications"
+    ICON_DIR="/usr/share/icons/hicolor/scalable/apps"; PW_DROPIN_DIR="/usr/share/pipewire/pipewire.conf.d"
+    UNIT_DIR="/usr/lib/systemd/user"; SHARE_DIR="/usr/local/share/studio-mic"
+    inst() { as_root install "$@"; }
 else
-    BIN_DIR="$HOME/.local/bin"
-    DESKTOP_DIR="$HOME/.local/share/applications"
-    ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
-    echo ">> Installing in USER mode for: $USER ($BIN_DIR)"
+    BIN_DIR="$TARGET_HOME/.local/bin"; DESKTOP_DIR="$TARGET_HOME/.local/share/applications"
+    ICON_DIR="$TARGET_HOME/.local/share/icons/hicolor/scalable/apps"; PW_DROPIN_DIR="$TARGET_HOME/.config/pipewire/pipewire.conf.d"
+    UNIT_DIR="$TARGET_HOME/.config/systemd/user"; SHARE_DIR="$TARGET_HOME/.local/share/studio-mic"
+    inst() { as_user install "$@"; }
 fi
 
-# 1. Check & Install Required Dependencies
-echo ""
-echo "[1/5] Checking runtime dependencies..."
-
-check_pkg() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-if ! check_pkg pipewire; then
-    echo "WARNING: PipeWire is not detected. StudioMic requires PipeWire for audio routing."
+# ------------------------------------------------------------------ 4. stop the running engine
+say "[3/6] Stopping any running Studio Mic (state is flushed first)"
+if command -v "$BIN_DIR/$BIN_NAME" >/dev/null 2>&1; then
+    as_user "$BIN_DIR/$BIN_NAME" --quit >/dev/null 2>&1 || true
 fi
+# Older builds had no control socket: stop them and their engine by PID.
+for pid in $(pgrep -u "$BUILD_USER" -x studiomic 2>/dev/null) $(pgrep -u "$BUILD_USER" -x StudioMic-Packa 2>/dev/null); do
+    kill -TERM "$pid" 2>/dev/null || true
+done
+sleep 0.5
+for pid in $(pgrep -u "$BUILD_USER" -x pipewire 2>/dev/null); do
+    if tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qE 'studiomic-graph\.conf|/studio-mic/sm-'; then kill -TERM "$pid" 2>/dev/null || true; fi
+done
+for pid in $(pgrep -u "$BUILD_USER" -x pw-record 2>/dev/null); do
+    if tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qE 'rate 8000|StudioMic_'; then kill -TERM "$pid" 2>/dev/null || true; fi
+done
 
-# Detect Package Manager
-PKG_MGR=""
-if check_pkg pacman; then
-    PKG_MGR="pacman"
-elif check_pkg apt-get; then
-    PKG_MGR="apt"
-elif check_pkg dnf; then
-    PKG_MGR="dnf"
-elif check_pkg zypper; then
-    PKG_MGR="zypper"
-fi
+# ------------------------------------------------------------------ 5. install files
+say "[4/6] Installing to $BIN_DIR"
+inst -Dm755 "$BIN_SRC" "$BIN_DIR/$BIN_NAME"
+if [ "$MODE" = "system" ]; then as_root ln -sf "$BIN_NAME" "$BIN_DIR/studio-mic"; else as_user ln -sf "$BIN_NAME" "$BIN_DIR/studio-mic"; fi
+inst -Dm644 "$SCRIPT_DIR/assets/studiomic.svg" "$ICON_DIR/studiomic.svg"
+tmp_desktop="$(mktemp)"
+sed "s|^Exec=studiomic|Exec=$BIN_DIR/$BIN_NAME|" "$SCRIPT_DIR/studiomic.desktop" > "$tmp_desktop"
+inst -Dm644 "$tmp_desktop" "$DESKTOP_DIR/studiomic.desktop"
+rm -f "$tmp_desktop"
+inst -Dm644 "$SCRIPT_DIR/pipewire-conf/60-studio-mic-buses.conf" "$PW_DROPIN_DIR/60-studio-mic-buses.conf"
+tmp_unit="$(mktemp)"
+sed "s|^ExecStart=.*|ExecStart=$BIN_DIR/$BIN_NAME --daemon|" "$SCRIPT_DIR/studiomic.service" > "$tmp_unit"
+inst -Dm644 "$tmp_unit" "$UNIT_DIR/studiomic.service"
+rm -f "$tmp_unit"
+if [ "$MODE" = "system" ]; then as_root mkdir -p "$SHARE_DIR"; as_root cp -r "$SCRIPT_DIR/streamcontroller-plugin" "$SHARE_DIR/"
+else as_user mkdir -p "$SHARE_DIR"; as_user cp -r "$SCRIPT_DIR/streamcontroller-plugin" "$SHARE_DIR/"; fi
+if [ "$MODE" = "system" ]; then as_root find "$SHARE_DIR/streamcontroller-plugin" -name __pycache__ -type d -prune -exec rm -rf {} +
+else find "$SHARE_DIR/streamcontroller-plugin" -name __pycache__ -type d -prune -exec rm -rf {} +; fi
 
-echo ">> Detected package manager: ${PKG_MGR:-generic}"
+command -v update-desktop-database >/dev/null 2>&1 && { update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true; }
+command -v gtk-update-icon-cache >/dev/null 2>&1 && { gtk-update-icon-cache -f -t "$(dirname "$(dirname "$ICON_DIR")")" 2>/dev/null || true; }
 
-# Prompt to install required LADSPA and GUI packages on Arch/Debian/Fedora if root/sudo available
-if [ "$PKG_MGR" == "pacman" ]; then
-    MISSING_PACMAN=()
-    pacman -Q webkit2gtk-4.1 >/dev/null 2>&1 || MISSING_PACMAN+=("webkit2gtk-4.1")
-    pacman -Q lsp-plugins-ladspa >/dev/null 2>&1 || MISSING_PACMAN+=("lsp-plugins-ladspa")
-    pacman -Q deepfilternet-ladspa >/dev/null 2>&1 || MISSING_PACMAN+=("deepfilternet-ladspa")
-    
-    if [ ${#MISSING_PACMAN[@]} -gt 0 ]; then
-        echo ">> Notice: The following optional system packages can be installed for LADSPA:"
-        echo "   sudo pacman -S --needed ${MISSING_PACMAN[*]}"
-        if sudo -n true 2>/dev/null; then
-            echo ">> Installing missing audio plugins via pacman..."
-            sudo pacman -S --needed --noconfirm "${MISSING_PACMAN[@]}" || true
+# ------------------------------------------------------------------ 6. StreamController plugin
+say "[5/6] StreamController integration"
+PLUGIN_SRC="$SHARE_DIR/streamcontroller-plugin/com.studiomic.controller"
+linked=0
+for dir in "$TARGET_HOME/.local/share/StreamController/plugins" "$TARGET_HOME/.var/app/com.core447.StreamController/data/plugins"; do
+    if [ -d "$(dirname "$dir")" ]; then
+        as_user mkdir -p "$dir"
+        if [[ "$dir" == *".var/app"* ]]; then
+            # Flatpak sandboxes cannot follow symlinks outside their data dir: copy instead.
+            as_user rm -rf "$dir/com.studiomic.controller"
+            as_user cp -r "$PLUGIN_SRC" "$dir/com.studiomic.controller"
         else
-            echo ">> (Using standalone/bundled LADSPA plugins in ~/.ladspa)"
+            as_user ln -sfn "$PLUGIN_SRC" "$dir/com.studiomic.controller"
         fi
-    else
-        echo ">> All Arch Linux audio packages present (webkit2gtk, lsp-plugins, deepfilternet)."
+        say "  plugin installed in $dir"
+        linked=1
     fi
-fi
+done
+[ "$linked" -eq 0 ] && say "  StreamController not found (plugin kept in $PLUGIN_SRC)"
 
-# 2. Build or locate release binary
-echo ""
-echo "[2/5] Building / Locating StudioMic binary..."
-cd "$SCRIPT_DIR"
+# ------------------------------------------------------------------ done
+say "[6/6] Done"
+cat <<EOF
 
-if [ ! -f "target/release/StudioMic-Package" ]; then
-    echo ">> Compiling StudioMic release binary with cargo..."
-    cargo build --release
-fi
+  Studio Mic is installed.
 
-if [ ! -f "target/release/StudioMic-Package" ]; then
-    echo "ERROR: Failed to find or compile target/release/StudioMic-Package"
-    exit 1
-fi
+    Open:            $BIN_NAME
+    Tray only:       $BIN_NAME --background
+    Control / CLI:   studio-mic --status        (studio-mic --help for all commands)
 
-# 3. Install Binary
-echo ""
-echo "[3/5] Installing executable to $BIN_DIR/$BIN_NAME..."
-mkdir -p "$BIN_DIR"
-# Kill existing instance if running
-killall -9 studiomic 2>/dev/null || true
-cp -f "target/release/StudioMic-Package" "$BIN_DIR/$BIN_NAME"
-chmod +x "$BIN_DIR/$BIN_NAME"
-
-# 4. Install Application Icon & Desktop Launcher (KDE Plasma & GNOME compliant)
-echo ""
-echo "[4/5] Installing desktop entry and high-resolution icons..."
-mkdir -p "$DESKTOP_DIR"
-mkdir -p "$ICON_DIR"
-
-# Install Icon
-if [ -f "assets/studiomic.svg" ]; then
-    cp -f "assets/studiomic.svg" "$ICON_DIR/studiomic.svg"
-fi
-
-# Install Desktop Entry
-cp -f "studiomic.desktop" "$DESKTOP_DIR/studiomic.desktop"
-sed -i "s|^Exec=studiomic|Exec=$BIN_DIR/$BIN_NAME|" "$DESKTOP_DIR/studiomic.desktop"
-chmod +x "$DESKTOP_DIR/studiomic.desktop"
-
-# Refresh desktop & icon databases
-if check_pkg update-desktop-database; then
-    update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
-fi
-if check_pkg gtk-update-icon-cache; then
-    gtk-update-icon-cache -f -t "$(dirname "$ICON_DIR")" 2>/dev/null || true
-fi
-
-# 5. LADSPA Plugins Fallback Setup
-echo ""
-echo "[5/5] Ensuring DeepFilterNet AI & LSP plugins are linked..."
-USER_LADSPA_DIR="$HOME/.ladspa"
-mkdir -p "$USER_LADSPA_DIR"
-
-if [ -f "/usr/lib/ladspa/libdeep_filter_ladspa.so" ] && [ ! -f "$USER_LADSPA_DIR/libdeep_filter_ladspa.so" ]; then
-    ln -sf "/usr/lib/ladspa/libdeep_filter_ladspa.so" "$USER_LADSPA_DIR/"
-fi
-if [ -f "/usr/lib/ladspa/lsp-plugins-ladspa.so" ] && [ ! -f "$USER_LADSPA_DIR/lsp-plugins-ladspa.so" ]; then
-    ln -sf "/usr/lib/ladspa/lsp-plugins-ladspa.so" "$USER_LADSPA_DIR/"
-fi
-
-echo ""
-echo "======================================================"
-echo "  Installation Complete!"
-echo "  StudioMic is ready to use."
-echo ""
-echo "  Run command:        $BIN_NAME"
-echo "  Start Minimized:    $BIN_NAME --background"
-echo "  Desktop Launcher:   $DESKTOP_DIR/studiomic.desktop"
-echo "======================================================"
+  The four buses (Voice Out, Stream Mix, VOD Mix, Monitor Mix) are created as soon as Studio Mic
+  starts. They come up at login without Studio Mic after your next login or
+  'systemctl --user restart pipewire wireplumber' (this briefly interrupts audio, so it is not
+  done automatically).
+EOF

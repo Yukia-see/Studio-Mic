@@ -1,0 +1,57 @@
+# Maintainer: Studio Mic Project
+# Builds from the local checkout (set STUDIOMIC_SRC, done by ./install.sh --package).
+pkgname=studio-mic
+# Version comes from Cargo.toml; the build number from install.sh (packaging/BUILD_NUMBER).
+pkgver=$(sed -n 's/^version = "\(.*\)"/\1/p' "${STUDIOMIC_SRC:-.}/Cargo.toml" | head -1)
+pkgrel=${STUDIOMIC_BUILD:-1}
+pkgdesc="Broadcast microphone processing & virtual mixer for PipeWire (Material Design 3)"
+arch=('x86_64')
+url="https://github.com/studiomic/studiomic"
+license=('Apache-2.0' 'MIT')
+depends=('pipewire' 'wireplumber' 'pipewire-pulse' 'webkit2gtk-4.1' 'gtk3' 'ladspa' 'lsp-plugins-ladspa' 'speexdsp')
+optdepends=(
+    'swh-plugins: extra LADSPA filters'
+    'obs-studio: capture StudioMic_Stream_Mix / StudioMic_VOD_Mix'
+    'streamcontroller: Stream Deck control via the bundled plugin'
+)
+makedepends=('rust' 'cargo' 'gcc' 'pkg-config' 'curl' 'unzip')
+provides=('studiomic')
+conflicts=('studiomic')
+install=studio-mic.install
+options=('!lto' '!debug')
+
+_src() { echo "${STUDIOMIC_SRC:?set STUDIOMIC_SRC to the studio-mic checkout}"; }
+
+prepare() {
+    # Pinned, checksum-verified DeepFilterNet + RNNoise LADSPA plugins.
+    "$(_src)/setup-deps.sh" --no-packages --stage "$srcdir/ladspa" -y
+}
+
+build() {
+    cd "$(_src)"
+    # Always build: cargo is incremental, and skipping it packaged stale binaries before.
+    cargo build --release --locked
+    # Studio Mic's own Speex LADSPA wrapper (no distro packages one).
+    cc $CFLAGS -fPIC -shared -o "$srcdir/libspeex_ladspa.so" plugins/speex-ladspa/speex_ladspa.c \
+        $(pkg-config --cflags --libs speexdsp) $LDFLAGS
+}
+
+package() {
+    local s; s="$(_src)"
+    local bin="$s/target/release/StudioMic-Package"
+    [ -f "$bin" ] || bin="$srcdir/target/release/StudioMic-Package"
+    install -Dm755 "$bin" "$pkgdir/usr/bin/studiomic"
+    ln -s studiomic "$pkgdir/usr/bin/studio-mic"
+    install -Dm644 "$s/studiomic.desktop" "$pkgdir/usr/share/applications/studiomic.desktop"
+    install -Dm644 "$s/assets/studiomic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/studiomic.svg"
+    install -Dm644 "$s/studiomic.service" "$pkgdir/usr/lib/systemd/user/studiomic.service"
+    install -Dm644 "$s/pipewire-conf/60-studio-mic-buses.conf" "$pkgdir/usr/share/pipewire/pipewire.conf.d/60-studio-mic-buses.conf"
+    install -Dm755 "$srcdir/ladspa/libdeep_filter_ladspa.so" "$pkgdir/usr/lib/ladspa/libdeep_filter_ladspa.so"
+    install -Dm755 "$srcdir/ladspa/librnnoise_ladspa.so" "$pkgdir/usr/lib/ladspa/librnnoise_ladspa.so"
+    install -Dm755 "$srcdir/libspeex_ladspa.so" "$pkgdir/usr/lib/ladspa/libspeex_ladspa.so"
+    mkdir -p "$pkgdir/usr/share/studio-mic"
+    cp -r "$s/streamcontroller-plugin" "$pkgdir/usr/share/studio-mic/"
+    # Never ship Python bytecode from the build machine.
+    find "$pkgdir/usr/share/studio-mic" -name __pycache__ -type d -prune -exec rm -rf {} +
+    install -Dm644 "$s/README.md" "$pkgdir/usr/share/doc/studio-mic/README.md"
+}

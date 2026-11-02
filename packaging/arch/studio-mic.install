@@ -1,0 +1,25 @@
+# Runs `studiomic --cleanup-pipewire` for every logged-in user on removal so no buses or
+# engine processes are left behind. Upgrades do nothing: the running engine keeps its audio
+# links and picks up the new binary on its next start.
+_cleanup_all_users() {
+    local uid user
+    for uid in $(loginctl list-users --no-legend 2>/dev/null | awk '{print $1}'); do
+        user="$(getent passwd "$uid" | cut -d: -f1)"
+        [ -n "$user" ] || continue
+        runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" /usr/bin/studiomic --cleanup-pipewire >/dev/null 2>&1 || true
+    done
+}
+
+post_install() {
+    echo ":: Launch 'studiomic' or run 'studio-mic --status'."
+    echo ":: The Studio Mic buses appear at your next login (or after restarting pipewire)."
+    echo ":: StreamController plugin: /usr/share/studio-mic/streamcontroller-plugin (install.sh links it)."
+}
+
+pre_upgrade() {
+    :
+}
+
+pre_remove() {
+    _cleanup_all_users
+}

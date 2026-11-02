@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub enum FilterType {
     HighPass,
     LowPass,
@@ -8,6 +8,24 @@ pub enum FilterType {
     HighShelf,
     LowShelf,
     Notch,
+}
+
+impl<'de> Deserialize<'de> for FilterType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let ft = match s.trim().to_lowercase().as_str() {
+            "high pass" | "highpass" | "hp" => FilterType::HighPass,
+            "low pass" | "lowpass" | "lp" => FilterType::LowPass,
+            "low shelf" | "lowshelf" | "ls" => FilterType::LowShelf,
+            "high shelf" | "highshelf" | "hs" => FilterType::HighShelf,
+            "notch" => FilterType::Notch,
+            _ => FilterType::Peaking,
+        };
+        Ok(ft)
+    }
 }
 
 impl FilterType {
@@ -23,11 +41,39 @@ impl FilterType {
     }
 }
 
+fn de_f32_flex<'de, D>(deserializer: D) -> Result<f32, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+    let v = serde_json::Value::deserialize(deserializer)?;
+    match v {
+        serde_json::Value::Number(n) => n
+            .as_f64()
+            .map(|f| f as f32)
+            .ok_or_else(|| D::Error::custom("invalid float")),
+        serde_json::Value::String(s) => s.parse::<f32>().map_err(D::Error::custom),
+        _ => Ok(0.0),
+    }
+}
+
+fn default_q() -> f32 {
+    1.0
+}
+
+fn default_peaking() -> FilterType {
+    FilterType::Peaking
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EqBand {
+    #[serde(deserialize_with = "de_f32_flex")]
     pub freq: f32,
+    #[serde(alias = "gain", deserialize_with = "de_f32_flex", default)]
     pub gain_db: f32,
+    #[serde(deserialize_with = "de_f32_flex", default = "default_q")]
     pub q: f32,
+    #[serde(alias = "type", default = "default_peaking")]
     pub filter_type: FilterType,
 }
 

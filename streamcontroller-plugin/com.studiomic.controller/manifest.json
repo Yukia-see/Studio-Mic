@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "id": "com_studiomic_controller",
+  "name": "Studio Mic",
+  "thumbnail": "assets/mic_live.svg",
+  "github": "https://github.com/studiomic/studiomic",
+  "app-version": "1.5.0-beta.6",
+  "minimum-app-version": "1.5.0-beta.6",
+  "descriptions": {
+    "en_US": "Control Studio Mic from your Stream Deck: mic mute and push-to-mute, channel stream/monitor/VOD mutes (including capture cards), gain buttons and dials, profiles, themes and DSP quick toggles. Talks to ~/.cache/studio-mic/studio-mic.sock."
+  },
+  "short-descriptions": { "en_US": "Studio Mic mixer & mic control" },
+  "tags": ["audio", "pipewire", "microphone", "mixer", "obs"]
+}

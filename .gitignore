@@ -1,1 +1,6 @@
 /target
+# Third-party plugin staged by setup-deps.sh for embedding (pinned, not committed)
+/assets/plugins/*.so
+__pycache__/
+# Built packages (rebuild with ./install.sh --package)
+/dist/

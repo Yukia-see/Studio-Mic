@@ -1,0 +1,7 @@
+[package]
+name = "latency-probe"
+version = "0.1.0"
+edition = "2024"
+description = "Measures Studio Mic mic-to-headphone latency (processed vs raw monitor)"
+
+[dependencies]

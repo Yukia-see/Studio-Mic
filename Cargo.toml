@@ -1,17 +1,18 @@
 [package]
 name = "StudioMic-Package"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
+# File::try_lock (single-instance lock) needs 1.89.
+rust-version = "1.89"
 
 [dependencies]
-ksni = { version = "0.3.7", default-features = false, features = ["async-io"] }
-pipewire = "0.10.1"
+ksni = { version = "0.3.7", default-features = false, features = ["async-io", "blocking"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
-slint = "1.18.1"
 tao = "0.37.2"
-tokio = { version = "1.54.1", features = ["full"] }
+# Only used to catch SIGINT/SIGTERM.
+tokio = { version = "1.54.1", features = ["rt", "signal", "macros"] }
 wry = "0.57.1"
 
-[build-dependencies]
-slint-build = "1.18.1"
+[workspace]
+members = [".", "tools/latency-probe", "tools/gap-probe"]

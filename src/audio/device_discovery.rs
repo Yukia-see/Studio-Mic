@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioDevice {
@@ -8,6 +7,9 @@ pub struct AudioDevice {
     pub description: String,
     pub is_default: bool,
     pub ports: Vec<String>,
+    /// ALSA card number (`alsa.card`), used to tie a capture card's video and audio together.
+    #[serde(default)]
+    pub alsa_card: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,168 +25,69 @@ pub struct CaptureCardDevice {
 pub struct DeviceDiscovery;
 
 impl DeviceDiscovery {
-    /// Discovers system physical audio input devices (microphones & audio interfaces) via pw-dump
+    /// Audio inputs (mics and interfaces; Studio Mic's own nodes excluded). Uses the shared
+    /// 250 ms node cache instead of a full `pw-dump` (~65 ms and 1 MB of JSON per call).
     pub fn get_input_devices() -> Vec<AudioDevice> {
-        let output = match Command::new("pw-dump").output() {
-            Ok(o) => o,
-            Err(e) => {
-                eprintln!("Failed to execute pw-dump: {}", e);
-                return Vec::new();
-            }
-        };
-
-        let json_val: serde_json::Value = match serde_json::from_slice(&output.stdout) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("Failed to parse pw-dump JSON: {}", e);
-                return Vec::new();
-            }
-        };
-
         let default_source_name = Self::get_default_source_name();
-
-        let mut ports_map: std::collections::HashMap<u64, Vec<String>> = std::collections::HashMap::new();
-
-        if let Some(items) = json_val.as_array() {
-            // First collect all output ports for nodes
-            for item in items {
-                if item.get("type").and_then(|t| t.as_str()) == Some("PipeWire:Interface:Port") {
-                    let props = item.get("info").and_then(|i| i.get("props"));
-                    let direction = item.get("info").and_then(|i| i.get("direction")).and_then(|d| d.as_str());
-
-                    if direction == Some("output") {
-                        if let Some(props) = props {
-                            if let (Some(node_id), Some(port_name)) = (
-                                props.get("node.id").and_then(|id| id.as_u64()),
-                                props.get("port.name").and_then(|p| p.as_str()),
-                            ) {
-                                ports_map.entry(node_id).or_default().push(port_name.to_string());
-                            }
-                        }
-                    }
+        crate::audio::pw::nodes()
+            .into_iter()
+            .filter(|n| (n.class == "Audio/Source" || n.class == "Audio/Source/Virtual") && !n.name.to_lowercase().starts_with("studiomic"))
+            .map(|n| {
+                let props = &n.props;
+                let card = |k: &str| match props.get(k) {
+                    Some(serde_json::Value::Number(v)) => v.as_u64().map(|v| v as u32),
+                    Some(serde_json::Value::String(v)) => v.parse().ok(),
+                    _ => None,
+                };
+                AudioDevice {
+                    id: n.id,
+                    description: props
+                        .get("node.description")
+                        .or_else(|| props.get("node.nick"))
+                        .and_then(|d| d.as_str())
+                        .unwrap_or(&n.name)
+                        .to_string(),
+                    is_default: default_source_name.as_deref() == Some(n.name.as_str()),
+                    ports: crate::audio::pw::ports_of(&n.name, true),
+                    alsa_card: card("alsa.card").or_else(|| card("api.alsa.pcm.card")),
+                    name: n.name,
                 }
-            }
-
-            // Now extract Audio/Source nodes
-            let mut devices = Vec::new();
-            for item in items {
-                if item.get("type").and_then(|t| t.as_str()) == Some("PipeWire:Interface:Node") {
-                    let props = item.get("info").and_then(|i| i.get("props"));
-                    if let Some(props) = props {
-                        let media_class = props.get("media.class").and_then(|m| m.as_str()).unwrap_or("");
-                        if media_class == "Audio/Source" {
-                            let node_name = props.get("node.name").and_then(|n| n.as_str()).unwrap_or("");
-                            // Skip StudioMic's own output source
-                            if node_name.contains("studiomic") {
-                                continue;
-                            }
-
-                            let id = item.get("id").and_then(|i| i.as_u64()).unwrap_or(0) as u32;
-                            let desc = props.get("node.description")
-                                .or_else(|| props.get("node.nick"))
-                                .and_then(|d| d.as_str())
-                                .unwrap_or(node_name)
-                                .to_string();
-
-                            let is_default = default_source_name.as_deref() == Some(node_name);
-                            let ports = ports_map.get(&(id as u64)).cloned().unwrap_or_default();
-
-                            devices.push(AudioDevice {
-                                id,
-                                name: node_name.to_string(),
-                                description: desc,
-                                is_default,
-                                ports,
-                            });
-                        }
-                    }
-                }
-            }
-            return devices;
-        }
-
-        Vec::new()
+            })
+            .collect()
     }
 
-    /// Queries WirePlumber for the current default audio source name
+    /// Physical / virtual output sinks for the Master Monitor (headphones) selector.
+    pub fn get_output_devices() -> Vec<AudioDevice> {
+        let default_sink = crate::audio::pw::default_node_name("@DEFAULT_AUDIO_SINK@");
+        crate::audio::pw::nodes()
+            .into_iter()
+            .filter(|n| n.class == "Audio/Sink" && !n.name.to_lowercase().starts_with("studiomic"))
+            .map(|n| AudioDevice {
+                id: n.id,
+                description: n
+                    .props
+                    .get("node.description")
+                    .or_else(|| n.props.get("node.nick"))
+                    .and_then(|d| d.as_str())
+                    .unwrap_or(&n.name)
+                    .to_string(),
+                is_default: default_sink.as_deref() == Some(n.name.as_str()),
+                ports: Vec::new(),
+                alsa_card: None,
+                name: n.name,
+            })
+            .collect()
+    }
+
+    /// WirePlumber's current default audio source name.
     pub fn get_default_source_name() -> Option<String> {
-        let output = Command::new("wpctl")
-            .args(["inspect", "@DEFAULT_AUDIO_SOURCE@"])
-            .output()
-            .ok()?;
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        for line in stdout.lines() {
-            if line.contains("node.name =") {
-                let parts: Vec<&str> = line.split('"').collect();
-                if parts.len() >= 2 {
-                    return Some(parts[1].to_string());
-                }
-            }
-        }
-        None
-    }
-
-    /// Automatically links a chosen physical input device to a specific StudioMic capture port
-    pub fn link_source_to_studiomic_target(device_name: &str, target_node: &str) -> Result<(), String> {
-        println!("Linking physical audio source '{}' to '{}'...", device_name, target_node);
-
-        // Find target device
-        let devices = Self::get_input_devices();
-        let target_device = devices.iter().find(|d| d.name == device_name || d.description == device_name)
-            .ok_or_else(|| format!("Device '{}' not found in active sources", device_name))?;
-
-        // 1. Unlink any previous physical links to target_node
-        if let Ok(output) = Command::new("pw-link").args(["-l"]).output() {
-            let links_str = String::from_utf8_lossy(&output.stdout);
-            let mut current_source = "";
-            let target_prefix = format!("{}:", target_node);
-            for line in links_str.lines() {
-                let trimmed = line.trim();
-                if !trimmed.starts_with('|') && trimmed.contains(':') {
-                    current_source = trimmed;
-                } else if trimmed.contains(&target_prefix) {
-                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
-                    if let Some(target_port) = parts.last() {
-                        let _ = Command::new("pw-link")
-                            .args(["-d", current_source, target_port])
-                            .output();
-                    }
-                }
-            }
-        }
-
-        // 2. Link selected source ports to target_node
-        let ports_to_link = if target_device.ports.contains(&"capture_MONO".to_string()) {
-            vec![("capture_MONO", "input_FL"), ("capture_MONO", "input_FR")]
-        } else if target_device.ports.contains(&"capture_FL".to_string()) && target_device.ports.contains(&"capture_FR".to_string()) {
-            vec![("capture_FL", "input_FL"), ("capture_FR", "input_FR")]
-        } else if let Some(first) = target_device.ports.first() {
-            vec![(first.as_str(), "input_FL"), (first.as_str(), "input_FR")]
-        } else {
-            vec![("capture_1", "input_FL")]
-        };
-
-        for (src_p, dst_p) in ports_to_link {
-            let src_spec = format!("{}:{}", target_device.name, src_p);
-            let dst_spec = format!("{}:{}", target_node, dst_p);
-            let _ = Command::new("pw-link")
-                .args([&src_spec, &dst_spec])
-                .output();
-            println!("Linked {} -> {}", src_spec, dst_spec);
-        }
-
-        println!("Successfully configured hardware link for '{}' -> {}", target_device.description, target_node);
-        Ok(())
-    }
-
-    /// Automatically links a chosen physical input device to StudioMic's filter-chain capture port
-    pub fn link_source_to_studiomic(device_name: &str) -> Result<(), String> {
-        Self::link_source_to_studiomic_target(device_name, "studiomic.capture")
+        crate::audio::pw::default_node_name("@DEFAULT_AUDIO_SOURCE@")
     }
 
     /// Automatically discovers hardware capture cards that provide BOTH video and audio
-    pub fn get_capture_cards() -> Vec<CaptureCardDevice> {
-        let input_devices = Self::get_input_devices();
+    /// Capture cards among `input_devices` (pass the list you already scanned).
+    pub fn get_capture_cards_from(input_devices: &[AudioDevice]) -> Vec<CaptureCardDevice> {
+        let sound_cards = sysfs_sound_cards();
         let mut cards = Vec::new();
         let mut seen_audio_sources = std::collections::HashSet::new();
 
@@ -204,29 +107,25 @@ impl DeviceDiscovery {
                         dev_name.clone()
                     };
 
-                    // Check if parent hardware path matches an ALSA audio device
-                    let device_link = entry.path().join("device");
-                    let canonical_parent = device_link.canonicalize().ok();
+                    // ALSA cards that live on the same physical device as this video node.
+                    let same_device = entry
+                        .path()
+                        .join("device")
+                        .canonicalize()
+                        .map(|p| cards_on_device(&p, &sound_cards))
+                        .unwrap_or_default();
 
-                    for audio_dev in &input_devices {
+                    for audio_dev in input_devices {
                         let audio_lower = audio_dev.name.to_lowercase();
                         let desc_lower = audio_dev.description.to_lowercase();
                         let card_lower = card_name.to_lowercase();
 
                         // Check name correlation or hardware path match
+                        // The hardware check must name THIS audio device's card: it used to accept
+                        // every input as soon as any sound card shared the video device's path.
                         let is_match = (card_lower.len() > 3 && desc_lower.contains(&card_lower))
                             || (card_lower.len() > 3 && audio_lower.contains(&card_lower))
-                            || canonical_parent.as_ref().map_or(false, |cp| {
-                                let _cp_str = cp.to_string_lossy();
-                                // Check if this parent path appears in /sys/class/sound
-                                std::fs::read_dir("/sys/class/sound").ok().map_or(false, |sound_entries| {
-                                    sound_entries.flatten().any(|se| {
-                                        se.path().canonicalize().ok().map_or(false, |sp| {
-                                            sp.starts_with(cp.as_path()) || cp.starts_with(sp.as_path())
-                                        })
-                                    })
-                                })
-                            });
+                            || audio_dev.alsa_card.is_some_and(|c| same_device.contains(&c));
 
                         if is_match && !seen_audio_sources.contains(&audio_dev.name) {
                             seen_audio_sources.insert(audio_dev.name.clone());
@@ -245,7 +144,7 @@ impl DeviceDiscovery {
         }
 
         // 2. Fallback check for any PipeWire audio source with capture card signatures
-        for audio_dev in &input_devices {
+        for audio_dev in input_devices {
             if seen_audio_sources.contains(&audio_dev.name) {
                 continue;
             }
@@ -278,10 +177,49 @@ impl DeviceDiscovery {
 
         cards
     }
+}
 
-    /// Links a capture card audio source to Channel 5 (studiomic_capture.capture)
-    pub fn link_capture_card_to_channel(audio_source: &str, channel_id: &str) -> Result<(), String> {
-        let target_node = format!("studiomic_{}.capture", channel_id);
-        Self::link_source_to_studiomic_target(audio_source, &target_node)
+/// `(N, canonical path)` of every /sys/class/sound/cardN.
+fn sysfs_sound_cards() -> Vec<(u32, std::path::PathBuf)> {
+    std::fs::read_dir("/sys/class/sound")
+        .map(|rd| {
+            rd.flatten()
+                .filter_map(|e| {
+                    let n = e.file_name().to_string_lossy().strip_prefix("card")?.parse::<u32>().ok()?;
+                    Some((n, e.path().canonicalize().ok()?))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// ALSA card numbers on the same physical device as a video node's `device` path. A USB
+/// video *interface* (`1-2:1.0`) is widened to its USB device (`1-2`), where the audio interface
+/// of the same capture card sits.
+fn cards_on_device(video_dev: &std::path::Path, sound_cards: &[(u32, std::path::PathBuf)]) -> Vec<u32> {
+    let is_usb_interface = video_dev.file_name().map(|n| n.to_string_lossy().contains(':')).unwrap_or(false)
+        && video_dev.to_string_lossy().contains("/usb");
+    let root = if is_usb_interface { video_dev.parent().unwrap_or(video_dev) } else { video_dev };
+    sound_cards.iter().filter(|(_, p)| p.starts_with(root)).map(|(n, _)| *n).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cards_on_device;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn capture_card_audio_is_matched_by_device_not_by_any_card() {
+        let cards = vec![
+            (0, PathBuf::from("/sys/devices/pci0000:00/0000:00:08.1/0000:01:00.1/sound/card0")),
+            (1, PathBuf::from("/sys/devices/pci0000:00/0000:00:12.0/usb1/1-5/1-5:1.1/sound/card1")),
+            (2, PathBuf::from("/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/sound/card2")),
+        ];
+        // PCI capture card: only its own sound card.
+        assert_eq!(cards_on_device(Path::new("/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0"), &cards), vec![2]);
+        // USB capture card: video on interface :1.0, audio on :1.1 of the same device.
+        assert_eq!(cards_on_device(Path::new("/sys/devices/pci0000:00/0000:00:12.0/usb1/1-5/1-5:1.0"), &cards), vec![1]);
+        // Unrelated webcam: nothing.
+        assert!(cards_on_device(Path::new("/sys/devices/pci0000:00/0000:00:14.0/usb3/3-1/3-1:1.0"), &cards).is_empty());
     }
 }

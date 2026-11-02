@@ -1,43 +1,66 @@
-use ksni::{Tray, MenuItem, menu::*};
-use ksni::blocking::{TrayMethods, Handle};
-use std::sync::{Arc, Mutex};
-use tao::event_loop::EventLoopProxy;
-use crate::AppEvent;
+//! StatusNotifierItem tray.
+//! Colour = state: green LIVE, red MUTED, amber PREVIEW. Left-click shows/hides the window,
+//! middle-click toggles the mic mute, the scroll wheel nudges the Master Monitor Gain.
 
-#[derive(Debug, Clone)]
-pub struct TrayState {
-    pub mic_muted: bool,
-    pub sidetone_enabled: bool,
-    pub compressor_enabled: bool,
-    pub deep_filter_enabled: bool,
-    pub game_muted: bool,
-    pub voice_muted: bool,
-    pub music_muted: bool,
-    pub capture_muted: bool,
-    pub autostart: bool,
-    pub start_minimized: bool,
+use crate::app::{Controller, UiPush};
+use ksni::blocking::{Handle, TrayMethods};
+use ksni::{menu::*, MenuItem, Tray};
+use std::sync::Arc;
+
+pub struct StudioMicTray {
+    pub controller: Arc<Controller>,
+    pub ui: Box<dyn Fn(UiPush) + Send>,
 }
 
-impl Default for TrayState {
-    fn default() -> Self {
-        Self {
-            mic_muted: false,
-            sidetone_enabled: false,
-            compressor_enabled: true,
-            deep_filter_enabled: true,
-            game_muted: false,
-            voice_muted: false,
-            music_muted: false,
-            capture_muted: false,
-            autostart: true,
-            start_minimized: false,
+#[derive(Clone, Copy, PartialEq)]
+enum Live {
+    Live,
+    Muted,
+    Preview,
+}
+
+impl StudioMicTray {
+    fn live(&self) -> Live {
+        if self.controller.engine.preview_is_active() {
+            Live::Preview
+        } else if self.controller.mic_muted() {
+            Live::Muted
+        } else {
+            Live::Live
         }
     }
 }
 
-pub struct StudioMicTray {
-    pub proxy: EventLoopProxy<AppEvent>,
-    pub state: Arc<Mutex<TrayState>>,
+/// 22x22 ARGB32 (network byte order) mic glyph on a coloured disc.
+fn state_icon(live: Live) -> ksni::Icon {
+    let (r, g, b) = match live {
+        Live::Live => (0x34u8, 0xC7u8, 0x59u8),
+        Live::Muted => (0xE5, 0x39, 0x35),
+        Live::Preview => (0xFF, 0xB3, 0x00),
+    };
+    let size = 22i32;
+    let mut data = Vec::with_capacity((size * size * 4) as usize);
+    let c = (size as f32 - 1.0) / 2.0;
+    for y in 0..size {
+        for x in 0..size {
+            let (fx, fy) = (x as f32 - c, y as f32 - c);
+            let d = (fx * fx + fy * fy).sqrt();
+            // white mic capsule + stand
+            let capsule = fx.abs() <= 2.6 && fy >= -6.5 && fy <= 1.5 && !(fy < -4.0 && (fx * fx + (fy + 4.0) * (fy + 4.0)).sqrt() > 2.6);
+            let stand = (fx.abs() <= 0.8 && fy > 3.5 && fy <= 6.0) || (fy > 5.2 && fy <= 6.4 && fx.abs() <= 3.0);
+            let cup = (d - 0.0).abs() < 100.0 && fy > -0.5 && fy < 4.0 && ((fx * fx + (fy - 0.5) * (fy - 0.5)).sqrt() - 4.6).abs() < 0.8;
+            let px = if d > c + 0.5 {
+                [0u8, 0, 0, 0]
+            } else if capsule || stand || cup {
+                [255, 255, 255, 255]
+            } else {
+                let a = if d > c - 0.5 { 160 } else { 255 };
+                [a, r, g, b]
+            };
+            data.extend_from_slice(&px);
+        }
+    }
+    ksni::Icon { width: size, height: size, data }
 }
 
 impl Tray for StudioMicTray {
@@ -45,171 +68,189 @@ impl Tray for StudioMicTray {
         "studiomic".into()
     }
 
+    fn title(&self) -> String {
+        "Studio Mic".into()
+    }
+
     fn icon_name(&self) -> String {
-        let st = self.state.lock().unwrap();
-        if st.mic_muted {
-            "microphone-sensitivity-muted".into()
-        } else {
-            "audio-input-microphone".into()
+        // Themes that ignore pixmaps still get a sensible symbolic icon.
+        match self.live() {
+            Live::Muted => "microphone-sensitivity-muted".into(),
+            _ => "audio-input-microphone".into(),
         }
     }
 
-    fn title(&self) -> String {
-        "StudioMic Broadcast Engine".into()
+    fn icon_pixmap(&self) -> Vec<ksni::Icon> {
+        vec![state_icon(self.live())]
+    }
+
+    fn status(&self) -> ksni::Status {
+        match self.live() {
+            Live::Live => ksni::Status::Active,
+            _ => ksni::Status::NeedsAttention,
+        }
     }
 
     fn tool_tip(&self) -> ksni::ToolTip {
-        let st = self.state.lock().unwrap();
-        let mic_status = if st.mic_muted { "MUTED" } else { "LIVE" };
-        let comp_status = if st.compressor_enabled { "ON" } else { "OFF" };
-        let mon_status = if st.sidetone_enabled { "ON" } else { "OFF" };
+        let s = self.controller.state.lock().unwrap().clone();
+        let mic = match self.live() {
+            Live::Live => "LIVE",
+            Live::Muted => "MUTED",
+            Live::Preview => "PREVIEW (headphones only)",
+        };
         ksni::ToolTip {
-            title: "StudioMic · Audio Engine".into(),
-            description: format!("Mic: {} | Comp: {} | Mon: {}", mic_status, comp_status, mon_status),
-            icon_name: if st.mic_muted { "microphone-sensitivity-muted".into() } else { "audio-input-microphone".into() },
-            icon_pixmap: Vec::new(),
+            title: format!("Studio Mic · {}", mic),
+            description: format!(
+                "Monitor {:+.1} dB{} · Denoiser {} · Clipguard {}\nMiddle-click: mute · Scroll: monitor gain",
+                s.monitor_gain_db,
+                if s.monitor_muted { " (muted)" } else { "" },
+                s.denoiser.engine,
+                if s.mic.clipguard { "on" } else { "off" }
+            ),
+            icon_name: String::new(),
+            icon_pixmap: vec![state_icon(self.live())],
         }
     }
 
     fn activate(&mut self, _x: i32, _y: i32) {
-        let _ = self.proxy.send_event(AppEvent::ToggleWindow);
+        (self.ui)(UiPush::ToggleWindow);
+    }
+
+    fn secondary_activate(&mut self, _x: i32, _y: i32) {
+        let _ = self.controller.toggle_mic_mute();
+    }
+
+    fn scroll(&mut self, delta: i32, orientation: ksni::Orientation) {
+        if orientation == ksni::Orientation::Vertical && delta != 0 {
+            // Most compositors send ±120 per notch; normalise to 1 dB steps.
+            let steps = if delta.abs() >= 60 { delta / 120 } else { delta.signum() };
+            let steps = if steps == 0 { delta.signum() } else { steps };
+            self.controller.nudge_monitor_gain(-(steps as f32));
+        }
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
-        let st = self.state.lock().unwrap().clone();
-        let proxy_open = self.proxy.clone();
-        let proxy_mute = self.proxy.clone();
-        let proxy_comp = self.proxy.clone();
-        let proxy_df = self.proxy.clone();
-        let proxy_side = self.proxy.clone();
-        let proxy_game = self.proxy.clone();
-        let proxy_voice = self.proxy.clone();
-        let proxy_music = self.proxy.clone();
-        let proxy_capture = self.proxy.clone();
-        let proxy_start_min = self.proxy.clone();
-        let proxy_auto = self.proxy.clone();
-        let proxy_quit = self.proxy.clone();
+        let s = self.controller.state.lock().unwrap().clone();
+        let mic_muted = s.mic.mix.stream_muted;
+        let mut channel_items: Vec<MenuItem<Self>> = Vec::new();
+        for ch in &s.virtual_channels {
+            let id = ch.id.clone();
+            let muted = ch.mix.stream_muted;
+            channel_items.push(
+                CheckmarkItem {
+                    label: format!("Mute {} (stream)", ch.name),
+                    checked: muted,
+                    activate: Box::new(move |t: &mut Self| {
+                        let _ = t.controller.channel_mute(&id, "stream");
+                    }),
+                    ..Default::default()
+                }
+                .into(),
+            );
+        }
+        let denoisers: Vec<MenuItem<Self>> = ["deepfilter", "rnnoise", "speex", "off"]
+            .iter()
+            .filter(|e| self.controller.engine.plugins().denoiser_available(e))
+            .map(|e| {
+                let e = e.to_string();
+                CheckmarkItem {
+                    label: match e.as_str() {
+                        "deepfilter" => "Deep Noise Remover (DeepFilterNet)".into(),
+                        "rnnoise" => "RNNoise".into(),
+                        "speex" => "Speex".into(),
+                        _ => "Off".into(),
+                    },
+                    checked: s.denoiser.engine == e,
+                    activate: Box::new(move |t: &mut Self| {
+                        let _ = t.controller.set_denoiser(&e);
+                        t.controller.sync_ui();
+                    }),
+                    ..Default::default()
+                }
+                .into()
+            })
+            .collect();
 
         vec![
             StandardItem {
-                label: "Show / Hide StudioMic".into(),
+                label: "Show / Hide Studio Mic".into(),
                 icon_name: "window-maximize".into(),
-                activate: Box::new(move |_| {
-                    let _ = proxy_open.send_event(AppEvent::ToggleWindow);
-                }),
+                activate: Box::new(|t: &mut Self| (t.ui)(UiPush::ToggleWindow)),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
             MenuItem::Separator,
             CheckmarkItem {
                 label: "Mute Microphone".into(),
                 icon_name: "microphone-sensitivity-muted".into(),
-                checked: st.mic_muted,
-                activate: Box::new(move |_| {
-                    let _ = proxy_mute.send_event(AppEvent::SetMicMute(!st.mic_muted));
+                checked: mic_muted,
+                activate: Box::new(|t: &mut Self| {
+                    let _ = t.controller.toggle_mic_mute();
                 }),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
             CheckmarkItem {
-                label: "Vocal Compressor (Auto Leveler)".into(),
-                icon_name: "audio-speakers".into(),
-                checked: st.compressor_enabled,
-                activate: Box::new(move |_| {
-                    let _ = proxy_comp.send_event(AppEvent::SetCompressor(!st.compressor_enabled));
-                }),
-                ..Default::default()
-            }.into(),
-            CheckmarkItem {
-                label: "AI Noise Remover (DeepFilterNet)".into(),
-                icon_name: "audio-card".into(),
-                checked: st.deep_filter_enabled,
-                activate: Box::new(move |_| {
-                    let _ = proxy_df.send_event(AppEvent::SetDeepFilter(!st.deep_filter_enabled));
-                }),
-                ..Default::default()
-            }.into(),
-            CheckmarkItem {
-                label: "Headphone Monitoring".into(),
+                label: "Hear Myself (Mic Monitor)".into(),
                 icon_name: "audio-headphones".into(),
-                checked: st.sidetone_enabled,
-                activate: Box::new(move |_| {
-                    let _ = proxy_side.send_event(AppEvent::SetMonitoring(!st.sidetone_enabled));
+                checked: !s.mic.mix.monitor_muted,
+                activate: Box::new(|t: &mut Self| {
+                    let _ = t.controller.channel_mute("mic", "monitor");
                 }),
                 ..Default::default()
-            }.into(),
-            MenuItem::Separator,
-            SubMenu {
-                label: "Quick Channel Mutes".into(),
-                submenu: vec![
-                    CheckmarkItem {
-                        label: "Mute Game Audio".into(),
-                        checked: st.game_muted,
-                        activate: Box::new(move |_| {
-                            let _ = proxy_game.send_event(AppEvent::SetChannelMute("game".into(), !st.game_muted));
-                        }),
-                        ..Default::default()
-                    }.into(),
-                    CheckmarkItem {
-                        label: "Mute Discord Voice".into(),
-                        checked: st.voice_muted,
-                        activate: Box::new(move |_| {
-                            let _ = proxy_voice.send_event(AppEvent::SetChannelMute("voice".into(), !st.voice_muted));
-                        }),
-                        ..Default::default()
-                    }.into(),
-                    CheckmarkItem {
-                        label: "Mute Music / Media".into(),
-                        checked: st.music_muted,
-                        activate: Box::new(move |_| {
-                            let _ = proxy_music.send_event(AppEvent::SetChannelMute("music".into(), !st.music_muted));
-                        }),
-                        ..Default::default()
-                    }.into(),
-                    CheckmarkItem {
-                        label: "Mute Capture Card (Video In)".into(),
-                        checked: st.capture_muted,
-                        activate: Box::new(move |_| {
-                            let _ = proxy_capture.send_event(AppEvent::SetChannelMute("capture".into(), !st.capture_muted));
-                        }),
-                        ..Default::default()
-                    }.into(),
-                ],
+            }
+            .into(),
+            CheckmarkItem {
+                label: "Clipguard".into(),
+                checked: s.mic.clipguard,
+                activate: Box::new(|t: &mut Self| {
+                    let _ = t.controller.toggle_clipguard();
+                }),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
+            CheckmarkItem {
+                label: "Mute Monitor (Headphones)".into(),
+                checked: s.monitor_muted,
+                activate: Box::new(|t: &mut Self| {
+                    let _ = t.controller.toggle_monitor_mute();
+                }),
+                ..Default::default()
+            }
+            .into(),
+            SubMenu { label: "Noise Remover".into(), submenu: denoisers, ..Default::default() }.into(),
+            SubMenu { label: "Channel Mutes".into(), submenu: channel_items, ..Default::default() }.into(),
             MenuItem::Separator,
             CheckmarkItem {
-                label: "Start Minimized (Background Mode)".into(),
-                icon_name: "window-minimize".into(),
-                checked: st.start_minimized,
-                activate: Box::new(move |_| {
-                    let _ = proxy_start_min.send_event(AppEvent::ToggleStartMinimized(!st.start_minimized));
+                label: "Start Minimized".into(),
+                checked: s.start_minimized,
+                activate: Box::new(move |t: &mut Self| {
+                    t.controller.handle_ui(&format!("toggle_start_minimized:{}", if s.start_minimized { 0 } else { 1 }));
                 }),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
             CheckmarkItem {
-                label: "Launch on System Startup".into(),
-                icon_name: "system-run".into(),
-                checked: st.autostart,
-                activate: Box::new(move |_| {
-                    let _ = proxy_auto.send_event(AppEvent::ToggleAutostart(!st.autostart));
+                label: "Launch on Login".into(),
+                checked: s.autostart,
+                activate: Box::new(move |t: &mut Self| {
+                    t.controller.handle_ui(&format!("toggle_autostart:{}", if s.autostart { 0 } else { 1 }));
                 }),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
             MenuItem::Separator,
             StandardItem {
-                label: "Quit StudioMic".into(),
+                label: "Quit Studio Mic".into(),
                 icon_name: "application-exit".into(),
-                activate: Box::new(move |_| {
-                    let _ = proxy_quit.send_event(AppEvent::Quit);
-                }),
+                activate: Box::new(|t: &mut Self| (t.ui)(UiPush::Quit)),
                 ..Default::default()
-            }.into(),
+            }
+            .into(),
         ]
     }
 }
 
-pub fn spawn_tray(
-    proxy: EventLoopProxy<AppEvent>,
-    state: Arc<Mutex<TrayState>>,
-) -> Result<Handle<StudioMicTray>, ksni::Error> {
-    StudioMicTray { proxy, state }.spawn()
+pub fn spawn_tray<F: Fn(UiPush) + Send + 'static>(controller: Arc<Controller>, ui: F) -> Result<Handle<StudioMicTray>, ksni::Error> {
+    StudioMicTray { controller, ui: Box::new(ui) }.spawn()
 }

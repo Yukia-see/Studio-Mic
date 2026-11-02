@@ -7,6 +7,23 @@
 
 ---
 
+## Using Studio Mic (v0.2)
+
+```bash
+./install.sh            # asks to fetch PipeWire/LADSPA deps, builds, installs for your user
+studiomic               # open the app (or `studiomic --background` for the tray only)
+studio-mic --status     # control it from a terminal / Stream Deck (see `studio-mic --help`)
+```
+
+* **Buses for OBS / Discord:** `Studio Mic (Microphone Only)` for Discord, `Studio Mic (Stream Mix)`
+  for OBS Track 1, `Studio Mic (VOD Track - DMCA Safe)` for Track 2, and `Studio Mic (Monitor Mix)`
+  is what you hear. The old `studiomic_processed_mic` name still works.
+* **Nothing interrupts audio:** sliders and toggles change the running chain in place.
+* **Settings** live in `~/.config/studio-mic/state.json` (your old `~/.config/studiomic/config.json` is
+  migrated automatically and kept as `config.json.bak`). Named profiles: `studio-mic --save-profile NAME`.
+* **Stream Deck:** the StreamController plugin in `streamcontroller-plugin/` is linked by the installer.
+* Docs: `docs/audit-report.md` (what changed), `docs/verified-apis.md`, `docs/perf.md`.
+
 ## Overview
 
 **StudioMic** is an open-source native Linux application design engineered to deliver professional broadcast microphone tuning, automated acoustic calibration, and multi-channel virtual mixing. It addresses the lack of unified streaming audio software on Linux, replacing proprietary tools like Shure MOTIV Mix, Elgato Wave Link, and SteelSeries Sonar.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StudioMic · Material Design 3</title>
+  <title>Studio Mic</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <!-- Google Material Symbols (fonts.google.com/icons) -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
@@ -112,7 +112,6 @@
       background-color: var(--md-sys-color-primary);
       border-radius: 9999px;
       pointer-events: none;
-      transition: height 0.04s ease-out;
     }
     .m3-fader-thumb {
       position: absolute;
@@ -125,7 +124,6 @@
       border: 2px solid var(--md-sys-color-primary);
       box-shadow: 0 2px 6px rgba(0,0,0,0.6);
       pointer-events: none;
-      transition: bottom 0.04s ease-out;
       z-index: 10;
     }
     .m3-fader-thumb::after {
@@ -137,6 +135,21 @@
       height: 1.5px;
       background-color: #0c0e13;
       transform: translateY(-50%);
+    }
+
+    /* Responsive Channel Mixer Grid: scales & flows downward without squishing at any window width */
+    #mixer-channels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     /* M3 Horizontal Slider */
@@ -167,9 +180,9 @@
     select {
       -webkit-appearance: none !important;
       appearance: none !important;
-      background-color: #1e2229 !important;
-      color: #ffffff !important;
-      border: 1px solid #44474f !important;
+      background-color: var(--md-sys-color-surface-container-highest) !important;
+      color: var(--md-sys-color-on-surface) !important;
+      border: 1px solid var(--md-sys-color-outline-variant) !important;
       padding-right: 32px !important;
       background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a8c7fa'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e") !important;
       background-repeat: no-repeat !important;
@@ -177,29 +190,212 @@
       background-size: 18px !important;
     }
     select option, select optgroup {
-      background-color: #191c20 !important;
-      color: #f1f3f9 !important;
+      background-color: var(--md-sys-color-surface-container) !important;
+      color: var(--md-sys-color-on-surface) !important;
       padding: 8px 12px !important;
       font-size: 13px !important;
       font-weight: 600 !important;
     }
     select option:checked, select option:hover, select option:focus {
-      background-color: #0842a0 !important;
-      color: #ffffff !important;
+      background-color: var(--md-sys-color-primary) !important;
+      color: var(--md-sys-color-on-primary) !important;
     }
+
+    /* ===== Material 3 theme engine (data-theme on <html>) ===== */
+    :root, :root[data-theme="material_dark"] { color-scheme: dark; }
+    :root[data-theme="oled_black"] {
+      color-scheme: dark;
+      --md-sys-color-surface: #000000;
+      --md-sys-color-surface-dim: #000000;
+      --md-sys-color-surface-container-lowest: #000000;
+      --md-sys-color-surface-container-low: #050505;
+      --md-sys-color-surface-container: #080808;
+      --md-sys-color-surface-container-high: #101010;
+      --md-sys-color-surface-container-highest: #161616;
+      --md-sys-color-outline-variant: #1E1E1E;
+      --md-sys-color-outline: #3a3a3a;
+      --md-sys-color-primary: #8ab4ff;
+      --md-sys-color-secondary: #5ad1ff;
+      --md-sys-color-success: #3ee07a;
+    }
+    :root[data-theme="oled_black"] * { box-shadow: none !important; backdrop-filter: none !important; }
+    :root[data-theme="oled_black"] [class*="bg-gradient"] { background-image: none !important; }
+    :root[data-theme="midnight_slate"] {
+      color-scheme: dark;
+      --md-sys-color-surface: #0F172A;
+      --md-sys-color-surface-dim: #0F172A;
+      --md-sys-color-surface-container-lowest: #0b1222;
+      --md-sys-color-surface-container-low: #162036;
+      --md-sys-color-surface-container: #1E293B;
+      --md-sys-color-surface-container-high: #263449;
+      --md-sys-color-surface-container-highest: #334155;
+      --md-sys-color-outline-variant: #334155;
+      --md-sys-color-outline: #64748b;
+      --md-sys-color-on-surface: #e2e8f0;
+      --md-sys-color-on-surface-variant: #a8b3c7;
+      --md-sys-color-primary: #93c5fd;
+      --md-sys-color-on-primary: #0b2a5b;
+      --md-sys-color-primary-container: #1d4ed8;
+    }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --md-sys-color-surface: #F8FAFC;
+      --md-sys-color-surface-dim: #eef2f7;
+      --md-sys-color-surface-container-lowest: #ffffff;
+      --md-sys-color-surface-container-low: #f3f6fa;
+      --md-sys-color-surface-container: #FFFFFF;
+      --md-sys-color-surface-container-high: #eef2f7;
+      --md-sys-color-surface-container-highest: #e3e8ef;
+      --md-sys-color-on-surface: #1a1c20;
+      --md-sys-color-on-surface-variant: #4a4f5a;
+      --md-sys-color-outline: #74777f;
+      --md-sys-color-outline-variant: #cfd5df;
+      --md-sys-color-primary: #1b5fc1;
+      --md-sys-color-on-primary: #ffffff;
+      --md-sys-color-primary-container: #d6e3ff;
+      --md-sys-color-on-primary-container: #001a41;
+      --md-sys-color-secondary: #00658f;
+      --md-sys-color-secondary-container: #c6e7ff;
+      --md-sys-color-on-secondary-container: #001e2e;
+      --md-sys-color-tertiary: #6a4fb3;
+      --md-sys-color-tertiary-container: #e9ddff;
+      --md-sys-color-on-tertiary-container: #22005d;
+      --md-sys-color-error: #ba1a1a;
+      --md-sys-color-error-container: #ffdad6;
+      --md-sys-color-success: #1e8e3e;
+      --md-sys-color-success-container: #c4eed0;
+    }
+    :root[data-theme="light"] .text-white,
+    :root[data-theme="light"] .hover\:text-white:hover { color: var(--md-sys-color-on-surface) !important; }
+    /* Light theme: re-tint the bright accent text used on dark surfaces (colour only, never filter). */
+    :root[data-theme="light"] [class*="text-emerald-"], :root[data-theme="light"] [class*="text-green-"] { color: #0f6d3a !important; }
+    :root[data-theme="light"] [class*="text-cyan-"], :root[data-theme="light"] [class*="text-sky-"] { color: #00687a !important; }
+    :root[data-theme="light"] [class*="text-amber-"], :root[data-theme="light"] [class*="text-yellow-"] { color: #7a4f00 !important; }
+    :root[data-theme="light"] [class*="text-purple-"] { color: #5b34a8 !important; }
+    :root[data-theme="light"] [class*="text-rose-"], :root[data-theme="light"] [class*="text-red-"] { color: #a4161a !important; }
+    :root[data-theme="light"] [class*="bg-cyan-6"], :root[data-theme="light"] [class*="bg-emerald-6"] { color: #fff !important; }
+    :root[data-theme="light"] [class*="bg-cyan-950"], :root[data-theme="light"] [class*="bg-emerald-950"],
+    :root[data-theme="light"] [class*="bg-amber-950"], :root[data-theme="light"] [class*="bg-rose-950"],
+    :root[data-theme="light"] [class*="bg-neutral-800"], :root[data-theme="light"] [class*="bg-black"] { background-color: var(--md-sys-color-surface-container-high) !important; }
+
+    /* ===== Tab 1: Option A stacked channel cards ===== */
+    .sm-card { background: var(--md-sys-color-surface-container-low); border: 1px solid var(--md-sys-color-outline-variant); border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .sm-card.is-mic { border-color: color-mix(in srgb, var(--md-sys-color-primary) 45%, transparent); }
+    .sm-card.is-soloed { border-color: #f5b400; }
+    .sm-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+    .sm-title { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; min-width: 0; cursor: text; }
+    .sm-title span.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+    .sm-chip { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface-variant); display: inline-flex; align-items: center; gap: 3px; cursor: pointer; user-select: none; white-space: nowrap; }
+    .sm-chip .material-symbols-outlined { font-size: 14px; }
+    .sm-chip.on { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border-color: transparent; }
+    .sm-chip.mute.on { background: #c62828; color: #fff; }
+    .sm-chip.solo.on { background: #f5b400; color: #000; }
+    .sm-chip.warn { border-color: #f59e0b; color: #f59e0b; }
+    .sm-chip[disabled] { opacity: .45; cursor: not-allowed; }
+    .sm-row { display: grid; grid-template-columns: 112px 1fr 92px; align-items: center; gap: 8px; }
+    .sm-row label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--md-sys-color-on-surface-variant); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .sm-row label .material-symbols-outlined { font-size: 15px; }
+    .sm-readout { font: 700 11px ui-monospace, monospace; text-align: right; color: var(--md-sys-color-primary); cursor: pointer; white-space: nowrap; }
+    .sm-readout.muted { color: var(--md-sys-color-on-surface-variant); text-decoration: line-through; }
+    .sm-gain { width: 100%; -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; outline: none;
+      background: linear-gradient(to right, var(--md-sys-color-primary) var(--fill, 50%), var(--md-sys-color-surface-container-highest) var(--fill, 50%)); }
+    .sm-gain.monitor { background: linear-gradient(to right, #34c759 var(--fill, 50%), var(--md-sys-color-surface-container-highest) var(--fill, 50%)); }
+    .sm-gain::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--md-sys-color-on-surface); border: 3px solid var(--md-sys-color-primary); cursor: pointer; }
+    .sm-gain.monitor::-webkit-slider-thumb { border-color: #34c759; }
+    .sm-gain:disabled { opacity: .45; }
+    .sm-meter { position: relative; height: 10px; border-radius: 999px; overflow: hidden; background: var(--md-sys-color-surface-container-highest); }
+    .sm-meter .fill { position: absolute; inset: 0 auto 0 0; width: 0%; border-radius: 999px;
+      /* Level colours only (-60..0 dB scale): green, yellow from about -12 dB, amber near full scale.
+         Red is reserved for real clipping (.clip below); the old red tip lit up on every limited
+         syllable at -0.5 dB, which read as "clipping" while OBS was fine. */
+      background: linear-gradient(to right, #22c55e 0%, #22c55e 70%, #eab308 82%, #f59e0b 97%);
+      background-size: var(--meter-w, 300px) 100%; background-repeat: no-repeat; }
+    .sm-meter .hold { position: absolute; top: 0; bottom: 0; width: 2px; left: 0%; background: var(--md-sys-color-on-surface); opacity: .85; }
+    .sm-meter.clip .fill { background: #ef4444 !important; }
+    .sm-meter.clip { box-shadow: 0 0 0 1px #ef4444; }
+    .sm-meter.limit .fill { background: #f59e0b !important; }
+    /* ---------- Tab 1 routing matrix (Wave Link style) ---------- */
+    #mixer-channels-grid.view-matrix { display: block; }
+    .mx-wrap { overflow-x: auto; border-radius: 24px; border: 1px solid var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface-container-low); }
+    .mx { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+    .mx th { padding: 10px 12px; border-left: 1px solid var(--md-sys-color-outline-variant); position: relative; background: var(--md-sys-color-surface-container); min-width: 180px; vertical-align: middle; }
+    .mx th:first-child { border-left: 0; min-width: 240px; padding-left: 18px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--md-sys-color-on-surface-variant); }
+    .mx th .mx-col { display: flex; align-items: center; gap: 8px; }
+    .mx th .mx-col b { display: block; font-size: 12px; color: var(--md-sys-color-on-surface); }
+    .mx th .mx-col small { display: block; font: 600 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); }
+    .mx th .mx-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--mx-c); }
+    .mx th.mx-add { min-width: 64px; width: 64px; text-align: center; cursor: pointer; }
+    .mx th.mx-add:hover .mx-addbtn { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+    .mx-addbtn { width: 32px; height: 32px; margin: 0 auto; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface-variant); transition: all .15s; }
+    .mx td { padding: 8px 10px; border-left: 1px solid var(--md-sys-color-outline-variant); border-top: 1px solid var(--md-sys-color-outline-variant); vertical-align: middle; }
+    .mx td:first-child { border-left: 0; padding-left: 18px; }
+    .mx tr:hover td { background: color-mix(in srgb, var(--md-sys-color-surface-container-highest) 35%, transparent); }
+    .mx-src { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .mx-ico { width: 38px; height: 38px; border-radius: 14px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-primary); }
+    .mx-src .nm { font-weight: 800; font-size: 12px; color: var(--md-sys-color-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mx-src .sub { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; font: 600 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); }
+    .mx-badge { font: 800 9px ui-monospace, monospace; padding: 1px 6px; border-radius: 6px; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+    .mx-app { padding: 0 6px; border-radius: 999px; background: var(--md-sys-color-surface-container-highest); }
+    .mx-app.live { background: color-mix(in srgb, #34c759 25%, transparent); color: #34c759; }
+    .mx-cell { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 16px; border: 1px solid var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface-container); min-height: 44px; }
+    .mx-cell .mx-mute { width: 28px; height: 28px; flex: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-highest); color: var(--mx-c); cursor: pointer; }
+    .mx-cell .mx-mute .material-symbols-outlined { font-size: 16px; }
+    .mx-cell .mx-fad { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .mx-cell .mx-read { font: 700 9px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); white-space: nowrap; }
+    .mx-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 999px; outline: none; cursor: pointer;
+      background: linear-gradient(to right, var(--mx-c) var(--meter, 0%), var(--md-sys-color-surface-container-highest) var(--meter, 0%)); }
+    .mx-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--md-sys-color-on-surface); border: 2px solid var(--mx-c); cursor: pointer; }
+    .mx-slider:disabled { opacity: .4; cursor: default; }
+    .mx-cell.muted { background: color-mix(in srgb, #ef4444 16%, var(--md-sys-color-surface-container)); border-color: color-mix(in srgb, #ef4444 55%, transparent); }
+    .mx-cell.muted .mx-mute { background: #ef4444; color: #fff; box-shadow: 0 0 10px rgba(239, 68, 68, .45); }
+    .mx-cell.muted .mx-slider { opacity: .35; pointer-events: none; }
+    .mx-cell.clip .mx-slider { --mx-c: #ef4444; }
+    .mx-cell.limit .mx-slider { --mx-c: #f59e0b; }
+    .mx-empty { min-height: 44px; border-radius: 16px; border: 1px dashed var(--md-sys-color-outline-variant); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .mx-empty .mx-plus { width: 28px; height: 28px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface-variant); transition: all .15s; }
+    .mx-empty:hover { border-color: var(--mx-c); }
+    .mx-empty:hover .mx-plus { background: var(--mx-c); color: #000; }
+    .mx-locked { min-height: 44px; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 4px; font: 700 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); opacity: .55; }
+    .mx-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 8px 18px; font: 600 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); border-top: 1px solid var(--md-sys-color-outline-variant); }
+    .sm-peak { font: 700 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); cursor: pointer; text-align: right; }
+    .sm-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; }
+    .sm-src select { font-size: 11px; font-weight: 600; border-radius: 12px; padding: 4px 30px 4px 8px; max-width: 100%; min-width: 0; flex: 1 1 180px; }
+    .sm-app { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700;
+      background: var(--md-sys-color-surface-container-highest); border: 1px solid var(--md-sys-color-outline-variant); }
+    .sm-app.live { border-color: #22c55e; }
+    .sm-app button { opacity: .6; } .sm-app button:hover { opacity: 1; }
+    .sm-wave { height: 54px; border-radius: 14px; background: var(--md-sys-color-surface-container-lowest); border: 1px solid var(--md-sys-color-outline-variant); position: relative; overflow: hidden; }
+    .sm-wave canvas { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); }
+    #mixer-channels-grid.view-normal { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    #mixer-channels-grid.view-simple { grid-template-columns: 1fr; gap: 8px; }
+    #mixer-channels-grid.view-simple .sm-wave { display: none; }
+    #mixer-channels-grid.view-simple .sm-card { padding: 10px 12px; gap: 6px; }
+    .sm-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--md-sys-color-surface-container-low); border: 1px solid var(--md-sys-color-outline-variant); }
+    .sm-seg button { padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--md-sys-color-on-surface-variant); display: inline-flex; align-items: center; gap: 4px; }
+    .sm-seg button.on { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+    .sm-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 20px;
+      background: var(--md-sys-color-surface-container-low); border: 1px solid var(--md-sys-color-outline-variant); }
+    .sm-preview.playing { border-color: #f59e0b; }
+    .sm-btn { padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;
+      background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface); border: 1px solid var(--md-sys-color-outline-variant); }
+    .sm-btn.primary { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border-color: transparent; }
+    .sm-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .sm-btn .material-symbols-outlined { font-size: 16px; }
+    #sm-toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 60; max-width: 90vw; padding: 10px 16px; border-radius: 16px; font-size: 12px; font-weight: 600;
+      background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface); border: 1px solid var(--md-sys-color-outline-variant); box-shadow: 0 6px 24px rgba(0,0,0,.4); display: none; }
   </style>
 </head>
-<body class="p-3 md:p-4 min-h-screen flex flex-col antialiased select-none overflow-y-auto">
-  <div class="max-w-[1680px] w-full mx-auto flex-1 flex flex-col space-y-3">
+<body class="p-3 md:p-4 min-h-screen antialiased select-none overflow-x-hidden overflow-y-auto">
+  <div class="max-w-[1680px] w-full mx-auto space-y-3 pb-4 min-w-0">
 
     <!-- ========================================================================= -->
     <!-- 0. QUICK ACCESS BAR: MASTER VOL, QUICK MUTES, DUAL MIC, SIDETONE & SOUNDCHECK -->
     <!-- ========================================================================= -->
-    <header id="quick-access-bar" class="bg-[var(--md-sys-color-surface-container)] rounded-[24px] px-4 py-2.5 border border-[var(--md-sys-color-outline-variant)] shadow-sm flex flex-wrap items-center justify-between gap-3">
+    <header id="quick-access-bar" class="bg-[var(--md-sys-color-surface-container)] rounded-[24px] px-4 py-2.5 border border-[var(--md-sys-color-outline-variant)] shadow-sm flex flex-wrap items-center justify-between gap-2.5 min-w-0">
       <!-- Left: Logo & Dual Mic Setup Toggle -->
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2.5 min-w-0">
         <div class="flex items-center gap-2 font-bold text-xs tracking-wide text-[var(--md-sys-color-on-surface)]">
-          <div class="w-7 h-7 rounded-lg bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] flex items-center justify-center shadow-sm">
+          <div class="w-7 h-7 rounded-lg bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] flex items-center justify-center shadow-sm shrink-0">
             <span class="material-symbols-outlined text-[16px]">equalizer</span>
           </div>
           <span class="hidden sm:inline font-mono tracking-widest text-[11px]">STUDIOMIC</span>
@@ -218,35 +414,35 @@
         </label>
       </div>
 
-      <!-- Center: 5-Channel Quick Mute Action Pills -->
-      <div class="flex items-center gap-1.5 overflow-x-auto py-0.5">
+      <!-- Center: Quick Mute Action Pills -->
+      <div class="flex flex-wrap items-center gap-1.5 py-0.5 min-w-0">
         <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)] mr-1">Quick Mute:</span>
-        <button id="qa-mute-mic" onclick="qaToggleMute('mic')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Mic 1">
+        <button id="qa-mute-mic" onclick="qaToggleMute('mic')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Mic 1">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
           <span class="material-symbols-outlined text-[13px]">mic</span>
           <span>Mic 1</span>
         </button>
-        <button id="qa-mute-mic2" onclick="qaToggleMute('mic2')" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 hover:bg-[var(--md-sys-color-surface-container-high)] border border-cyan-500/40 m3-transition items-center gap-1.5" title="Quick Mute Mic 2 (Guest)">
+        <button id="qa-mute-mic2" onclick="qaToggleMute('mic2')" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 hover:bg-[var(--md-sys-color-surface-container-high)] border border-cyan-500/40 m3-transition items-center gap-1.5 shrink-0" title="Quick Mute Mic 2 (Guest)">
           <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
           <span class="material-symbols-outlined text-[13px]">mic_external_on</span>
           <span>Mic 2</span>
         </button>
-        <button id="qa-mute-game" onclick="qaToggleMute('game')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Game Audio">
+        <button id="qa-mute-game" onclick="qaToggleMute('game')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Game Audio">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
           <span class="material-symbols-outlined text-[13px]">sports_esports</span>
           <span>Game</span>
         </button>
-        <button id="qa-mute-voice" onclick="qaToggleMute('voice')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Discord Voice">
+        <button id="qa-mute-voice" onclick="qaToggleMute('voice')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Discord Voice">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
           <span class="material-symbols-outlined text-[13px]">forum</span>
           <span>Voice</span>
         </button>
-        <button id="qa-mute-music" onclick="qaToggleMute('music')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Music">
+        <button id="qa-mute-music" onclick="qaToggleMute('music')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Music">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
           <span class="material-symbols-outlined text-[13px]">music_note</span>
           <span>Music</span>
         </button>
-        <button id="qa-mute-capture" onclick="qaToggleMute('capture')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5" title="Quick Mute Capture Card (Video In)">
+        <button id="qa-mute-capture" onclick="qaToggleMute('capture')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Capture Card (Video In)">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
           <span class="material-symbols-outlined text-[13px]">videocam</span>
           <span>Capture</span>
@@ -254,7 +450,7 @@
       </div>
 
       <!-- Right: Vocal Compressor, Monitoring, Autostart, Start Minimized, Live Peak Meter & Calibration -->
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-1.5 min-w-0">
         <!-- Vocal Compressor Quick Access -->
         <button onclick="toggleCompressorQuick()" id="qa-comp-btn" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-emerald-500/40 text-emerald-200 hover:border-emerald-400 m3-transition flex items-center gap-1.5" title="Vocal Compressor & Auto Leveler">
           <span class="material-symbols-outlined text-[15px] text-emerald-400">compress</span>
@@ -264,7 +460,7 @@
 
         <button onclick="toggleMonitor()" id="qa-sidetone-btn" class="px-3 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface)] hover:border-[var(--md-sys-color-primary)] m3-transition flex items-center gap-1.5" title="Monitoring (hear yourself in headphones)">
           <span class="material-symbols-outlined text-[15px]">headphones</span>
-          <span>Monitoring</span>
+          <span>Hear Myself</span>
           <span id="qa-sidetone-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span>
         </button>
 
@@ -281,6 +477,17 @@
           <span>Minimized</span>
           <span id="qa-minimized-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span>
         </button>
+
+        <!-- Theme selector (persisted in state.json "theme") -->
+        <label class="flex items-center gap-1.5 bg-[var(--md-sys-color-surface-container-low)] pl-2.5 pr-1 py-0.5 rounded-full border border-[var(--md-sys-color-outline-variant)] text-[11px] font-bold" title="Theme">
+          <span class="material-symbols-outlined text-[15px] text-[var(--md-sys-color-primary)]">palette</span>
+          <select id="theme-selector" onchange="applyTheme(this.value)" class="text-[11px] font-bold rounded-full py-0.5 pl-2 outline-none cursor-pointer">
+            <option value="oled_black">OLED Black</option>
+            <option value="material_dark">Material Dark</option>
+            <option value="midnight_slate">Midnight Slate</option>
+            <option value="light">Material Light</option>
+          </select>
+        </label>
 
         <!-- Peak Meter badge -->
         <div class="flex items-center gap-1.5 bg-[var(--md-sys-color-surface-container-low)] px-2.5 py-1 rounded-full border border-[var(--md-sys-color-outline-variant)] text-[10px] font-mono">
@@ -299,42 +506,46 @@
     <!-- ========================================================================= -->
     <!-- 1. HERO MICROPHONE CARD: THE VERY FIRST THING THE USER SEES AT THE TOP -->
     <!-- ========================================================================= -->
-    <section class="bg-[var(--md-sys-color-surface-container)] rounded-[32px] p-4 border-2 border-[var(--md-sys-color-primary)] shadow-md m3-transition relative overflow-hidden">
-      <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+    <section class="bg-[var(--md-sys-color-surface-container)] rounded-[32px] p-4 border-2 border-[var(--md-sys-color-primary)] shadow-md m3-transition relative overflow-hidden min-w-0">
+      <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 min-w-0">
         
         <!-- Microphone Hardware Showcase & Dual Selectors -->
-        <div class="flex items-center gap-5">
+        <div class="flex items-start sm:items-center gap-4 min-w-0 w-full lg:w-auto flex-1">
           <!-- Mic Capsule Hero Avatar -->
-          <div class="w-16 h-16 rounded-[24px] bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center text-3xl shadow-sm shrink-0">
+          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-[24px] bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center text-3xl shadow-sm shrink-0">
             <span class="material-symbols-outlined text-3xl">mic</span>
           </div>
 
-          <div class="space-y-1.5">
-            <div class="flex items-center gap-2">
+          <div class="space-y-1.5 min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
               <span class="text-[11px] font-bold text-[var(--md-sys-color-primary)] uppercase tracking-wider">Active Broadcast Microphone</span>
-              <span class="w-2.5 h-2.5 rounded-full bg-[var(--md-sys-color-success)] animate-pulse"></span>
-              <span id="hero-hw-telemetry" class="text-[11px] font-medium text-[var(--md-sys-color-success)]">Wireless Mic RX (DJI) · 48 kHz / 24-bit</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-[var(--md-sys-color-success)] animate-pulse shrink-0"></span>
+              <span id="hero-hw-telemetry" class="text-[11px] font-medium text-[var(--md-sys-color-success)] truncate">Wireless Mic RX (DJI) · 48 kHz / 24-bit</span>
             </div>
 
             <!-- Dual Selectors: 1. Physical Hardware Interface | 2. Acoustic DSP Model -->
-            <div class="flex flex-wrap items-center gap-3 mt-1">
+            <div class="flex flex-wrap items-center gap-3 mt-1 min-w-0">
               <!-- Physical Hardware Input Interface Selector -->
-              <div class="flex flex-col">
+              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
                 <span class="text-[9px] font-bold text-[var(--md-sys-color-secondary)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
                   <span class="material-symbols-outlined text-[13px]">settings_input_component</span>
                   Physical Audio Interface
                 </span>
-                <select id="hw-mic-selector" onchange="switchHardwareInput(this.value)" class="text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-[var(--md-sys-color-secondary)]">
-                </select>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <select id="hw-mic-selector" onchange="switchHardwareInput(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-[var(--md-sys-color-secondary)]">
+                  </select>
+                  <button onclick="rescanDevices()" class="sm-btn shrink-0" title="Refresh: rescan audio devices"><span class="material-symbols-outlined">refresh</span></button>
+                </div>
+                <span id="hw-mic-missing" class="hidden text-[10px] font-bold text-amber-400 mt-0.5">Saved microphone is unplugged (Missing). Plug it in and press Refresh.</span>
               </div>
 
               <!-- Acoustic Mic Profile (DSP Model) Selector -->
-              <div class="flex flex-col">
+              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
                 <span class="text-[9px] font-bold text-[var(--md-sys-color-primary)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
                   <span class="material-symbols-outlined text-[13px]">graphic_eq</span>
                   Acoustic DSP Model
                 </span>
-                <select id="mic-selector" onchange="switchMicrophone(this.value)" class="text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-3 py-1.5 border border-[var(--md-sys-color-outline-variant)] outline-none cursor-pointer focus:ring-2 focus:ring-[var(--md-sys-color-primary)]">
+                <select id="mic-selector" onchange="switchMicrophone(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-3 py-1.5 border border-[var(--md-sys-color-outline-variant)] outline-none cursor-pointer focus:ring-2 focus:ring-[var(--md-sys-color-primary)]">
                   <optgroup label="Audio-Technica">
                     <option value="at2020">Audio-Technica AT2020</option>
                   </optgroup>
@@ -388,14 +599,14 @@
             </div>
 
             <!-- Secondary Microphone (Mic 2 Guest) Controls (Shown when Dual Mic Enabled) -->
-            <div id="hero-mic2-row" class="hidden flex flex-wrap items-center gap-3 pt-2 mt-1 border-t border-[var(--md-sys-color-outline-variant)]">
+            <div id="hero-mic2-row" class="hidden flex flex-wrap items-center gap-3 pt-2 mt-1 border-t border-[var(--md-sys-color-outline-variant)] min-w-0">
               <!-- Physical Hardware Input Interface Selector (Mic 2) -->
-              <div class="flex flex-col">
+              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
                 <span class="text-[9px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1 mb-0.5">
                   <span class="material-symbols-outlined text-[13px]">settings_input_component</span>
                   Mic 2 Audio Interface (Guest)
                 </span>
-                <select id="hw-mic2-selector" onchange="switchHardwareInput2(this.value)" class="text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-cyan-400">
+                <select id="hw-mic2-selector" onchange="switchHardwareInput2(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-cyan-400">
                   <option value="alsa_input.usb-Focusrite_Scarlett_Solo_USB_Y7B1KNX059807F-00.HiFi__Mic1__source">Scarlett Solo · Input 1 (Mic XLR)</option>
                   <option value="alsa_input.usb-Focusrite_Scarlett_Solo_USB_Y7B1KNX059807F-00.HiFi__Mic2__source" selected>Scarlett Solo · Input 2 (Inst/Line)</option>
                   <option value="alsa_input.usb-DJI_Technology_Co.__Ltd._Wireless_Microphone_RX-00.analog-stereo">Wireless Mic RX (DJI)</option>
@@ -403,12 +614,12 @@
               </div>
 
               <!-- Acoustic Mic Profile (DSP Model) Selector (Mic 2) -->
-              <div class="flex flex-col">
+              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
                 <span class="text-[9px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1 mb-0.5">
                   <span class="material-symbols-outlined text-[13px]">graphic_eq</span>
                   Mic 2 DSP Model
                 </span>
-                <select id="mic2-selector" onchange="switchMicrophone2(this.value)" class="text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-100 rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-cyan-400">
+                <select id="mic2-selector" onchange="switchMicrophone2(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-100 rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-cyan-400">
                   <option value="sm7b" selected>Shure SM7B (Guest Preset)</option>
                   <option value="podmic_xlr">Rode PodMic</option>
                   <option value="at2020">Audio-Technica AT2020</option>
@@ -422,10 +633,10 @@
         </div>
 
         <!-- Real-Time Hardware VU Meter & Fast Controls -->
-        <div class="flex items-stretch flex-wrap gap-3 w-full lg:w-auto justify-end">
+        <div class="flex items-stretch flex-wrap gap-2.5 w-full lg:w-auto justify-start lg:justify-end min-w-0">
           
           <!-- Live VU Level Meter -->
-          <div class="bg-[var(--md-sys-color-surface-container-low)] p-3.5 rounded-2xl border border-[var(--md-sys-color-outline-variant)] space-y-1.5 w-full sm:w-56">
+          <div class="bg-[var(--md-sys-color-surface-container-low)] p-3.5 rounded-2xl border border-[var(--md-sys-color-outline-variant)] space-y-1.5 w-full sm:w-56 flex-1 sm:flex-initial min-w-[200px]">
             <div class="flex justify-between items-center text-xs">
               <span class="text-[var(--md-sys-color-on-surface-variant)] font-medium">Input Peak Level</span>
               <span id="db-reading" class="font-mono text-[var(--md-sys-color-success)] font-bold">-14.2 dBFS</span>
@@ -440,9 +651,9 @@
           </div>
 
           <!-- Quick Actions: Vocal Compressor, Monitoring & Processed Audio (same height as Input Peak box) -->
-          <div class="flex flex-col sm:flex-row gap-2 items-stretch self-stretch">
+          <div class="flex flex-wrap sm:flex-nowrap gap-2 items-stretch self-stretch flex-1 sm:flex-initial">
             <!-- Vocal Compressor Hero Action -->
-            <button id="btn-comp-toggle" onclick="toggleCompressorQuick()" class="m3-state-layer px-4 rounded-2xl text-xs font-bold border border-emerald-500/40 bg-[var(--md-sys-color-surface-container-low)] text-emerald-100 flex flex-col items-center justify-center gap-1 min-h-[84px] min-w-[105px]" title="Vocal Compressor & Auto Leveler">
+            <button id="btn-comp-toggle" onclick="toggleCompressorQuick()" class="m3-state-layer px-3.5 py-2 rounded-2xl text-xs font-bold border border-emerald-500/40 bg-[var(--md-sys-color-surface-container-low)] text-emerald-100 flex flex-col items-center justify-center gap-1 min-h-[76px] flex-1 sm:flex-initial" title="Vocal Compressor & Auto Leveler">
               <div class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[19px] text-emerald-400">compress</span>
                 <span>Compressor</span>
@@ -454,13 +665,13 @@
               </div>
             </button>
 
-            <button id="btn-monitor-toggle" onclick="toggleMonitor()" class="m3-state-layer px-5 rounded-2xl text-xs font-bold border border-[var(--md-sys-color-outline-variant)] bg-[var(--md-sys-color-surface-container-low)] text-[var(--md-sys-color-on-surface)] flex items-center justify-center gap-2 min-h-[84px]">
+            <button id="btn-monitor-toggle" onclick="toggleMonitor()" class="m3-state-layer px-4 py-2 rounded-2xl text-xs font-bold border border-[var(--md-sys-color-outline-variant)] bg-[var(--md-sys-color-surface-container-low)] text-[var(--md-sys-color-on-surface)] flex items-center justify-center gap-2 min-h-[76px] flex-1 sm:flex-initial">
               <span class="material-symbols-outlined text-[20px]">headphones</span>
-              <span>Monitoring</span>
+              <span>Hear Myself</span>
               <span id="monitor-status-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span>
             </button>
 
-            <button id="btn-ab-compare" onclick="toggleABCompare()" class="m3-state-layer px-5 rounded-2xl text-xs font-bold border border-[var(--md-sys-color-outline-variant)] bg-[var(--md-sys-color-surface-container-low)] text-[var(--md-sys-color-on-surface)] flex items-center justify-center gap-2 min-h-[84px]">
+            <button id="btn-ab-compare" onclick="toggleABCompare()" class="m3-state-layer px-4 py-2 rounded-2xl text-xs font-bold border border-[var(--md-sys-color-outline-variant)] bg-[var(--md-sys-color-surface-container-low)] text-[var(--md-sys-color-on-surface)] flex items-center justify-center gap-2 min-h-[76px] flex-1 sm:flex-initial">
               <span class="material-symbols-outlined text-[20px]">graphic_eq</span>
               <span>Processed Audio</span>
               <span id="ab-state-badge" class="px-2 py-0.5 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] text-[10px] font-bold">ON</span>
@@ -473,7 +684,7 @@
     </section>
 
     <!-- A/B Audition Alert Banner (shows when bypassing) -->
-    <div id="ab-notice-banner" class="hidden p-4 rounded-[24px] bg-[var(--md-sys-color-tertiary-container)] text-[var(--md-sys-color-on-tertiary-container)] text-xs flex items-center justify-between shadow-md">
+    <div id="ab-notice-banner" class="hidden p-4 rounded-[24px] bg-[var(--md-sys-color-tertiary-container)] text-[var(--md-sys-color-on-tertiary-container)] text-xs flex flex-wrap items-center justify-between gap-2 shadow-md">
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined text-xl text-amber-400">warning</span>
         <span class="font-medium">You are hearing your <strong>Raw Capsule Sound</strong> without EQ or noise suppression.</span>
@@ -484,22 +695,22 @@
     </div>
 
     <!-- ==================== M3 NAVIGATION TABS ==================== -->
-    <nav class="flex overflow-x-auto space-x-2 pb-1 border-b border-[var(--md-sys-color-outline-variant)]" id="tabs-bar">
-      <button onclick="switchTab('tab-eq')" id="btn-tab-eq" class="tab-btn px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-container)] m3-transition">
-        <span class="material-symbols-outlined text-[18px]">equalizer</span>
-        <span>Microphone EQ Studio</span>
-      </button>
-      <button onclick="switchTab('tab-mixer')" id="btn-tab-mixer" class="tab-btn px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-container)] m3-transition">
+    <nav class="flex flex-wrap gap-2 pb-2 border-b border-[var(--md-sys-color-outline-variant)]" id="tabs-bar">
+      <button onclick="switchTab('tab-mixer')" id="btn-tab-mixer" class="tab-btn shrink-0 whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-container)] m3-transition">
         <span class="material-symbols-outlined text-[18px]">instant_mix</span>
-        <span>5-Channel Mixer & OBS Matrix</span>
+        <span>1 · Mixer &amp; Monitoring</span>
       </button>
-      <button onclick="switchTab('tab-noise')" id="btn-tab-noise" class="tab-btn px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-sm m3-transition">
-        <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
-        <span>Automatic Audio Clean</span>
+      <button onclick="switchTab('tab-eq')" id="btn-tab-eq" class="tab-btn shrink-0 whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-container)] m3-transition">
+        <span class="material-symbols-outlined text-[18px]">equalizer</span>
+        <span>2 · EQ, Compression &amp; Sound Shaping</span>
       </button>
-      <button onclick="switchTab('tab-calib')" id="btn-tab-calib" class="tab-btn px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-container)] m3-transition">
+      <button onclick="switchTab('tab-noise')" id="btn-tab-noise" class="tab-btn shrink-0 whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-container)] m3-transition">
         <span class="material-symbols-outlined text-[18px]">tune</span>
-        <span>Auto Noise &amp; De-Esser</span>
+        <span>3 · Manual Fine-Tune</span>
+      </button>
+      <button onclick="switchTab('tab-calib')" id="btn-tab-calib" class="tab-btn shrink-0 whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-container)] m3-transition">
+        <span class="material-symbols-outlined text-[18px]">fact_check</span>
+        <span>4 · Test &amp; Optimize</span>
       </button>
     </nav>
 
@@ -507,6 +718,7 @@
     <!-- 2. PRIMARY TAB: MICROPHONE EQ STUDIO (COMMUNITY PRESETS + 10-BAND MANUAL) -->
     <!-- ========================================================================= -->
     <div id="tab-eq" class="tab-content hidden space-y-5">
+      <div class="preview-bar-slot"></div>
       
       <!-- EQ Mode Selector: Online Community Presets vs Full Manual Mode -->
       <div class="bg-[var(--md-sys-color-surface-container)] p-6 rounded-[32px] border border-[var(--md-sys-color-outline-variant)] space-y-5">
@@ -568,7 +780,7 @@
 
         <!-- Dynamic 10-Band Interactive Canvas -->
         <div class="h-56 bg-[var(--md-sys-color-surface-container-lowest)] rounded-[24px] overflow-hidden border border-[var(--md-sys-color-outline-variant)] relative cursor-crosshair">
-          <canvas id="mainEQCanvas" class="w-full h-full block"></canvas>
+          <canvas id="mainEQCanvas" class="absolute inset-0 w-full h-full block"></canvas>
           <div class="absolute bottom-2 left-6 right-6 flex justify-between text-[10px] text-slate-500 font-mono pointer-events-none">
             <span>20 Hz</span>
             <span>100 Hz</span>
@@ -691,7 +903,7 @@
                 <span>Remove</span>
               </button>
               <button onclick="resetEQ()" class="text-xs text-[var(--md-sys-color-primary)] hover:underline font-semibold shrink-0 ml-1">Reset to Flat</button>
-              <button onclick="applyEQAsDefault()" class="m3-state-layer px-3 py-1.5 rounded-full text-xs font-bold bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-sm flex items-center gap-1" title="Save current manual bands as default">
+              <button id="btn-apply-manual-default" onclick="applyEQAsDefault()" class="m3-state-layer px-3 py-1.5 rounded-full text-xs font-bold bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-sm flex items-center gap-1" title="Save current manual bands as default">
                 <span class="material-symbols-outlined text-[14px]">save</span>
                 <span>Apply as Default</span>
               </button>
@@ -749,124 +961,74 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- 3. TAB 2: MULTI-CHANNEL MIXER & OBS ROUTING (MOTIV MIX CONSOLE) -->
+    <!-- 3. TAB 2: CHANNEL MIXER & OBS ROUTING (MOTIV MIX CONSOLE) -->
     <!-- ========================================================================= -->
     <div id="tab-mixer" class="tab-content hidden space-y-4">
-      <section class="bg-[var(--md-sys-color-surface-container)] rounded-[32px] p-6 shadow-sm flex flex-col space-y-5">
-        
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--md-sys-color-outline-variant)]">
-          <div>
-            <h2 class="text-base font-bold text-[var(--md-sys-color-on-surface)]">Multi-Channel Mixer & Virtual Routing</h2>
-            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Dynamic virtual inputs for OBS Studio & Linux sound settings</p>
+      <section class="bg-[var(--md-sys-color-surface-container)] rounded-[32px] p-4 md:p-5 shadow-sm flex flex-col gap-4 min-w-0">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[var(--md-sys-color-outline-variant)]">
+          <div class="min-w-0">
+            <h2 class="text-base font-bold text-[var(--md-sys-color-on-surface)]">Monitoring &amp; Channel Mixer</h2>
+            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Every channel feeds <b>Stream Mix</b> (OBS Track 1), <b>VOD Mix</b> (Track 2, DMCA-safe) and your <b>Monitor</b> (headphones). Only the microphone reaches <b>Voice Out</b> (Discord).</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <button onclick="addVirtualMixChannel()" class="m3-state-layer px-4 py-2 rounded-full text-xs font-bold bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-sm flex items-center gap-1.5" title="Add a new virtual input channel to PipeWire and OBS">
-              <span class="material-symbols-outlined text-[16px]">add</span>
-              <span>Add Channel</span>
-            </button>
-            <button id="btn-apply-channels" onclick="applyChannelsToSystem()" class="m3-state-layer px-4 py-2 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-sm flex items-center gap-1.5" title="Commit and persist virtual channels to system sound settings and OBS">
-              <span class="material-symbols-outlined text-[16px]">check_circle</span>
-              <span id="btn-apply-channels-text">Apply Channels</span>
-            </button>
-            <button onclick="resetChannelsToDefault()" class="m3-state-layer px-3.5 py-2 rounded-full text-xs font-semibold border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface-variant)] hover:text-white flex items-center gap-1" title="Restore default channels (Game, Voice, Music, Alerts, Mic)">
-              <span class="material-symbols-outlined text-[16px]">restart_alt</span>
-              <span>Default</span>
-            </button>
+            <div class="sm-seg" role="tablist" aria-label="View mode">
+              <button id="view-matrix-btn" onclick="setViewMode('matrix')" title="Routing matrix: every channel against every mix (V cycles views)"><span class="material-symbols-outlined text-[15px]">table_chart</span>Matrix</button>
+              <button id="view-normal-btn" onclick="setViewMode('normal')" title="Channel cards with waveforms"><span class="material-symbols-outlined text-[15px]">view_column</span>Cards</button>
+              <button id="view-simple-btn" onclick="setViewMode('simple')" title="Compact sliders"><span class="material-symbols-outlined text-[15px]">density_small</span>Compact</button>
+            </div>
+            <button onclick="openAddChannelModal()" class="sm-btn primary"><span class="material-symbols-outlined">add</span>Add Channel</button>
+            <button onclick="resetChannelsToDefault()" class="sm-btn" title="Restore the default channels"><span class="material-symbols-outlined">restart_alt</span>Default</button>
           </div>
         </div>
 
-        <!-- Dynamic Channels Grid: 5-Channel Studio Console Strip Layout (Full Width Responsive) -->
-        <div class="overflow-x-auto pb-2 w-full">
-          <div id="mixer-channels-grid" class="w-full grid grid-cols-5 gap-3 min-w-0">
-          
-          <!-- Ch 1: Mic Voice Output (Locked to Active Microphone Hardware & Profile) -->
-          <div class="channel-strip bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-primary)]/40 rounded-[24px] p-2.5 flex flex-col justify-between shadow-sm min-w-0" data-channel-id="mic">
-            <div class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-[11px] font-bold text-[var(--md-sys-color-primary)] uppercase tracking-wider">CH 1 · Mic Stream</span>
-                <span id="ch1-mic-badge" class="text-[9px] px-2 py-0.5 rounded-full bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] font-bold">MIC LOCKED</span>
-              </div>
-              
-              <!-- Hardware Name & Active Profile -->
-              <div class="space-y-1 bg-[var(--md-sys-color-surface-container)] p-2 rounded-xl border border-[var(--md-sys-color-outline-variant)]">
-                <div class="text-[11px] font-bold text-[var(--md-sys-color-secondary)] flex items-center gap-1.5 truncate">
-                  <span class="material-symbols-outlined text-[15px]">settings_input_component</span>
-                  <span id="ch1-hw-source" class="truncate">Physical Audio Interface</span>
-                </div>
-                <div class="text-[10px] text-[var(--md-sys-color-primary)] font-semibold truncate flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-[14px]">graphic_eq</span>
-                  <span id="ch1-dsp-curve" class="truncate">DSP: Fifine AM8 Curve</span>
-                </div>
-              </div>
-
-              <!-- Application/Device Dropdown -->
-              <div>
-                <label class="text-[10px] text-[var(--md-sys-color-on-surface-variant)] block mb-1">Route Audio From:</label>
-                <select id="ch1-route-selector" onchange="updateCh1Route(this.value)" class="w-full text-xs font-semibold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-2 py-1.5 border border-[var(--md-sys-color-outline-variant)] outline-none cursor-pointer">
-                  <option value="dsp_interface" selected>Physical Audio Interface (DSP Processed)</option>
-                  <option value="direct_mic">Choose Specific Hardware Microphone...</option>
-                </select>
-              </div>
-
-              <!-- Sub-selector for Multiple Microphones if not global physical interface -->
-              <div id="ch1-mic-picker" class="hidden p-2 rounded-xl bg-[var(--md-sys-color-surface-container)] border border-cyan-500/40 space-y-1">
-                <label class="text-[9px] font-bold text-cyan-300 flex items-center gap-1">
-                  <span class="material-symbols-outlined text-[13px]">mic</span>
-                  <span>Select Microphone:</span>
-                </label>
-                <select id="ch1-mic-selector" onchange="switchChannel1Mic(this.value)" class="w-full text-xs font-semibold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-2 py-1.5 border border-cyan-500/30 outline-none cursor-pointer">
-                </select>
-              </div>
-            </div>
-
-            <!-- Baseline Aligned Waveform & Fader (Full Width Waveform + Fader) -->
-            <div class="mt-auto pt-3 pb-1 border-t border-[var(--md-sys-color-outline-variant)]/60 flex items-end justify-between gap-2.5 h-44">
-              <!-- Active Audio Waveform Visualizer on the Left (Full Channel Width) -->
-              <div class="flex-1 flex flex-col h-full space-y-1 min-w-0">
-                <div class="flex items-center justify-between">
-                  <span class="text-[9px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)]">Waveform</span>
-                  <span id="ch1-wave-status" class="text-[9px] font-mono font-bold text-emerald-400">ACTIVE</span>
-                </div>
-                <div class="flex-1 w-full bg-[var(--md-sys-color-surface-container-lowest)] rounded-2xl border border-[var(--md-sys-color-outline-variant)] overflow-hidden relative shadow-inner p-1">
-                  <canvas class="channel-waveform-canvas w-full h-full block" data-channel-id="mic"></canvas>
-                </div>
-              </div>
-
-              <!-- Interactive Fader & Direct dB Entry -->
-              <div class="flex flex-col items-center space-y-1.5 shrink-0">
-                <!-- Clickable Numeric dB input badge -->
-                <div class="fader-db-badge cursor-pointer px-2 py-0.5 rounded-lg bg-[var(--md-sys-color-surface-container-highest)] hover:border hover:border-[var(--md-sys-color-primary)] border border-transparent transition-all" onclick="editFaderDb(this, 'mic')" title="Click to enter exact dB value (e.g. -3.0 dB, 0 dB, +2.5 dB)">
-                  <span class="fader-db-text text-[11px] font-mono font-bold text-[var(--md-sys-color-primary)]">0.0 dB</span>
-                </div>
-                <!-- Active Fader Track (Tap or Drag & Hold) -->
-                <div class="m3-fader-track select-none" onmousedown="startFaderDrag(event, this, 'mic')" ontouchstart="startFaderDrag(event, this, 'mic')" title="Tap or Drag & Hold to adjust volume">
-                  <div class="m3-fader-fill" style="height: 70%;"></div>
-                  <div class="m3-fader-thumb" style="bottom: calc(70% - 6px);"></div>
-                </div>
-                <span class="text-[9px] font-bold text-[var(--md-sys-color-primary)] uppercase tracking-wider">Fader</span>
-              </div>
-            </div>
-
-            <div class="space-y-2 pt-2 border-t border-[var(--md-sys-color-outline-variant)]">
-              <div class="grid grid-cols-3 gap-1">
-                <button onclick="toggleMute(this)" class="m3-state-layer py-2 rounded-full text-xs font-bold bg-[var(--md-sys-color-surface-container-highest)]">MUTE</button>
-                <button onclick="toggleSolo(this)" class="m3-state-layer py-2 rounded-full text-xs font-bold bg-[var(--md-sys-color-surface-container-highest)]">SOLO</button>
-                <button onclick="toggleChannelMonitor(this, 'mic')" title="Monitor in headphones" class="mon-btn m3-state-layer py-2 rounded-full text-xs font-bold bg-[var(--md-sys-color-surface-container-highest)] flex items-center justify-center"><span class="material-symbols-outlined text-[15px]">headphones</span></button>
-              </div>
-              <div class="text-center text-[10px] text-[var(--md-sys-color-on-surface-variant)] font-mono py-0.5">OBS: T1 / T2 / T3</div>
-            </div>
+        <!-- Master Monitor (headphones) -->
+        <div class="sm-card" id="monitor-master-card">
+          <div class="sm-head">
+            <div class="sm-title"><span class="material-symbols-outlined text-[18px] text-emerald-400">headphones</span><span class="name">Master Monitor</span></div>
+            <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Your private headphone mix (never streamed)</span>
+            <span class="flex-1"></span>
+            <span id="duck-indicator" class="sm-chip" title="Auto-Duck: background channels are lowered on Stream/VOD while you talk"><span class="material-symbols-outlined">south</span><span>Duck 0.0 dB</span></span>
+            <button id="monitor-master-mute" class="sm-chip mute" onclick="toggleMonitorMaster()"><span class="material-symbols-outlined">headset_off</span>Mute</button>
           </div>
-
-          <!-- Dynamic Virtual Channels (Game, Discord, Music, Alerts, + Custom) -->
-          <div id="dynamic-channels-container" class="contents"></div>
-
+          <div class="sm-src">
+            <span class="material-symbols-outlined text-[16px] text-[var(--md-sys-color-on-surface-variant)]">speaker</span>
+            <select id="monitor-output-selector" onchange="setMonitorOutput(this.value)"></select>
+            <button class="sm-btn" onclick="rescanDevices()" title="Refresh devices"><span class="material-symbols-outlined">refresh</span></button>
+          </div>
+          <div class="sm-row">
+            <label><span class="material-symbols-outlined">headphones</span>Monitor Gain</label>
+            <input id="monitor-master-gain" class="sm-gain monitor" type="range" min="-60" max="12" step="0.5" value="0"
+                   oninput="onMonitorMasterGain(this.value)" ondblclick="this.value=0; onMonitorMasterGain(0)">
+            <span id="monitor-master-readout" class="sm-readout" onclick="editGainReadout('monitor-master')">0.0 dB · 100%</span>
           </div>
         </div>
+
+        <!-- Broadcast output: the buses OBS records, after their -1 dB safety limiters -->
+        <div class="sm-card" id="broadcast-output-card">
+          <div class="sm-head">
+            <div class="sm-title"><span class="material-symbols-outlined text-[18px] text-purple-400">cast</span><span class="name">Broadcast Output</span></div>
+            <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Exactly what OBS records (after the safety limiters)</span>
+          </div>
+          <div class="sm-row">
+            <label title="StudioMic_Stream_Mix (OBS Track 1)"><span class="material-symbols-outlined">sensors</span>Stream Mix</label>
+            <div class="sm-meter" data-meter="bus:stream"><div class="fill"></div><div class="hold"></div></div>
+            <span class="sm-peak" data-peak="bus:stream" onclick="resetPeak('bus:stream')" title="Peak hold (click to reset)">-∞ dB</span>
+          </div>
+          <div class="sm-row">
+            <label title="StudioMic_VOD_Mix (OBS Track 2, DMCA safe)"><span class="material-symbols-outlined">video_library</span>VOD Mix</label>
+            <div class="sm-meter" data-meter="bus:vod"><div class="fill"></div><div class="hold"></div></div>
+            <span class="sm-peak" data-peak="bus:vod" onclick="resetPeak('bus:vod')" title="Peak hold (click to reset)">-∞ dB</span>
+          </div>
+        </div>
+
+        <div id="mixer-channels-grid" class="view-normal w-full min-w-0"></div>
+        <p class="text-[10px] text-[var(--md-sys-color-on-surface-variant)] font-mono">Double-click any Gain slider to snap back to 0.0 dB (100%). Click a dB readout to type an exact value.</p>
       </section>
     </div>
 
     <!-- ==================== TAB 3: AUTOMATIC AUDIO CLEAN & HYGIENE ==================== -->
-    <div id="tab-noise" class="tab-content space-y-4">
+    <div id="tab-noise" class="tab-content hidden space-y-4">
+      <div class="preview-bar-slot"></div>
       <div class="bg-[var(--md-sys-color-surface-container)] rounded-[32px] p-6 border border-[var(--md-sys-color-outline-variant)] space-y-5">
         
         <!-- Header -->
@@ -877,21 +1039,13 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-base font-bold text-[var(--md-sys-color-on-surface)]">Automatic Audio Clean &amp; Hygiene</h3>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40 tracking-wider">ALL 7 STAGES AUTOMATIC</span>
+                <h3 class="text-base font-bold text-[var(--md-sys-color-on-surface)]">Manual Fine-Tune: Noise Removal, Smart Gate &amp; De-Esser</h3>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40 tracking-wider">LIVE · ZERO AUDIO DROPS</span>
               </div>
-              <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Zero-friction studio DSP: DeepFilterNet AI noise cancelation, room-noise floor gate tracking, auto de-essing, dynamic leveling &amp; safe stream ceiling</p>
+              <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Every slider updates the running PipeWire filter-chain in place (pw-cli set-param). Nothing restarts and nothing disconnects while you adjust.</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="runAutoCleanScan()" id="btn-quick-auto-scan" class="m3-state-layer px-4 py-2 rounded-full text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 shadow-sm transition-all">
-              <span class="material-symbols-outlined text-[16px]">auto_fix_high</span>
-              <span id="btn-auto-scan-text">One-Click Auto Optimize</span>
-            </button>
-            <button onclick="toggleFineTuneOverrides()" id="btn-toggle-overrides" class="m3-state-layer px-3.5 py-2 rounded-full text-xs font-semibold border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface-variant)] hover:text-white flex items-center gap-1.5 transition-all">
-              <span class="material-symbols-outlined text-[16px]">tune</span>
-              <span id="override-btn-lbl">Fine-Tune Overrides</span>
-            </button>
             <button onclick="resetNoiseClean()" class="m3-state-layer px-3 py-2 rounded-full text-xs font-semibold border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface-variant)] hover:text-white flex items-center gap-1" title="Reset to Studio Automatic Defaults">
               <span class="material-symbols-outlined text-[16px]">restart_alt</span>
               <span>Reset</span>
@@ -908,10 +1062,10 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-white tracking-wide">AUTO-PILOT ACTIVE</span>
-                <span id="nc-autopilot-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-900/60 text-emerald-300 border border-emerald-500/40">7 STAGES AUTOMATED</span>
+                <span class="text-xs font-bold text-white tracking-wide">LIVE MANUAL CONTROL</span>
+                <span id="nc-autopilot-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-900/60 text-emerald-300 border border-emerald-500/40">7 STAGES · IN-PLACE UPDATES</span>
               </div>
-              <p id="nc-autopilot-desc" class="text-[11px] text-[var(--md-sys-color-on-surface-variant)] mt-0.5">Continuous acoustic calibration: Automatically tracks room silence floor, isolates vocal timbre, suppresses sibilance, and normalizes output levels.</p>
+              <p id="nc-autopilot-desc" class="text-[11px] text-[var(--md-sys-color-on-surface-variant)] mt-0.5">All controls are unlocked. Use the Preview bar above to loop your test phrase in your headphones while you adjust; One-Click Optimize lives in Tab 4.</p>
             </div>
           </div>
           <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
@@ -948,7 +1102,7 @@
               </div>
             </div>
             <!-- Collapsible Fine-Tune Section -->
-            <div class="nc-override-section hidden pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
+            <div class="nc-override-section pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Manual Frequency Override</span>
                 <div class="flex items-center gap-1.5">
@@ -986,7 +1140,7 @@
               </div>
             </div>
             <!-- Collapsible Fine-Tune Section -->
-            <div class="nc-override-section hidden pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
+            <div class="nc-override-section pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Manual Frequency Override</span>
                 <div class="flex items-center gap-1.5">
@@ -1001,47 +1155,49 @@
             </div>
           </div>
 
-          <!-- 3. Deep Noise Remover (DeepFilterNet CPU AI) -->
+          <!-- 3. Noise Remover (single engine loaded at a time) -->
           <div class="p-4 rounded-[24px] bg-[var(--md-sys-color-surface-container-low)] border-2 border-cyan-500/50 space-y-3 shadow-sm">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-cyan-300 text-lg">psychology</span>
-                <h4 class="font-bold text-xs text-cyan-300">3. Deep Noise Remover (AI)</h4>
+                <h4 class="font-bold text-xs text-cyan-300">3. Noise Remover</h4>
               </div>
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40">CPU AI MODEL</span>
+              <span id="dn-status" class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40">ACTIVE</span>
             </div>
             <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)] leading-relaxed">
-              DeepFilterNet neural network isolates human voice phonemes and automatically cancels fans, clicks &amp; ambient room noise.
+              Only the selected engine is loaded. Switching engines swaps the chain behind the buses with a 40 ms crossfade, so Discord and OBS never disconnect.
             </p>
-            <div class="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 text-[11px] space-y-1 font-mono">
-              <div class="flex justify-between items-center text-cyan-200">
-                <span>AI Core:</span>
-                <span class="text-cyan-300 font-bold">DeepFilterNet Native CPU</span>
+            <select id="dn-engine" onchange="setDenoiserEngine(this.value)" class="w-full text-xs font-bold rounded-xl px-3 py-1.5 outline-none cursor-pointer">
+              <option value="deepfilter">Deep Noise Remover (DeepFilterNet) · best quality, heavier</option>
+              <option value="rnnoise">RNNoise · light, low latency</option>
+              <option value="speex">Speex</option>
+              <option value="off">Off</option>
+            </select>
+            <div id="dn-group-deepfilter" class="dn-group space-y-2">
+              <div class="flex gap-2 p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-[10.5px] leading-relaxed text-amber-200">
+                <span class="material-symbols-outlined text-[16px] text-amber-400 shrink-0">warning</span>
+                <span><b>Heavier AI model.</b> DeepFilterNet adds about 30 ms of voice latency (≈58 ms mic-to-headphones vs ≈28 ms without it) and uses the most CPU. On slower PCs it can fall behind: for the first ~10–20 s after you switch it on, all audio may drop out once for ~20 ms. Only applies while DeepFilterNet is selected. If you hear dropouts or delay, use RNNoise instead.</span>
               </div>
-              <div class="flex justify-between items-center text-cyan-200">
-                <span>Auto Attenuation:</span>
-                <span id="auto-deep-atten-disp" class="text-cyan-300 font-bold">80 dB (Adaptive Max)</span>
-              </div>
+              <div class="flex justify-between text-[10px] text-cyan-200"><span>Attenuation Limit (dB)</span><span id="dn-df-atten-lbl" class="font-mono font-bold">80 dB</span></div>
+              <input type="range" id="dn-df-atten" min="0" max="100" step="1" value="80" class="w-full m3-slider" oninput="onDenoiserParam('df_attenuation_db', this)">
+              <div class="flex justify-between text-[10px] text-cyan-200"><span>Min processing threshold (dB)</span><span id="dn-df-min-lbl" class="font-mono font-bold">-15 dB</span></div>
+              <input type="range" id="dn-df-min" min="-15" max="35" step="1" value="-15" class="w-full m3-slider" oninput="onDenoiserParam('df_min_threshold_db', this)">
+              <div class="flex justify-between text-[10px] text-cyan-200"><span>Max ERB processing threshold (dB)</span><span id="dn-df-erb-lbl" class="font-mono font-bold">30 dB</span></div>
+              <input type="range" id="dn-df-erb" min="-15" max="35" step="1" value="30" class="w-full m3-slider" oninput="onDenoiserParam('df_max_erb_threshold_db', this)">
             </div>
-            <!-- Collapsible Fine-Tune Section -->
-            <div class="nc-override-section hidden pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <span class="text-[10px] text-cyan-200">AI Attenuation Limit</span>
-                <div class="flex items-center gap-1.5">
-                  <input type="checkbox" id="nc-deep-on" checked class="w-3.5 h-3.5 cursor-pointer accent-cyan-400">
-                  <span class="text-[10px]">Enable</span>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="range" id="nc-deep-atten" min="10" max="100" step="5" value="80" class="flex-1 m3-slider" oninput="ncLabel(); applyNoiseClean();">
-                <span id="nc-deep-atten-lbl" class="font-mono text-xs font-bold w-12 text-right text-cyan-300">80 dB</span>
-              </div>
-              <div class="flex items-center justify-between text-xs pt-1">
-                <span class="text-[10px] text-cyan-200">Processing Threshold</span>
-                <span id="nc-deep-thresh-lbl" class="font-mono text-xs font-bold text-cyan-300">-15 dB</span>
-              </div>
-              <input type="range" id="nc-deep-thresh" min="-30" max="15" step="1" value="-15" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
+            <div id="dn-group-rnnoise" class="dn-group hidden space-y-2">
+              <div class="flex justify-between text-[10px] text-cyan-200"><span>VAD Threshold (%)</span><span id="dn-rn-vad-lbl" class="font-mono font-bold">50 %</span></div>
+              <input type="range" id="dn-rn-vad" min="0" max="99" step="1" value="50" class="w-full m3-slider" oninput="onDenoiserParam('rn_vad_threshold', this)">
+              <div class="flex justify-between text-[10px] text-cyan-200"><span>VAD Grace Period (ms)</span><span id="dn-rn-grace-lbl" class="font-mono font-bold">200 ms</span></div>
+              <input type="range" id="dn-rn-grace" min="0" max="1000" step="10" value="200" class="w-full m3-slider" oninput="onDenoiserParam('rn_vad_grace_ms', this)">
+              <div class="flex justify-between text-[10px] text-cyan-200"><span>Retroactive VAD Grace (ms)</span><span id="dn-rn-retro-lbl" class="font-mono font-bold">0 ms</span></div>
+              <input type="range" id="dn-rn-retro" min="0" max="200" step="10" value="0" class="w-full m3-slider" oninput="onDenoiserParam('rn_retro_grace_ms', this)">
             </div>
+            <div id="dn-group-speex" class="dn-group hidden space-y-2">
+              <div class="flex justify-between text-[10px] text-cyan-200"><span>Noise Suppression (dB)</span><span id="dn-sx-lbl" class="font-mono font-bold">-30 dB</span></div>
+              <input type="range" id="dn-sx" min="-60" max="-1" step="1" value="-30" class="w-full m3-slider" oninput="onDenoiserParam('speex_suppress_db', this)">
+            </div>
+            <p id="dn-note" class="text-[10px] text-amber-300 hidden"></p>
           </div>
 
           <!-- 4. Adaptive Noise Gate -->
@@ -1049,12 +1205,12 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-emerald-400 text-lg">door_sliding</span>
-                <h4 class="font-bold text-xs">4. Adaptive Noise Gate</h4>
+                <h4 class="font-bold text-xs">4. Smart Gate / Expander</h4>
               </div>
               <span id="auto-gate-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40">AUTO TRACKING</span>
             </div>
             <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)] leading-relaxed">
-              Continuously measures ambient room silence and automatically locks the gate threshold 5 dB above your room floor.
+              Hysteresis: the gate closes 7 dB below where it opens and holds 250 ms, with a 3 ms look-ahead and soft knee, so keyboards never make it chatter or crackle and word tails survive. Its detector only listens to 150 Hz - 3.5 kHz, so desk thuds and mouse clicks are ignored.
             </p>
             <div class="p-2.5 rounded-xl bg-[var(--md-sys-color-surface-container-highest)]/50 border border-[var(--md-sys-color-outline-variant)]/60 text-[11px] space-y-1 font-mono">
               <div class="flex justify-between items-center text-[var(--md-sys-color-on-surface-variant)]">
@@ -1070,10 +1226,14 @@
               <div id="nc-live-bar" class="h-full bg-emerald-400 transition-all duration-75" style="width:0%"></div>
               <div id="nc-gate-marker" class="absolute top-0 h-full w-0.5 bg-amber-400" style="left:50%"></div>
             </div>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-[10px] font-mono text-[var(--md-sys-color-on-surface-variant)]">Close: <b id="nc-gate-close-lbl">-45 dB</b> (7 dB hysteresis)</span>
+              <button id="btn-gate-autoset" onclick="gateAutoSet()" class="sm-btn"><span class="material-symbols-outlined">keyboard</span>Auto-Set Gate (3s Keyboard Test)</button>
+            </div>
             <!-- Collapsible Fine-Tune Section -->
-            <div class="nc-override-section hidden pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
+            <div class="nc-override-section pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
               <div class="flex items-center justify-between text-xs">
-                <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Manual Gate Threshold</span>
+                <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Click / Gate Threshold (open)</span>
                 <div class="flex items-center gap-1.5">
                   <input type="checkbox" id="nc-gate-on" checked class="w-3.5 h-3.5 cursor-pointer accent-[var(--md-sys-color-primary)]">
                   <span class="text-[10px]">Enable</span>
@@ -1109,7 +1269,7 @@
               </div>
             </div>
             <!-- Collapsible Fine-Tune Section -->
-            <div class="nc-override-section hidden pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
+            <div class="nc-override-section pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-[10px] text-amber-200">Frequency Target</span>
                 <div class="flex items-center gap-1.5">
@@ -1126,6 +1286,11 @@
                 <span id="nc-deess-amt-lbl" class="font-mono text-xs font-bold text-amber-300">-4.5 dB</span>
               </div>
               <input type="range" id="nc-deess-amt" min="-15" max="0" step="0.5" value="-4.5" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
+              <div class="flex items-center justify-between text-xs pt-1">
+                <span class="text-[10px] text-amber-200">Threshold</span>
+                <span id="nc-deess-thresh-lbl" class="font-mono text-xs font-bold text-amber-300">-30 dB</span>
+              </div>
+              <input type="range" id="nc-deess-thresh" min="-60" max="0" step="1" value="-30" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
             </div>
           </div>
 
@@ -1152,7 +1317,7 @@
               </div>
             </div>
             <!-- Collapsible Fine-Tune Section -->
-            <div class="nc-override-section hidden pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
+            <div class="nc-override-section pt-2 border-t border-[var(--md-sys-color-outline-variant)] space-y-2">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-[10px] text-emerald-200">Compression Ratio</span>
                 <div class="flex items-center gap-1.5">
@@ -1174,6 +1339,16 @@
                 <span id="nc-comp-makeup-lbl" class="font-mono text-xs font-bold text-emerald-300">+3.5 dB</span>
               </div>
               <input type="range" id="nc-comp-makeup" min="0" max="10" step="0.5" value="3.5" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
+              <div class="flex items-center justify-between text-xs pt-1">
+                <span class="text-[10px] text-emerald-200">Attack</span>
+                <span id="nc-comp-attack-lbl" class="font-mono text-xs font-bold text-emerald-300">10 ms</span>
+              </div>
+              <input type="range" id="nc-comp-attack" min="0.5" max="100" step="0.5" value="10" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
+              <div class="flex items-center justify-between text-xs pt-1">
+                <span class="text-[10px] text-emerald-200">Release</span>
+                <span id="nc-comp-release-lbl" class="font-mono text-xs font-bold text-emerald-300">80 ms</span>
+              </div>
+              <input type="range" id="nc-comp-release" min="20" max="1000" step="10" value="80" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
             </div>
           </div>
 
@@ -1183,13 +1358,13 @@
               <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-rose-400 text-lg">vertical_align_top</span>
                 <div>
-                  <h4 class="font-bold text-xs text-rose-300">7. True-Peak Brick Wall Limiter (-2.0 dBFS Safe Ceiling)</h4>
-                  <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)] mt-0.5">Mathematically guarantees clean audio with zero digital clipping in OBS Studio, Discord, or stream recordings.</p>
+                  <h4 class="font-bold text-xs text-rose-300">7. Clipguard (-0.5 dB Brickwall + Hardware Auto-Pad)</h4>
+                  <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)] mt-0.5">32-bit float lookahead limiter at -0.5 dB. If the raw input clips, the hardware capture level is stepped down (max -6 dB) and made up digitally; it is restored when Clipguard is switched off.</p>
                 </div>
               </div>
               <div class="flex items-center gap-3">
                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-500/40">AUTO CLIP PROTECTION</span>
-                <div class="nc-override-section hidden flex items-center gap-1.5">
+                <div class="nc-override-section flex items-center gap-1.5">
                   <input type="checkbox" id="nc-limiter-on" checked class="w-4 h-4 cursor-pointer accent-rose-400" onchange="applyNoiseClean()">
                   <span class="text-[10px]">Enable</span>
                 </div>
@@ -1197,12 +1372,46 @@
             </div>
           </div>
         </div>
-        <p id="nc-status" class="text-[11px] font-semibold text-emerald-400 transition-all"></p>
       </div>
     </div>
 
     <!-- ==================== TAB 4: AUTOMATED NOISE REMOVAL & DE-ESSING SOUNDCHECK ==================== -->
     <div id="tab-calib" class="tab-content hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Voice Test Recorder -->
+        <div class="bg-[var(--md-sys-color-surface-container)] rounded-[28px] p-5 border border-[var(--md-sys-color-outline-variant)] space-y-3">
+          <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[var(--md-sys-color-primary)]">mic</span><h3 class="text-sm font-bold">Voice Test Recorder</h3></div>
+          <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)]">Records your DRY microphone (48 kHz, 32-bit float) for up to 10 seconds. Tabs 2 and 3 can then play it through the live chain to your headphones only.</p>
+          <div class="sm-meter" id="rec-progress"><div class="fill" style="background:var(--md-sys-color-primary)"></div></div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btn-rec-start" class="sm-btn primary" onclick="recordTest()"><span class="material-symbols-outlined">fiber_manual_record</span>Record (10 s)</button>
+            <button id="btn-rec-stop" class="sm-btn" onclick="stopRecording()" disabled><span class="material-symbols-outlined">stop</span>Stop</button>
+            <span id="rec-status" class="text-[11px] font-mono text-[var(--md-sys-color-on-surface-variant)]">No recording yet</span>
+          </div>
+          <p class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Kept in /tmp/studio-mic-preview.wav, deleted after 15 minutes without use or when Studio Mic quits.</p>
+        </div>
+
+        <!-- De-Esser sibilance test -->
+        <div class="bg-[var(--md-sys-color-surface-container)] rounded-[28px] p-5 border border-[var(--md-sys-color-outline-variant)] space-y-3">
+          <div class="flex items-center gap-2"><span class="material-symbols-outlined text-amber-300">record_voice_over</span><h3 class="text-sm font-bold">De-Esser Sibilance Test</h3></div>
+          <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)]">Press start and read aloud:</p>
+          <p class="text-sm font-semibold text-[var(--md-sys-color-primary)] leading-relaxed">"She sells seashells by the seashore, and six swiss wristwatches swiftly buzzed past the station."</p>
+          <button id="btn-deess-test" class="sm-btn primary" onclick="startDeEsserTest()"><span class="material-symbols-outlined">play_arrow</span>Start De-Esser Test</button>
+          <p id="deess-test-status" class="text-[11px] font-mono text-[var(--md-sys-color-on-surface-variant)]"></p>
+        </div>
+
+        <!-- One-Click Optimize -->
+        <div class="bg-[var(--md-sys-color-surface-container)] rounded-[28px] p-5 border border-[var(--md-sys-color-outline-variant)] space-y-3">
+          <div class="flex items-center gap-2"><span class="material-symbols-outlined text-cyan-300">auto_fix_high</span><h3 class="text-sm font-bold">One-Click Optimize</h3></div>
+          <p class="text-[11px] text-[var(--md-sys-color-on-surface-variant)]">Listens for 2.5 s, measures your room floor and voice, then sets gate, de-esser and makeup gain. Applied live, nothing restarts.</p>
+          <button onclick="runAutoCleanScan()" id="btn-quick-auto-scan" class="sm-btn primary">
+            <span class="material-symbols-outlined">auto_fix_high</span>
+            <span id="btn-auto-scan-text">One-Click Optimize</span>
+          </button>
+          <p id="nc-status" class="text-[11px] font-semibold text-emerald-400"></p>
+        </div>
+      </div>
+
       <div class="bg-[var(--md-sys-color-surface-container)] rounded-[32px] p-6 max-w-2xl mx-auto border border-[var(--md-sys-color-outline-variant)] text-center space-y-5">
         <div class="w-14 h-14 rounded-2xl bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center mx-auto shadow-sm">
           <span class="material-symbols-outlined text-3xl">auto_fix_high</span>
@@ -1296,6 +1505,36 @@
         </div>
       </div>
     </div>
+
+  <!-- ==================== ADD CHANNEL MODAL ==================== -->
+  <div id="add-channel-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[var(--md-sys-color-surface-container)] border border-[var(--md-sys-color-outline-variant)] rounded-[32px] p-6 max-w-md w-full shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center"><span class="material-symbols-outlined">add</span></div>
+        <div><h3 class="text-base font-bold">Add Channel</h3><p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Presets come with smart auto-routing rules</p></div>
+      </div>
+      <label class="block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Type
+        <select id="add-channel-preset" onchange="onAddChannelPreset(this.value)" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5">
+          <option value="game">Game (Steam, Wine, Proton, gamescope, Lutris)</option>
+          <option value="music">Music (Spotify, Feishin, Elisa, Rhythmbox, MPD, Amberol)</option>
+          <option value="voice">Voice Chat (Discord, Vesktop, WebCord, TeamSpeak, Mumble)</option>
+          <option value="browser">Browser (Firefox, Chromium, Brave, Zen, Vivaldi, Chrome)</option>
+          <option value="sfx">SFX / Soundboard</option>
+          <option value="capture">Capture Card / Hardware Input (raw passthrough)</option>
+          <option value="">Custom (empty)</option>
+        </select>
+      </label>
+      <label class="block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Name
+        <input id="add-channel-name" type="text" value="Game" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5 bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] border border-[var(--md-sys-color-outline-variant)] outline-none">
+      </label>
+      <div class="flex gap-2 pt-1">
+        <button class="sm-btn primary flex-1 justify-center py-2.5" onclick="commitAddChannel()"><span class="material-symbols-outlined">check</span>Add</button>
+        <button class="sm-btn py-2.5" onclick="closeAddChannelModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sm-toast"></div>
 
   <!-- ==================== M3 UNSAVED CHANGES MODAL ==================== -->
   <div id="unsaved-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
@@ -2053,22 +2292,82 @@
       m3DialogCallback = null;
     }
 
+    function normalizeBandTypeToUI(rawType) {
+      if (!rawType) return "Bell";
+      const s = String(rawType).trim().toLowerCase();
+      if (s === "high pass" || s === "highpass" || s === "hp") return "High Pass";
+      if (s === "low pass" || s === "lowpass" || s === "lp") return "Low Pass";
+      if (s === "high shelf" || s === "highshelf" || s === "hs") return "High Shelf";
+      if (s === "low shelf" || s === "lowshelf" || s === "ls") return "Low Shelf";
+      if (s === "notch") return "Notch";
+      return "Bell";
+    }
+
+    function normalizeBandsFromBackend(rawBands) {
+      if (!Array.isArray(rawBands) || rawBands.length === 0) return null;
+      return rawBands.map((b, i) => {
+        if (typeof b === "number") {
+          const base = (micData[currentMicKey] && micData[currentMicKey].bands[i]) || { type: "Bell", freq: 1000, q: 1.0 };
+          return {
+            id: i + 1,
+            type: normalizeBandTypeToUI(base.type || base.filter_type),
+            freq: Number(base.freq || 1000),
+            gain: Number(b),
+            q: Number(base.q || 1.0)
+          };
+        }
+        const rawGain = b.gain_db !== undefined ? b.gain_db : (b.gain !== undefined ? b.gain : 0);
+        const rawType = b.filter_type !== undefined ? b.filter_type : b.type;
+        return {
+          id: i + 1,
+          type: normalizeBandTypeToUI(rawType),
+          freq: Number(b.freq || 1000),
+          gain: Number(rawGain || 0),
+          q: Number(b.q || 1.0)
+        };
+      });
+    }
+
+    function syncMacroSlidersFromBands(bands) {
+      if (!Array.isArray(bands)) return;
+      const wBand = bands.find(x => x.freq >= 120 && x.freq <= 250);
+      if (wBand) setMacroSlider('warmth', Math.max(-6, Math.min(6, wBand.gain || 0)));
+      const cBand = bands.find(x => x.freq >= 2000 && x.freq <= 4500);
+      if (cBand) setMacroSlider('clarity', Math.max(-6, Math.min(6, cBand.gain || 0)));
+      const aBand = bands.find(x => x.freq >= 9000);
+      if (aBand) setMacroSlider('air', Math.max(-6, Math.min(6, aBand.gain || 0)));
+    }
+
     function commitSaveCustomProfile() {
       const titleInput = document.getElementById('custom-profile-input');
       const title = titleInput.value.trim() || "My Custom Profile";
       const curMicName = micData[currentMicKey] ? micData[currentMicKey].name : 'Microphone';
+      const activeBands = normalizeBandsFromBackend(getActiveBands()) || [];
 
       const newProfile = {
         id: Date.now(),
         title: title,
         mic: curMicName,
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        bands: JSON.parse(JSON.stringify(getActiveBands())),
+        bands: activeBands,
         is_custom: true,
-        summary: `${getActiveBands().length} Bands · Calibrated Studio Curve`
+        summary: `${activeBands.length} Bands · Calibrated Studio Curve`
       };
 
       userCustomProfiles.unshift(newProfile);
+      factoryBands = JSON.parse(JSON.stringify(activeBands));
+      if (window.__SAVED_CONFIG__) {
+        window.__SAVED_CONFIG__.eq_bands = JSON.parse(JSON.stringify(activeBands));
+        window.__SAVED_CONFIG__.preset_name = `Custom: ${title}`;
+        window.__SAVED_CONFIG__.user_presets = userCustomProfiles;
+      }
+      const cbn = document.getElementById('community-badge-name');
+      if (cbn) cbn.textContent = `Custom: ${title}`;
+      const ch1p = document.getElementById('ch1-mic-profile');
+      if (ch1p) ch1p.textContent = `Custom: ${title}`;
+      const ch1Dsp = document.getElementById('ch1-dsp-curve');
+      if (ch1Dsp) ch1Dsp.textContent = `DSP: ${title}`;
+
       if (window.ipc) {
         window.ipc.postMessage('save_user_preset:' + JSON.stringify(newProfile));
       }
@@ -2089,7 +2388,7 @@
           </div>
           <div class="flex items-center justify-between py-1">
             <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-purple-300">tune</span>Parametric Bands</span>
-            <span class="text-purple-300 font-mono font-bold">${getActiveBands().length} Active Bands Saved</span>
+            <span class="text-purple-300 font-mono font-bold">${activeBands.length} Active Bands Saved</span>
           </div>
         </div>
         `,
@@ -2105,20 +2404,33 @@
       const found = userCustomProfiles.find(p => p.id === id);
       if (!found) return;
 
-      const loadedBands = JSON.parse(JSON.stringify(found.bands));
+      const loadedBands = normalizeBandsFromBackend(found.bands);
+      if (!loadedBands) return;
       setActiveBands(loadedBands);
       const isMic2 = activeEQTargetMic === 'mic2';
 
       const cbn = document.getElementById('community-badge-name');
       if (cbn) cbn.textContent = `Custom: ${found.title}`;
       if (!isMic2) {
+        factoryBands = JSON.parse(JSON.stringify(loadedBands));
+        syncMacroSlidersFromBands(loadedBands);
         const ch1Profile = document.getElementById('ch1-mic-profile');
         if (ch1Profile) ch1Profile.textContent = `Custom: ${found.title}`;
+        const ch1Dsp = document.getElementById('ch1-dsp-curve');
+        if (ch1Dsp) ch1Dsp.textContent = `DSP: ${found.title}`;
+        if (window.ipc) {
+          window.ipc.postMessage('save_default_eq:' + JSON.stringify({
+            bands: loadedBands,
+            mic_id: currentMicKey,
+            preset_name: `Custom: ${found.title}`
+          }));
+        }
+      } else {
+        pushEQToPipeWire();
       }
 
       renderManualBandsTable();
       renderMainEQCanvas();
-      pushEQToPipeWire();
       switchEQSubMode('manual');
     }
 
@@ -2197,7 +2509,7 @@
       }
     }
 
-    function toggleDualMicMode(enabled) {
+    function toggleDualMicMode(enabled, skipIpc) {
       isDualMicEnabled = enabled;
       const pill = document.getElementById('qa-dual-mic-pill');
       const toggle = document.getElementById('qa-dual-mic-toggle');
@@ -2223,7 +2535,7 @@
         else heroMic2.classList.add('hidden');
       }
 
-      if (window.ipc) {
+      if (!skipIpc && window.ipc) {
         window.ipc.postMessage('dual_mic:' + (enabled ? '1' : '0'));
       }
     }
@@ -2256,8 +2568,8 @@
       renderMainEQCanvas();
     }
 
-    function switchHardwareInput2(deviceName) {
-      if (window.ipc) {
+    function switchHardwareInput2(deviceName, skipIpc) {
+      if (!skipIpc && window.ipc) {
         window.ipc.postMessage('hardware_mic2:' + deviceName);
       }
     }
@@ -2326,15 +2638,16 @@
         window.event.currentTarget.className = "community-card p-4 rounded-[24px] border-2 border-[var(--md-sys-color-primary)] bg-[var(--md-sys-color-primary-container)]/20 text-left transition-all";
       }
 
+      let presetTitle = micData[currentMicKey] ? micData[currentMicKey].communityName : "Recommended EQ";
+      let newBands = [];
       if (type === 'gold') {
-        currentBands = JSON.parse(JSON.stringify(micData[currentMicKey].bands));
-        const ch1p = document.getElementById('ch1-mic-profile');
-        if (ch1p) ch1p.textContent = micData[currentMicKey].communityName;
+        newBands = JSON.parse(JSON.stringify(micData[currentMicKey].bands));
+        presetTitle = micData[currentMicKey].communityName;
         setMacroSlider('warmth', 1.0);
         setMacroSlider('clarity', 2.0);
         setMacroSlider('air', 1.5);
       } else if (type === 'broadcast') {
-        currentBands = [
+        newBands = [
           { id: 1, type: "High Pass", freq: 70, gain: 0, q: 0.7 },
           { id: 2, type: "Bell", freq: 120, gain: 2.0, q: 1.1 },
           { id: 3, type: "Bell", freq: 180, gain: 3.5, q: 1.0 },
@@ -2346,13 +2659,12 @@
           { id: 9, type: "High Shelf", freq: 10000, gain: 1.5, q: 0.8 },
           { id: 10, type: "High Shelf", freq: 14000, gain: 1.0, q: 0.9 }
         ];
-        const ch1p = document.getElementById('ch1-mic-profile');
-        if (ch1p) ch1p.textContent = "Warm Radio Host Depth";
+        presetTitle = "Warm Radio Host Depth";
         setMacroSlider('warmth', 3.5);
         setMacroSlider('clarity', 2.0);
         setMacroSlider('air', 1.0);
       } else if (type === 'streamer') {
-        currentBands = [
+        newBands = [
           { id: 1, type: "High Pass", freq: 85, gain: 0, q: 0.7 },
           { id: 2, type: "Bell", freq: 140, gain: 1.0, q: 1.1 },
           { id: 3, type: "Bell", freq: 250, gain: -1.5, q: 1.2 },
@@ -2364,13 +2676,12 @@
           { id: 9, type: "Bell", freq: 6500, gain: 2.0, q: 1.2 },
           { id: 10, type: "High Shelf", freq: 11000, gain: 2.0, q: 0.8 }
         ];
-        const ch1p = document.getElementById('ch1-mic-profile');
-        if (ch1p) ch1p.textContent = "Live Streamer Pro (Music Mix)";
+        presetTitle = "Live Streamer Pro (Music Mix)";
         setMacroSlider('warmth', -1.5);
         setMacroSlider('clarity', 3.8);
         setMacroSlider('air', 2.0);
       } else if (type === 'dialogue') {
-        currentBands = [
+        newBands = [
           { id: 1, type: "High Pass", freq: 80, gain: 0, q: 0.7 },
           { id: 2, type: "Bell", freq: 150, gain: 0.5, q: 1.0 },
           { id: 3, type: "Bell", freq: 250, gain: -1.5, q: 1.0 },
@@ -2382,29 +2693,47 @@
           { id: 9, type: "Bell", freq: 8000, gain: 1.2, q: 1.0 },
           { id: 10, type: "High Shelf", freq: 12000, gain: 1.0, q: 0.8 }
         ];
-        const ch1p = document.getElementById('ch1-mic-profile');
-        if (ch1p) ch1p.textContent = "Clean Voiceover / Podcast";
+        presetTitle = "Clean Voiceover / Podcast";
         setMacroSlider('warmth', 0.5);
         setMacroSlider('clarity', 1.5);
         setMacroSlider('air', 1.0);
       }
+      setActiveBands(newBands);
+      if (activeEQTargetMic !== 'mic2') {
+        factoryBands = JSON.parse(JSON.stringify(newBands));
+        const ch1p = document.getElementById('ch1-mic-profile');
+        if (ch1p) ch1p.textContent = presetTitle;
+        const cbn = document.getElementById('community-badge-name');
+        if (cbn) cbn.textContent = presetTitle;
+        const ch1Dsp = document.getElementById('ch1-dsp-curve');
+        if (ch1Dsp) ch1Dsp.textContent = `DSP: ${presetTitle}`;
+        if (window.ipc) {
+          window.ipc.postMessage('save_default_eq:' + JSON.stringify({
+            bands: newBands,
+            mic_id: currentMicKey,
+            preset_name: presetTitle
+          }));
+        }
+      } else {
+        pushEQToPipeWire();
+      }
       renderManualBandsTable();
       renderMainEQCanvas();
-      pushEQToPipeWire();
     }
 
     function updateMacro(type, val) {
       const numVal = parseFloat(val);
       document.getElementById('val-' + type).textContent = (numVal > 0 ? '+' : '') + numVal.toFixed(1) + ' dB';
+      const bands = getActiveBands();
 
       if (type === 'warmth') {
-        const b = currentBands.find(x => x.freq >= 120 && x.freq <= 250);
+        const b = bands.find(x => x.freq >= 120 && x.freq <= 250);
         if (b) b.gain = numVal;
       } else if (type === 'clarity') {
-        const b = currentBands.find(x => x.freq >= 2000 && x.freq <= 4500);
+        const b = bands.find(x => x.freq >= 2000 && x.freq <= 4500);
         if (b) b.gain = numVal;
       } else if (type === 'air') {
-        const b = currentBands.find(x => x.freq >= 9000);
+        const b = bands.find(x => x.freq >= 9000);
         if (b) b.gain = numVal;
       }
 
@@ -2564,8 +2893,8 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       const rect = canvas.getBoundingClientRect();
-      const w = Math.max(300, rect.width || (canvas.parentElement ? canvas.parentElement.clientWidth : 800));
-      const h = Math.max(160, rect.height || (canvas.parentElement ? canvas.parentElement.clientHeight : 224));
+      const w = Math.max(10, rect.width || (canvas.parentElement ? canvas.parentElement.clientWidth : 600));
+      const h = Math.max(10, rect.height || (canvas.parentElement ? canvas.parentElement.clientHeight : 224));
 
       canvas.width = Math.round(w * window.devicePixelRatio);
       canvas.height = Math.round(h * window.devicePixelRatio);
@@ -2799,6 +3128,9 @@
 
       canvas.addEventListener('mousedown', onStart);
       canvas.addEventListener('mousemove', onMove);
+      window.addEventListener('mousemove', (e) => {
+        if (activeDragIndex !== -1) onMove(e);
+      });
       window.addEventListener('mouseup', onEnd);
 
       canvas.addEventListener('touchstart', onStart, { passive: false });
@@ -2854,7 +3186,20 @@
       document.getElementById('unsaved-modal').classList.add('hidden');
       if (!pendingMicKey) return;
       if (action === 'save') {
-        alert("Saved custom profile!");
+        const curName = micData[currentMicKey] ? micData[currentMicKey].name : 'Microphone';
+        const autoProfile = {
+          id: Date.now(),
+          title: `${curName} Custom EQ`,
+          mic: curName,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          bands: normalizeBandsFromBackend(currentBands) || [],
+          is_custom: true,
+          summary: `${currentBands.length} Bands · Saved Before Mic Switch`
+        };
+        userCustomProfiles.unshift(autoProfile);
+        if (window.ipc) {
+          window.ipc.postMessage('save_user_preset:' + JSON.stringify(autoProfile));
+        }
         applyMicSwitch(pendingMicKey);
       } else if (action === 'keep') {
         currentMicKey = pendingMicKey;
@@ -2865,7 +3210,7 @@
       }
     }
 
-    function switchHardwareInput(deviceName) {
+    function switchHardwareInput(deviceName, skipIpc) {
       console.log("Switching physical hardware input interface to:", deviceName);
       const selector = document.getElementById('hw-mic-selector');
       const selectedText = selector && selector.options[selector.selectedIndex] ? selector.options[selector.selectedIndex].text : deviceName;
@@ -2882,7 +3227,7 @@
       }
 
       // Dispatch IPC to Rust
-      if (window.ipc) {
+      if (!skipIpc && window.ipc) {
         window.ipc.postMessage('hardware_mic:' + deviceName);
       }
     }
@@ -2929,7 +3274,7 @@
       }
     }
 
-    window.populateHardwareDevices = function(devices) {
+    window.populateHardwareDevices = function(devices, skipIpc) {
       const heroSel = document.getElementById('hw-mic-selector');
       const heroMic2Sel = document.getElementById('hw-mic2-selector');
       const ch1Sel = document.getElementById('ch1-mic-selector');
@@ -2948,8 +3293,11 @@
       });
       window.uniqueHardwareDevices = uniqueDevices;
 
+      const savedHw1 = window.__SAVED_CONFIG__ && window.__SAVED_CONFIG__.active_hw_mic;
+      const savedHw2 = window.__SAVED_CONFIG__ && window.__SAVED_CONFIG__.dual_mic && window.__SAVED_CONFIG__.dual_mic.hw_mic;
+
       if (heroSel) {
-        const prevVal = heroSel.value;
+        const prevVal = heroSel.value || savedHw1;
         heroSel.innerHTML = '';
         uniqueDevices.forEach(d => {
           const opt = document.createElement('option');
@@ -2966,7 +3314,7 @@
       }
 
       if (heroMic2Sel) {
-        const prevVal2 = heroMic2Sel.value;
+        const prevVal2 = heroMic2Sel.value || savedHw2;
         heroMic2Sel.innerHTML = '';
         uniqueDevices.forEach((d, idx) => {
           const opt = document.createElement('option');
@@ -2995,10 +3343,10 @@
       }
 
       if (heroSel && heroSel.options.length > 0) {
-        switchHardwareInput(heroSel.value);
+        switchHardwareInput(heroSel.value, skipIpc);
       }
       if (heroMic2Sel && heroMic2Sel.options.length > 0) {
-        switchHardwareInput2(heroMic2Sel.value);
+        switchHardwareInput2(heroMic2Sel.value, skipIpc);
       }
     };
 
@@ -3061,7 +3409,7 @@
 
       if (isABRawMode) {
         savedProcessedBands = JSON.parse(JSON.stringify(currentBands));
-        currentBands = [{ id: 1, type: "Flat", freq: 1000, gain: 0, q: 1.0 }];
+        currentBands = currentBands.map(b => ({ ...b, gain: 0 }));
         badge.textContent = "OFF";
         badge.className = "px-2 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-bold";
         banner.classList.remove('hidden');
@@ -3071,7 +3419,8 @@
         badge.textContent = "ON";
         badge.className = "px-2 py-0.5 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] text-[10px] font-bold";
         banner.classList.add('hidden');
-                pushEQToPipeWire();
+        if (window.ipc) window.ipc.postMessage('ab_compare:tuned');
+        pushEQToPipeWire();
       }
       renderMainEQCanvas();
       renderManualBandsTable();
@@ -3464,9 +3813,15 @@
 
     // Real-Time PipeWire Hardware Peak Detection & Waveform Telemetry Listener
     window.currentPeakDb = -60;
+    // Writes only on change: unchanged textContent/className writes still cost style work at 20 Hz.
+    function setCls(el, c) { if (el.className !== c) el.className = c; }
+    function setTxt(el, t) { if (el.textContent !== t) el.textContent = t; }
     window.updatePeakMeter = function(db) {
       window.currentPeakDb = db;
-      const ncb = document.getElementById('nc-live-bar');
+      // Runs 20x/s: Tab 3's live widgets are only touched while Tab 3 is on screen.
+      const noiseTab = document.getElementById('tab-noise');
+      const noiseVisible = !!noiseTab && !noiseTab.classList.contains('hidden');
+      const ncb = noiseVisible && document.getElementById('nc-live-bar');
       if (ncb) ncb.style.width = Math.max(0, Math.min(100, (db + 80) / 80 * 100)) + '%';
 
       // Auto Noise Clean live tracking
@@ -3475,7 +3830,7 @@
         window.__autoNoiseHistory.push(db);
         if (window.__autoNoiseHistory.length > 30) window.__autoNoiseHistory.shift();
 
-        if (window.__autoNoiseHistory.length >= 8) {
+        if (noiseVisible && window.__autoNoiseHistory.length >= 8) {
           const sorted = [...window.__autoNoiseHistory].sort((a,b) => a - b);
           const floor = sorted[Math.floor(sorted.length * 0.25)];
           const fElem = document.getElementById('auto-gate-floor-lbl');
@@ -3485,11 +3840,14 @@
         }
       }
 
-      const gateInput = document.getElementById('nc-gate');
+      const gateInput = noiseVisible && document.getElementById('nc-gate');
       const gateThresh = gateInput ? parseFloat(gateInput.value) : -40;
-      const gBadge = document.getElementById('auto-gate-badge');
-      if (gBadge) {
-        if (db > gateThresh) {
+      const gBadge = noiseVisible && document.getElementById('auto-gate-badge');
+      const gateOpen = db > gateThresh;
+      // Rewriting className every frame forces a style recalc; only do it when the state flips.
+      if (gBadge && gBadge.dataset.open !== String(gateOpen)) {
+        gBadge.dataset.open = String(gateOpen);
+        if (gateOpen) {
           gBadge.textContent = 'GATE OPEN (VOICE)';
           gBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-500/40';
         } else {
@@ -3512,9 +3870,12 @@
       if (meter) meter.style.width = pct + "%";
 
       let color = "var(--md-sys-color-success)";
-      if (db > -3.0) {
+      // This reading is after Clipguard (-0.5 dB ceiling), so touching -0.5 is the limiter working.
+      // Red only when the hardware input itself clips (or overs get through with no limiter).
+      const rawClip = ((window.channelPeakLevels || {}).raw_clip ?? -80) > 0;
+      if (rawClip || db > 0.0) {
         color = "var(--md-sys-color-error)";
-      } else if (db > -9.0) {
+      } else if (db > -4.0) {
         color = "#fbbc04";
       }
 
@@ -3526,19 +3887,19 @@
       const compGrElem = document.getElementById('hero-comp-gr');
       if (compGrElem) {
         if (!window.isCompressorActive) {
-          compGrElem.textContent = 'BYPASS';
-          compGrElem.className = 'font-bold text-neutral-500';
+          setTxt(compGrElem, 'BYPASS');
+          setCls(compGrElem, 'font-bold text-neutral-500');
         } else {
           const compThresh = (document.getElementById('nc-comp-thresh') ? parseFloat(document.getElementById('nc-comp-thresh').value) : -20.0);
           const compRatio = (document.getElementById('nc-comp-ratio') ? parseFloat(document.getElementById('nc-comp-ratio').value) : 3.5);
           if (db > compThresh && compRatio > 1.0) {
             const over = db - compThresh;
             const reduction = over * (1 - (1 / compRatio));
-            compGrElem.textContent = '-' + reduction.toFixed(1) + ' dB';
-            compGrElem.className = 'font-bold text-amber-400';
+            setTxt(compGrElem, '-' + reduction.toFixed(1) + ' dB');
+            setCls(compGrElem, 'font-bold text-amber-400');
           } else {
-            compGrElem.textContent = '-0.0 dB';
-            compGrElem.className = 'font-bold text-emerald-400';
+            setTxt(compGrElem, '-0.0 dB');
+            setCls(compGrElem, 'font-bold text-emerald-400');
           }
         }
       }
@@ -3553,8 +3914,15 @@
     // =========================================================================
     let waveformAnimationId = null;
     let wavePhase = 0;
+    window.isWindowVisible = true;
+    window.setWindowVisible = function(vis) {
+      window.isWindowVisible = Boolean(vis);
+      if (window.isWindowVisible && !waveformAnimationId) {
+        initWaveformVisualizers();
+      }
+    };
 
-    window.channelPeakLevels = { mic: -60, game: -60, voice: -60, music: -60, alerts: -60 };
+    window.channelPeakLevels = { mic: -60, game: -60, voice: -60, music: -60, capture: -60, alerts: -60 };
 
     window.updateChannelPeaks = function(peaks) {
       if (peaks && typeof peaks === 'object') {
@@ -3563,41 +3931,74 @@
     };
 
     function initWaveformVisualizers() {
-      function drawWaveforms() {
-        wavePhase += 0.08;
+      let lastWaveFrame = 0;
+      function drawWaveforms(ts) {
+        if (!window.isWindowVisible) {
+          waveformAnimationId = null;
+          return;
+        }
+        // Only animate while the Mixer tab is on screen, capped at ~30 FPS
+        const mixerTab = document.getElementById('tab-mixer');
+        if ((mixerTab && mixerTab.classList.contains('hidden')) || (ts - lastWaveFrame) < 33) {
+          waveformAnimationId = requestAnimationFrame(drawWaveforms);
+          return;
+        }
+        lastWaveFrame = ts;
+        wavePhase += 0.16;
         const canvases = document.querySelectorAll('.channel-waveform-canvas');
 
         canvases.forEach(canvas => {
           const chId = canvas.dataset.channelId || 'mic';
-          const w = canvas.width = canvas.clientWidth || 56;
-          const h = canvas.height = canvas.clientHeight || 128;
+          const rect = canvas.getBoundingClientRect();
+          const w = Math.max(10, Math.floor(rect.width || canvas.clientWidth || 56));
+          const h = Math.max(10, Math.floor(rect.height || canvas.clientHeight || 128));
+          if (canvas.width !== w) canvas.width = w;
+          if (canvas.height !== h) canvas.height = h;
           const ctx = canvas.getContext('2d');
           if (!ctx) return;
 
-          ctx.clearRect(0, 0, w, h);
-
-          // Determine channel visualizer color
-          let baseHue = 160; // green/emerald for mic
-          if (chId === 'mic') baseHue = 160;
-          else if (chId === 'music' || chId.includes('vod')) baseHue = 275; // purple
-          else if (chId === 'mic2') baseHue = 190; // cyan
-          else if (chId === 'voice') baseHue = 215; // blue
-          else if (chId === 'game') baseHue = 45; // amber/orange
-          else if (chId === 'capture') baseHue = 180; // teal
-          else baseHue = 160;
 
           const numBars = Math.max(6, Math.min(24, Math.floor((w - 4) / 7)));
           const spacing = 2;
           const barWidth = Math.max(3, Math.floor((w - 4 - (numBars - 1) * spacing) / numBars));
           const isMuted = window.channelMuteStates && window.channelMuteStates[chId];
 
-          const rawDb = (window.channelPeakLevels && window.channelPeakLevels[chId] !== undefined)
+          // Same meaning as the level meters (see smLevelState in the runtime script).
+          const ls = window.smLevelState ? window.smLevelState(chId) : null;
+          const rawDb = ls ? ls.db : ((window.channelPeakLevels && window.channelPeakLevels[chId] !== undefined)
             ? window.channelPeakLevels[chId]
-            : (chId === 'mic' ? window.currentPeakDb : -80.0);
+            : (chId === 'mic' ? window.currentPeakDb : -80.0));
 
-          // Real audio amplitude: 0.0 when <= -55 dB, 1.0 when >= 0 dB
-          const chAmp = isMuted ? 0.0 : Math.max(0.0, Math.min(1.0, (rawDb + 55.0) / 55.0));
-          const isActive = chAmp > 0.03;
+          // Dynamic perceptual scaling with broadcast headroom:
+          // Silence (-60 dBFS) -> 0.0
+          // Normal voice (-18 to -12 dBFS) -> 0.40 to 0.58 (healthy dynamic center)
+          // Hot peaks (-6 to -1 dBFS) -> 0.70 to 0.85
+          // Red = audible distortion, amber = a limiter catching peaks
+          const clampedDb = Math.max(-60.0, Math.min(0.0, rawDb));
+          const normLevel = (clampedDb + 60.0) / 60.0;
+          const chAmp = isMuted ? 0.0 : Math.pow(normLevel, 1.55);
+          const isActive = chAmp > 0.02;
+          const isClipping = !isMuted && (ls ? ls.clip : rawDb > 0.0);
+          const isHot = !isMuted && !isClipping && (ls ? ls.limit : rawDb >= -1.0);
+          // An idle canvas looks the same every frame: draw it once, then skip it.
+          const idleKey = isActive ? null : `${w}x${h}:${isMuted ? 1 : 0}`;
+          if (idleKey && canvas.__idleKey === idleKey) return;
+          canvas.__idleKey = idleKey;
+          ctx.clearRect(0, 0, w, h);
+
+          // Determine channel visualizer color & theme
+          let baseHue = 160; // green/emerald for mic
+          if (isClipping) {
+            baseHue = 0; // Flash red/crimson on true clipping
+          } else if (isHot) {
+            baseHue = 38; // Amber while a limiter is catching peaks
+          } else if (chId === 'mic') baseHue = 160;
+          else if (chId === 'music' || chId.includes('vod')) baseHue = 275; // purple
+          else if (chId === 'mic2') baseHue = 190; // cyan
+          else if (chId === 'voice') baseHue = 215; // blue
+          else if (chId === 'game') baseHue = 45; // amber/orange
+          else if (chId === 'capture') baseHue = 180; // teal
+          else baseHue = 160;
 
           // Update the channel status label below the waveform canvas
           const strip = canvas.closest('.channel-strip') || canvas.closest('div');
@@ -3607,6 +4008,12 @@
               if (isMuted) {
                 statusBadge.textContent = 'MUTED';
                 statusBadge.className = 'channel-live-status text-[9px] font-mono font-bold text-red-400';
+              } else if (isClipping) {
+                statusBadge.textContent = 'CLIPPING';
+                statusBadge.className = 'channel-live-status text-[9px] font-mono font-bold text-rose-400 animate-pulse';
+              } else if (isHot) {
+                statusBadge.textContent = (ls && ls.hot) ? 'HOT INPUT' : 'LIMITING';
+                statusBadge.className = 'channel-live-status text-[9px] font-mono font-bold text-amber-400';
               } else if (isActive) {
                 statusBadge.textContent = 'ACTIVE';
                 statusBadge.className = 'channel-live-status text-[9px] font-mono font-bold ' + (chId === 'music' ? 'text-purple-400' : 'text-emerald-400');
@@ -3617,33 +4024,42 @@
             }
           }
 
+          // One gradient per canvas per frame (was one per bar).
+          let grad = null;
+          if (isActive && !isMuted) {
+            grad = ctx.createLinearGradient(0, 0, 0, h);
+            if (isClipping) {
+              grad.addColorStop(0, 'rgba(239, 68, 68, 0.95)');
+              grad.addColorStop(1, 'rgba(185, 28, 28, 0.45)');
+            } else {
+              grad.addColorStop(0, `hsla(${baseHue}, 90%, 65%, 0.95)`);
+              grad.addColorStop(1, `hsla(${baseHue}, 80%, 35%, 0.4)`);
+            }
+          }
           for (let i = 0; i < numBars; i++) {
             const x = i * (barWidth + spacing) + 2;
             let barFactor = 0.05; // Resting idle base height
             if (isActive) {
               barFactor = chAmp * (Math.sin(wavePhase * 1.5 + i * 1.1) * 0.35 + 0.65);
             }
-            const barH = Math.max(2, Math.floor(h * 0.85 * barFactor));
+            const barH = Math.max(2, Math.floor(h * 0.82 * barFactor));
             const y = Math.floor((h - barH) / 2);
 
-            const grad = ctx.createLinearGradient(0, y, 0, y + barH);
-            grad.addColorStop(0, `hsla(${baseHue}, 90%, 65%, 0.95)`);
-            grad.addColorStop(1, `hsla(${baseHue}, 80%, 35%, 0.4)`);
-
-            ctx.fillStyle = isMuted ? 'rgba(100,100,100,0.25)' : (isActive ? grad : 'rgba(140,140,140,0.25)');
+            ctx.fillStyle = isMuted ? 'rgba(100,100,100,0.25)' : (grad || 'rgba(140,140,140,0.25)');
             ctx.beginPath();
             ctx.roundRect(x, y, barWidth, barH, 2);
             ctx.fill();
           }
 
-          // Draw center smooth waveform line
+          // Draw center smooth waveform line with headroom safety clamp
           ctx.beginPath();
-          ctx.strokeStyle = isMuted ? 'rgba(140,140,140,0.3)' : (isActive ? `hsla(${baseHue}, 100%, 75%, 0.85)` : 'rgba(140,140,140,0.25)');
+          ctx.strokeStyle = isMuted ? 'rgba(140,140,140,0.3)' : (isClipping ? 'rgba(248, 113, 113, 0.95)' : (isActive ? `hsla(${baseHue}, 100%, 75%, 0.85)` : 'rgba(140,140,140,0.25)'));
           ctx.lineWidth = 1.5;
-          const lineAmp = isActive ? (chAmp * 15.0) : 0.5;
+          const maxLineAmp = Math.max(4.0, (h / 2) - 4.0);
+          const lineAmp = isActive ? Math.min(maxLineAmp, chAmp * maxLineAmp * 0.75) : 0.5;
           for (let x = 0; x <= w; x += 3) {
-            const norm = (x / w) * Math.PI * 2;
-            const y = (h / 2) + Math.sin(norm * 2 + wavePhase) * lineAmp * Math.cos(norm + wavePhase * 0.5);
+            const normX = (x / w) * Math.PI * 2;
+            const y = (h / 2) + Math.sin(normX * 2 + wavePhase) * lineAmp * Math.cos(normX + wavePhase * 0.5);
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
@@ -3809,7 +4225,7 @@
                 <span class="channel-live-status text-[9px] font-mono font-bold ${isVodShield ? 'text-purple-400' : 'text-emerald-400'}">ACTIVE</span>
               </div>
               <div class="flex-1 w-full bg-[var(--md-sys-color-surface-container-lowest)] rounded-2xl border border-[var(--md-sys-color-outline-variant)] overflow-hidden relative shadow-inner p-1">
-                <canvas class="channel-waveform-canvas w-full h-full block" data-channel-id="${ch.id}"></canvas>
+                <canvas class="channel-waveform-canvas absolute inset-1 w-[calc(100%-8px)] h-[calc(100%-8px)] block" data-channel-id="${ch.id}"></canvas>
               </div>
             </div>
 
@@ -3818,11 +4234,11 @@
               <div class="fader-db-badge cursor-pointer px-2 py-0.5 rounded-lg bg-[var(--md-sys-color-surface-container-highest)] hover:border hover:border-[var(--md-sys-color-primary)] border border-transparent transition-all" onclick="editFaderDb(this, '${ch.id}')" title="Click to enter exact dB value (e.g. -3.0 dB, 0 dB, +2.5 dB)">
                 <span class="fader-db-text text-[11px] font-mono font-bold ${isVodShield ? 'text-purple-400' : 'text-[var(--md-sys-color-primary)]'}">0.0 dB</span>
               </div>
-              <div class="m3-fader-track select-none" onmousedown="startFaderDrag(event, this, '${ch.id}')" ontouchstart="startFaderDrag(event, this, '${ch.id}')" title="Tap or Drag & Hold to adjust volume">
+              <div class="m3-fader-track select-none" onmousedown="startFaderDrag(event, this, '${ch.id}')" ontouchstart="startFaderDrag(event, this, '${ch.id}')" title="Drag to adjust gain">
                 <div class="m3-fader-fill ${isVodShield ? '!bg-purple-400' : ''}" style="height: 70%;"></div>
                 <div class="m3-fader-thumb ${isVodShield ? '!border-purple-400' : ''}" style="bottom: calc(70% - 6px);"></div>
               </div>
-              <span class="text-[9px] font-bold ${isVodShield ? 'text-purple-400' : 'text-[var(--md-sys-color-on-surface-variant)]'} uppercase tracking-wider">Fader</span>
+              <span class="text-[9px] font-bold ${isVodShield ? 'text-purple-400' : 'text-[var(--md-sys-color-on-surface-variant)]'} uppercase tracking-wider">Gain</span>
             </div>
           </div>
 
@@ -3876,11 +4292,19 @@
       }
     }
 
+    window.updateCaptureCards = function(cards) {
+      window.__INITIAL_CAPTURE_CARDS__ = cards || [];
+      mixerChannels.forEach(ch => {
+        if (ch.id === 'capture' || getAssignedRoute(ch.id) === 'capture') {
+          renderCaptureCardOptions(ch.id);
+        }
+      });
+    };
+
     function rescanCaptureCards(chId) {
       if (window.ipc) {
         window.ipc.postMessage('route_capture_card:scan:' + chId);
       }
-      renderCaptureCardOptions(chId);
     }
 
     function updateSelectedCaptureCard(selectElem, chId) {
@@ -4183,16 +4607,37 @@
 
     function applyEQAsDefault() {
       const isMic2 = activeEQTargetMic === 'mic2';
-      const bands = getActiveBands();
+      const bands = normalizeBandsFromBackend(getActiveBands()) || [];
       const payload = bands.map(b => ({
         type: b.type,
         freq: b.freq,
         gain: b.gain,
         q: b.q
       }));
-      const prefix = isMic2 ? 'save_default_eq_mic2:' : 'save_default_eq:';
-      if (window.ipc) {
-        window.ipc.postMessage(prefix + JSON.stringify(payload));
+      if (isMic2) {
+        if (window.ipc) {
+          window.ipc.postMessage('save_default_eq_mic2:' + JSON.stringify(payload));
+        }
+        if (window.__SAVED_CONFIG__ && window.__SAVED_CONFIG__.dual_mic) {
+          window.__SAVED_CONFIG__.dual_mic.eq_bands = JSON.parse(JSON.stringify(payload));
+        }
+      } else {
+        const cbn = document.getElementById('community-badge-name');
+        const ch1p = document.getElementById('ch1-mic-profile');
+        const presetTitle = (ch1p && ch1p.textContent.trim()) || (cbn && cbn.textContent.trim()) || (micData[currentMicKey] ? micData[currentMicKey].communityName : 'Custom Studio EQ');
+        factoryBands = JSON.parse(JSON.stringify(bands));
+        if (window.ipc) {
+          window.ipc.postMessage('save_default_eq:' + JSON.stringify({
+            bands: payload,
+            mic_id: currentMicKey,
+            preset_name: presetTitle
+          }));
+        }
+        if (window.__SAVED_CONFIG__) {
+          window.__SAVED_CONFIG__.eq_bands = JSON.parse(JSON.stringify(payload));
+          window.__SAVED_CONFIG__.default_mic_id = currentMicKey;
+          window.__SAVED_CONFIG__.preset_name = presetTitle;
+        }
       }
       const btns = [document.getElementById('btn-apply-eq-default'), document.getElementById('btn-apply-manual-default')];
       btns.forEach(b => {
@@ -4864,7 +5309,7 @@
     window.addEventListener('load', () => {
       // 0. Load pre-injected system hardware, media players & apps
       if (window.__INITIAL_HARDWARE_MICS__) {
-        populateHardwareDevices(window.__INITIAL_HARDWARE_MICS__);
+        populateHardwareDevices(window.__INITIAL_HARDWARE_MICS__, true);
       }
       if (window.__INITIAL_INSTALLED_PLAYERS__) {
         window.installedMediaPlayers = window.__INITIAL_INSTALLED_PLAYERS__;
@@ -4895,40 +5340,59 @@
               name: c.id === 'alerts' ? 'Capture Card' : (c.id === 'game' ? 'Apps & Games' : c.name)
             }));
           }
+          if (cfg.default_mic_id && micData[cfg.default_mic_id]) {
+            currentMicKey = cfg.default_mic_id;
+            const micSel = document.getElementById('mic-selector');
+            if (micSel) micSel.value = currentMicKey;
+            const mData = micData[currentMicKey];
+            const descEl = document.getElementById('mic-description');
+            if (descEl) descEl.textContent = mData.desc;
+            const cbn = document.getElementById('community-badge-name');
+            if (cbn) cbn.textContent = mData.communityName;
+            const ptMic = document.getElementById('preset-target-mic');
+            if (ptMic) ptMic.textContent = mData.name;
+            const cardTitle = document.getElementById('card-preset-title');
+            if (cardTitle) cardTitle.textContent = mData.communityName;
+            const ch1Dsp = document.getElementById('ch1-dsp-curve');
+            if (ch1Dsp) ch1Dsp.textContent = `DSP: ${mData.name} Curve`;
+            const eqBadge = document.getElementById('eq-active-tuning-badge');
+            if (eqBadge && activeEQTargetMic === 'mic1') {
+              eqBadge.textContent = `MIC 1 · ${mData.name}`;
+            }
+          }
           if (Array.isArray(cfg.user_presets) && cfg.user_presets.length > 0) {
-            userCustomProfiles = cfg.user_presets;
+            userCustomProfiles = cfg.user_presets.map(p => ({
+              ...p,
+              bands: normalizeBandsFromBackend(p.bands) || []
+            }));
           }
           if (cfg.start_minimized !== undefined) {
             window.setStartMinimizedUI(cfg.start_minimized);
           }
-          if (Array.isArray(cfg.eq_bands) && cfg.eq_bands.length === 10) {
-            cfg.eq_bands.forEach((b, i) => {
-              if (currentBands[i]) {
-                if (typeof b === 'object' && b !== null) {
-                  currentBands[i].gain = b.gain_db !== undefined ? b.gain_db : (b.gain !== undefined ? b.gain : currentBands[i].gain);
-                  if (b.freq) currentBands[i].freq = b.freq;
-                  if (b.q) currentBands[i].q = b.q;
-                  if (b.filter_type) currentBands[i].type = b.filter_type;
-                } else if (typeof b === 'number') {
-                  currentBands[i].gain = b;
-                }
-              }
-            });
+          if (Array.isArray(cfg.eq_bands) && cfg.eq_bands.length > 0) {
+            const norm = normalizeBandsFromBackend(cfg.eq_bands);
+            if (norm && norm.length > 0) {
+              currentBands = norm;
+              factoryBands = JSON.parse(JSON.stringify(norm));
+              syncMacroSlidersFromBands(currentBands);
+            }
           }
           if (cfg.preset_name) {
             const ch1p = document.getElementById('ch1-mic-profile');
             if (ch1p) ch1p.textContent = cfg.preset_name;
+            const cbn = document.getElementById('community-badge-name');
+            if (cbn) cbn.textContent = cfg.preset_name;
           }
           if (cfg.active_hw_mic) {
             const hwSel = document.getElementById('hw-mic-selector');
             if (hwSel) {
               hwSel.value = cfg.active_hw_mic;
-              switchHardwareInput(cfg.active_hw_mic);
+              switchHardwareInput(cfg.active_hw_mic, true);
             }
           }
           if (cfg.dual_mic) {
             if (cfg.dual_mic.enabled) {
-              toggleDualMicMode(true);
+              toggleDualMicMode(true, true);
             }
             if (cfg.dual_mic.hw_mic) {
               const hw2Sel = document.getElementById('hw-mic2-selector');
@@ -4939,17 +5403,11 @@
               if (m2Sel) m2Sel.value = cfg.dual_mic.mic_id;
               currentMic2Key = cfg.dual_mic.mic_id;
             }
-            if (Array.isArray(cfg.dual_mic.eq_bands) && cfg.dual_mic.eq_bands.length === 10) {
-              cfg.dual_mic.eq_bands.forEach((b, i) => {
-                if (currentMic2Bands[i]) {
-                  if (typeof b === 'object' && b !== null) {
-                    currentMic2Bands[i].gain = b.gain_db !== undefined ? b.gain_db : (b.gain !== undefined ? b.gain : currentMic2Bands[i].gain);
-                    if (b.freq) currentMic2Bands[i].freq = b.freq;
-                    if (b.q) currentMic2Bands[i].q = b.q;
-                    if (b.filter_type) currentMic2Bands[i].type = b.filter_type;
-                  }
-                }
-              });
+            if (Array.isArray(cfg.dual_mic.eq_bands) && cfg.dual_mic.eq_bands.length > 0) {
+              const norm2 = normalizeBandsFromBackend(cfg.dual_mic.eq_bands);
+              if (norm2 && norm2.length > 0) {
+                currentMic2Bands = norm2;
+              }
             }
           }
 
@@ -5023,10 +5481,1020 @@
     switchTab = function(tabId) {
       origSwitchTab(tabId);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      localStorage.setItem('studiomic_active_tab', tabId);
     };
 
     window.addEventListener('resize', renderMainEQCanvas);
+  </script>
+  <!-- ===================================================================== -->
+  <!-- Studio Mic v1 runtime: mixer, metering, themes, preview, live DSP     -->
+  <!-- (loaded after the original script; redefines the functions it owns)  -->
+  <!-- ===================================================================== -->
+  <script>
+    // ---------- helpers ----------
+    function smCfg() { return window.__SAVED_CONFIG__ || (window.__SAVED_CONFIG__ = {}); }
+    function post(msg) { if (window.ipc) window.ipc.postMessage(msg); }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function dbToPct(db) { return db <= -60 ? 0 : Math.pow(10, db / 20) * 100; }
+    function fmtGain(db) {
+      if (db <= -60) return '-∞ dB · 0%';
+      return `${db > 0 ? '+' : ''}${db.toFixed(1)} dB · ${Math.round(dbToPct(db))}%`;
+    }
+    const _throttles = {};
+    // Leading + trailing throttle per key (~30 ms) so slider drags stream smoothly without flooding.
+    function throttled(key, ms, fn) {
+      const t = _throttles[key] || (_throttles[key] = { last: 0, timer: null, fn: null });
+      t.fn = fn;
+      const now = performance.now();
+      const run = () => { t.last = performance.now(); t.timer = null; const f = t.fn; t.fn = null; if (f) f(); };
+      if (now - t.last >= ms) { run(); }
+      else if (!t.timer) { t.timer = setTimeout(run, ms - (now - t.last)); }
+    }
+    function setFill(el) {
+      const min = parseFloat(el.min), max = parseFloat(el.max), v = parseFloat(el.value);
+      el.style.setProperty('--fill', ((v - min) / (max - min) * 100).toFixed(1) + '%');
+    }
+    let _toastTimer = null;
+    window.showNotice = function (msg) {
+      const t = document.getElementById('sm-toast');
+      if (!t || !msg) return;
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3800);
+    };
+
+    // ---------- theme & view ----------
+    window.applyTheme = function (theme, fromBackend) {
+      const valid = ['oled_black', 'material_dark', 'midnight_slate', 'light'];
+      if (!valid.includes(theme)) theme = 'material_dark';
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.classList.toggle('dark', theme !== 'light');
+      const sel = document.getElementById('theme-selector');
+      if (sel) sel.value = theme;
+      smCfg().theme = theme;
+      if (!fromBackend) post('theme:' + theme);
+    };
+
+    // view_mode: "normal" = Cards, "simple" = Compact, "matrix" = routing matrix.
+    const SM_VIEWS = ['normal', 'simple', 'matrix'];
+    function setViewMode(mode, fromBackend) {
+      mode = SM_VIEWS.includes(mode) ? mode : 'normal';
+      const grid = document.getElementById('mixer-channels-grid');
+      const wasMatrix = !!grid && grid.classList.contains('view-matrix');
+      smCfg().view_mode = mode;
+      if (grid) {
+        grid.classList.toggle('view-simple', mode === 'simple');
+        grid.classList.toggle('view-normal', mode === 'normal');
+        grid.classList.toggle('view-matrix', mode === 'matrix');
+      }
+      document.getElementById('view-normal-btn')?.classList.toggle('on', mode === 'normal');
+      document.getElementById('view-simple-btn')?.classList.toggle('on', mode === 'simple');
+      document.getElementById('view-matrix-btn')?.classList.toggle('on', mode === 'matrix');
+      if (!fromBackend) post('view_mode:' + mode);
+      // Matrix and cards are different markup: switching between them needs a re-render.
+      if (!fromBackend && wasMatrix !== (mode === 'matrix')) renderMixerChannelsGrid();
+      if (mode === 'normal' && typeof initWaveformVisualizers === 'function') initWaveformVisualizers();
+    }
+
+    // Tab order 2 + persisted last tab (replaces the old localStorage wrapper).
+    const _smSwitchTab = switchTab;
+    switchTab = function (tabId) {
+      _smSwitchTab(tabId);
+      post('last_tab:' + tabId);
+      if (tabId === 'tab-eq' || tabId === 'tab-noise') renderPreviewBars();
+    };
+    window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+      const map = { '1': 'tab-mixer', '2': 'tab-eq', '3': 'tab-noise', '4': 'tab-calib' };
+      if (map[e.key]) { switchTab(map[e.key]); e.stopImmediatePropagation(); }
+      else if (e.key.toLowerCase() === 'v') {
+        // Cards -> Compact -> Matrix -> Cards (same order as studio-mic --toggle-view)
+        const cur = SM_VIEWS.indexOf(smCfg().view_mode); setViewMode(SM_VIEWS[(cur + 1 + SM_VIEWS.length) % SM_VIEWS.length] || 'normal'); e.stopImmediatePropagation();
+      }
+    }, true);
+
+    // ---------- channel model ----------
+    function smChannels() {
+      const c = smCfg();
+      const mic = c.mic || { mix: {}, mono_center: true, clipguard: true };
+      const list = [{ id: 'mic', name: 'Microphone', kind: 'mic', icon: 'mic', mix: mic.mix || {}, apps: [], hw_source: c.active_hw_mic }];
+      if (c.dual_mic && c.dual_mic.enabled) {
+        list.push({ id: 'mic2', name: 'Microphone 2', kind: 'mic2', icon: 'mic_external_on', mix: c.dual_mic.mix || {}, apps: [], hw_source: c.dual_mic.hw_mic });
+      }
+      (c.virtual_channels || []).forEach(ch => list.push(ch));
+      return list;
+    }
+    function smMix(id) {
+      const c = smCfg();
+      if (id === 'mic') return (c.mic = c.mic || {}).mix = (c.mic.mix || {});
+      if (id === 'mic2') return (c.dual_mic = c.dual_mic || {}).mix = (c.dual_mic.mix || {});
+      const ch = (c.virtual_channels || []).find(x => x.id === id);
+      return ch ? (ch.mix = ch.mix || {}) : {};
+    }
+    function smIsComms(ch) { return ch.kind === 'comms' || ch.id === 'voice'; }
+    function anySolo() { return smChannels().some(ch => (ch.mix || {}).solo); }
+
+    function deviceOptions(selected, includeMissing) {
+      const devs = window.uniqueHardwareDevices || [];
+      let html = '';
+      if (!selected) html += `<option value="" selected>Choose an input...</option>`;
+      if (selected && includeMissing && !devs.some(d => d.name === selected)) {
+        html += `<option value="${esc(selected)}" selected>Missing: ${esc(selected)}</option>`;
+      }
+      devs.forEach(d => { html += `<option value="${esc(d.name)}" ${d.name === selected ? 'selected' : ''}>${esc(d.description)}${d.is_default ? ' [Default]' : ''}</option>`; });
+      return html;
+    }
+
+    function chip(label, icon, on, onclick, extra) {
+      return `<span class="sm-chip ${extra || ''} ${on ? 'on' : ''}" onclick="${onclick}"><span class="material-symbols-outlined">${icon}</span>${label}</span>`;
+    }
+
+    function liveAppsFor(chId) {
+      return (window.liveAudioStreams || []).filter(s => s.channel === chId);
+    }
+
+    function cardHtml(ch) {
+      const m = ch.mix || {};
+      const c = smCfg();
+      const isMic = ch.kind === 'mic';
+      const isMic2 = ch.kind === 'mic2';
+      const comms = smIsComms(ch);
+      const sGain = typeof m.stream_gain_db === 'number' ? m.stream_gain_db : 0;
+      const mGain = typeof m.monitor_gain_db === 'number' ? m.monitor_gain_db : 0;
+      const kindBadge = isMic ? 'VOICE · DSP' : isMic2 ? 'MIC 2' : ch.kind === 'hardware' ? 'HARDWARE · RAW' : comms ? 'VOICE CHAT' : 'APPS · RAW';
+      const icon = ch.icon && ch.icon !== 'instant_mix' ? ch.icon : (typeof getChannelIcon === 'function' ? getChannelIcon(ch.id, ch.name) : 'instant_mix');
+      let toggles = '';
+      if (isMic) {
+        toggles += chip('Clipguard', 'shield', (c.mic || {}).clipguard, `toggleMicOption('clipguard')`);
+        toggles += chip('Mono-Center', 'center_focus_strong', (c.mic || {}).mono_center, `toggleMicOption('mono_center')`);
+        const raw = (c.mic || {}).monitor_mode === 'raw';
+        const lat = window.__LATENCY__ || {};
+        const latTxt = raw ? (lat.raw_ms ? ` (~${Math.round(lat.raw_ms)} ms)` : '') : (lat.processed_ms ? ` (~${Math.round(lat.processed_ms)} ms)` : '');
+        toggles += `<span class="sm-chip ${raw ? 'warn' : ''}" onclick="toggleMonitorMode()" title="What you hear in your headphones: Processed = full voice chain; Raw = zero-latency hardware tap (no DSP)"><span class="material-symbols-outlined">${raw ? 'bolt' : 'graphic_eq'}</span>${raw ? 'Raw' : 'Processed'}${latTxt}</span>`;
+      } else {
+        toggles += comms
+          ? `<span class="sm-chip" disabled title="Voice chat is exempt from Auto-Duck"><span class="material-symbols-outlined">south</span>Duck exempt</span>`
+          : chip('Auto-Duck', 'south', m.autoduck, `toggleMix('${ch.id}','autoduck')`);
+      }
+      toggles += chip('VOD', 'movie', m.vod !== false, `toggleMix('${ch.id}','vod')`);
+      toggles += chip('S', 'hearing', m.solo, `toggleMix('${ch.id}','solo')`, 'solo');
+      toggles += chip('Stream', m.stream_muted ? 'sensors_off' : 'sensors', m.stream_muted, `toggleMix('${ch.id}','stream_mute')`, 'mute');
+      toggles += chip('Monitor', m.monitor_muted ? 'headset_off' : 'headphones', m.monitor_muted, `toggleMix('${ch.id}','monitor_mute')`, 'mute');
+
+      let src = '';
+      if (isMic || isMic2 || ch.kind === 'hardware') {
+        const sel = isMic ? c.active_hw_mic : isMic2 ? (c.dual_mic || {}).hw_mic : ch.hw_source;
+        const handler = isMic ? `switchHardwareInput(this.value)` : isMic2 ? `switchHardwareInput2(this.value)` : `setChannelHw('${ch.id}', this.value)`;
+        src = `<div class="sm-src"><span class="material-symbols-outlined text-[16px] text-[var(--md-sys-color-secondary)]">settings_input_component</span>
+          <select class="hw-select" data-ch="${ch.id}" onchange="${handler}">${deviceOptions(sel, true)}</select>
+          <button class="sm-btn" onclick="rescanDevices()" title="Refresh: rescan devices"><span class="material-symbols-outlined">refresh</span></button></div>`;
+      } else {
+        const live = liveAppsFor(ch.id);
+        const liveBins = live.map(s => (s.binary || s.app_name || '').toLowerCase());
+        const apps = (ch.apps || []).map(a => {
+          const isLive = liveBins.some(b => b.includes(a));
+          return `<span class="sm-app ${isLive ? 'live' : ''}" title="${isLive ? 'Producing audio now' : 'Routed automatically when it plays'}">${esc(a)}<button onclick="removeChannelApp('${ch.id}','${esc(a)}')" title="Unassign"><span class="material-symbols-outlined text-[12px]">close</span></button></span>`;
+        }).join('');
+        const active = live[0];
+        const activeIcon = active
+          ? `<button class="sm-chip on" title="Now playing: ${esc(active.app_name)}${active.media_name ? ' · ' + esc(active.media_name) : ''} (click to switch application)" onclick="openBrowseAppsModal(null,'${ch.id}')"><span class="material-symbols-outlined">${esc(active.icon || 'volume_up')}</span>${esc((active.app_name || '').slice(0, 18))}</button>`
+          : '';
+        const mode = ch.route_mode || 'auto';
+        src = `<div class="sm-src">
+          <span class="material-symbols-outlined text-[16px] text-[var(--md-sys-color-secondary)]">apps</span>
+          ${activeIcon}${apps || '<span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">No apps assigned</span>'}
+          <button class="sm-btn" onclick="openBrowseAppsModal(null,'${ch.id}')"><span class="material-symbols-outlined">add</span>Add Application</button>
+          <select class="!flex-none !w-auto" onchange="setChannelMode('${ch.id}', this.value)" title="Active Apps mode">
+            <option value="auto" ${mode === 'auto' ? 'selected' : ''}>Auto rules</option>
+            <option value="manual" ${mode === 'manual' ? 'selected' : ''}>Manual list</option>
+            <option value="desktop" ${mode === 'desktop' ? 'selected' : ''}>Auto (Desktop Audio)</option>
+          </select></div>`;
+      }
+      const soloOut = anySolo() && !m.solo;
+      const nodeLabel = isMic ? 'StudioMic_Voice_Out · Stream_Mix · VOD_Mix' : isMic2 ? 'StudioMic_Mic2' : `StudioMic_Ch_${ch.id}`;
+      return `<div class="sm-card ${isMic ? 'is-mic' : ''} ${m.solo ? 'is-soloed' : ''}" data-channel-id="${ch.id}">
+        <div class="sm-head">
+          <div class="sm-title" ${!isMic && !isMic2 ? `ondblclick="renameChannel('${ch.id}', this)" title="Double-click to rename"` : ''}>
+            <span class="material-symbols-outlined text-[18px] text-[var(--md-sys-color-primary)]">${icon}</span><span class="name">${esc(ch.name)}</span>
+          </div>
+          <span class="text-[9px] font-bold font-mono text-[var(--md-sys-color-on-surface-variant)]">${kindBadge}</span>
+          <span class="flex-1"></span>${toggles}
+          ${!isMic && !isMic2 ? `<button class="sm-chip" onclick="removeChannelById('${ch.id}')" title="Remove channel"><span class="material-symbols-outlined">close</span></button>` : ''}
+        </div>
+        ${src}
+        <div class="sm-wave"><canvas class="channel-waveform-canvas" data-channel-id="${ch.id}"></canvas></div>
+        <div class="sm-row">
+          <label><span class="material-symbols-outlined">sensors</span>Stream Gain</label>
+          <input class="sm-gain" type="range" min="-60" max="12" step="0.5" value="${sGain}" ${m.stream_muted || m.stream_routed === false ? 'disabled' : ''}
+                 oninput="onGain('${ch.id}','stream',this)" ondblclick="this.value=0; onGain('${ch.id}','stream',this)">
+          ${m.stream_routed === false
+            ? `<span class="sm-readout muted" onclick="mxRoute('${ch.id}','stream',true)" title="Removed from the Stream mix in the Matrix view. Click to add it back.">Not in mix</span>`
+            : `<span class="sm-readout ${m.stream_muted ? 'muted' : ''}" data-readout="${ch.id}:stream" onclick="editGainReadout('${ch.id}:stream')">${fmtGain(sGain)}</span>`}
+        </div>
+        <div class="sm-row">
+          <label><span class="material-symbols-outlined">headphones</span>Monitor Gain</label>
+          <input class="sm-gain monitor" type="range" min="-60" max="12" step="0.5" value="${mGain}" ${m.monitor_muted || m.monitor_routed === false ? 'disabled' : ''}
+                 oninput="onGain('${ch.id}','monitor',this)" ondblclick="this.value=0; onGain('${ch.id}','monitor',this)">
+          ${m.monitor_routed === false
+            ? `<span class="sm-readout muted" onclick="mxRoute('${ch.id}','monitor',true)" title="Removed from My Mix in the Matrix view. Click to add it back.">Not in mix</span>`
+            : `<span class="sm-readout ${m.monitor_muted || soloOut ? 'muted' : ''}" data-readout="${ch.id}:monitor" onclick="editGainReadout('${ch.id}:monitor')">${fmtGain(mGain)}</span>`}
+        </div>
+        <div class="sm-row">
+          <label title="${m.stream_muted ? 'Level entering this channel (Stream is muted)' : 'Level this channel sends to the Stream mix (after the Stream Gain fader), the same signal OBS gets'}"><span class="material-symbols-outlined">graphic_eq</span>${m.stream_muted ? 'Input' : 'To Stream'}</label>
+          <div class="sm-meter" data-meter="${ch.id}"><div class="fill"></div><div class="hold"></div></div>
+          <span class="sm-peak" data-peak="${ch.id}" onclick="resetPeak('${ch.id}')" title="Peak hold (click to reset)">-∞ dB</span>
+        </div>
+        <div class="text-[9px] font-mono text-[var(--md-sys-color-on-surface-variant)] truncate">${esc(nodeLabel)}</div>
+      </div>`;
+    }
+
+    // Overrides the original strip renderer.
+    function renderMixerChannelsGrid() {
+      const grid = document.getElementById('mixer-channels-grid');
+      if (!grid) return;
+      // Keep the focused element if the user is typing in it.
+      if (grid.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') return;
+      const c = smCfg();
+      grid.innerHTML = c.view_mode === 'matrix' ? matrixHtml() : smChannels().map(cardHtml).join('');
+      grid.querySelectorAll('.sm-gain').forEach(setFill);
+      window.channelMuteStates = window.channelMuteStates || {};
+      smChannels().forEach(ch => { window.channelMuteStates[ch.id] = !!(ch.mix || {}).stream_muted; });
+      refreshQuickMutePills();
+      renderMonitorMaster();
+      setViewMode(c.view_mode || 'normal', true);
+    }
+
+    function refreshCard(id) {
+      const ch = smChannels().find(x => x.id === id);
+      const old = document.querySelector(`.sm-card[data-channel-id="${id}"]`);
+      if (!ch || !old || smCfg().view_mode === 'matrix') { renderMixerChannelsGrid(); return; }
+      const tmp = document.createElement('div');
+      tmp.innerHTML = cardHtml(ch);
+      const fresh = tmp.firstElementChild;
+      old.replaceWith(fresh);
+      fresh.querySelectorAll('.sm-gain').forEach(setFill);
+      if (smCfg().view_mode === 'normal' && typeof initWaveformVisualizers === 'function') initWaveformVisualizers();
+    }
+
+    // ---------- Tab 1 routing matrix (Wave Link style) ----------
+    // Rows = channels (sources), columns = the four buses. Each cell is routed (fader + mute)
+    // or empty (+). Engine rules shown as-is: VOD follows the Stream fader and is a DMCA
+    // include/exclude toggle; only the microphone may feed Voice Chat (Voice_Out).
+    const MX_COLS = [
+      { key: 'monitor', name: 'My Mix', sub: 'Monitor_Mix · headphones', icon: 'headphones', color: '#34c759' },
+      { key: 'stream', name: 'Stream', sub: 'Stream_Mix · OBS Track 1', icon: 'sensors', color: '#c084fc' },
+      { key: 'vod', name: 'Recording · VOD', sub: 'VOD_Mix · Track 2 (DMCA safe)', icon: 'movie', color: '#fbbf24' },
+      { key: 'voice', name: 'Voice Chat', sub: 'Voice_Out · Discord', icon: 'forum', color: '#60a5fa' },
+    ];
+    function mxNum(v, d) { return typeof v === 'number' && isFinite(v) ? v : d; }
+    // Cell model for (channel, column): what the engine will actually do.
+    function mxCell(ch, col) {
+      const m = ch.mix || {};
+      const isMic = ch.kind === 'mic';
+      switch (col) {
+        case 'monitor': return { routed: m.monitor_routed !== false, muted: !!m.monitor_muted, gain: mxNum(m.monitor_gain_db, 0), editable: true };
+        case 'stream': return { routed: m.stream_routed !== false, muted: !!m.stream_muted, gain: mxNum(m.stream_gain_db, 0), editable: true };
+        case 'vod': return { routed: true, muted: m.vod === false || !!m.stream_muted, excluded: m.vod === false, gain: mxNum(m.stream_gain_db, 0), editable: false };
+        case 'voice': return isMic
+          ? { routed: true, muted: !!m.voice_muted || !!m.stream_muted, masterMuted: !!m.stream_muted, gain: mxNum(m.voice_gain_db, 0), editable: true }
+          : { locked: true };
+      }
+      return { locked: true };
+    }
+    // Level that channel sends into that bus right now (for the meter in the fader track).
+    function mxLevel(ch, col) {
+      const L = window.channelPeakLevels || {};
+      const m = ch.mix || {};
+      const pre = L[ch.id] ?? -80;
+      const c = mxCell(ch, col);
+      if (c.locked || !c.routed || c.muted || pre <= -80) return -80;
+      if (col === 'stream') return L['out:' + ch.id] ?? -80;
+      if (col === 'monitor') return (anySolo() && !m.solo) ? -80 : pre + c.gain;
+      if (col === 'vod') return pre + c.gain - (m.autoduck ? (L.duck || 0) : 0);
+      return pre + c.gain; // voice (mic only)
+    }
+    function mxCellHtml(ch, col) {
+      const c = mxCell(ch, col.key);
+      const st = `--mx-c:${col.color}`;
+      if (c.locked) {
+        return `<div class="mx-locked" title="Only the microphone feeds Voice Chat (Voice_Out), so Discord never hears your game or music"><span class="material-symbols-outlined text-[14px]">lock</span>Mic only</div>`;
+      }
+      if (!c.routed) {
+        return `<div class="mx-empty" style="${st}" onclick="mxRoute('${ch.id}','${col.key}',true)" title="Add ${esc(ch.name)} to ${col.name}"><div class="mx-plus"><span class="material-symbols-outlined text-[18px]">add</span></div></div>`;
+      }
+      const isVod = col.key === 'vod';
+      const icon = c.muted ? 'volume_off' : (col.key === 'voice' ? 'mic' : col.icon);
+      const muteTitle = isVod
+        ? (c.excluded ? 'Excluded from the VOD track (DMCA safe). Click to include.' : (c.muted ? 'Muted: Stream Mute also mutes the VOD track' : 'In the VOD track. Click to exclude (DMCA safe).'))
+        : (c.masterMuted ? 'Microphone muted (master mute also silences Voice Chat)' : (c.muted ? 'Muted. Click to unmute.' : 'Click to mute'));
+      const canUnroute = col.key === 'monitor' || col.key === 'stream';
+      const read = isVod ? `${fmtGain(c.gain)} · follows Stream` : fmtGain(c.gain);
+      return `<div class="mx-cell ${c.muted ? 'muted' : ''}" style="${st}" data-mx-cell="${ch.id}:${col.key}"
+          ${canUnroute ? `oncontextmenu="event.preventDefault(); mxRoute('${ch.id}','${col.key}',false)"` : ''}
+          title="${canUnroute ? 'Drag: volume · Double-click: 0 dB · Right-click: remove from this mix' : (isVod ? 'VOD uses the Stream fader' : 'Drag: volume · Double-click: 0 dB')}">
+        <button class="mx-mute" onclick="mxMute('${ch.id}','${col.key}')" title="${muteTitle}"><span class="material-symbols-outlined">${icon}</span></button>
+        <div class="mx-fad">
+          <input class="mx-slider" type="range" min="-60" max="12" step="0.5" value="${c.gain}" data-mx="${ch.id}:${col.key}"
+            ${c.editable && !c.muted ? '' : 'disabled'} oninput="mxGain('${ch.id}','${col.key}',this)" ondblclick="this.value=0; mxGain('${ch.id}','${col.key}',this)">
+          <span class="mx-read" data-mx-read="${ch.id}:${col.key}">${read}</span>
+        </div>
+      </div>`;
+    }
+    function mxSourceHtml(ch) {
+      const isMic = ch.kind === 'mic', isMic2 = ch.kind === 'mic2';
+      const icon = ch.icon && ch.icon !== 'instant_mix' ? ch.icon : (typeof getChannelIcon === 'function' ? getChannelIcon(ch.id, ch.name) : 'instant_mix');
+      const badge = isMic ? 'DSP' : isMic2 ? 'MIC 2' : ch.kind === 'hardware' ? 'HW' : smIsComms(ch) ? 'CHAT' : 'APPS';
+      let sub = '';
+      if (isMic || isMic2 || ch.kind === 'hardware') {
+        const name = isMic ? smCfg().active_hw_mic : isMic2 ? (smCfg().dual_mic || {}).hw_mic : ch.hw_source;
+        const dev = (window.uniqueHardwareDevices || []).find(d => d.name === name);
+        sub = `<span class="truncate">${esc(dev ? dev.description : (name || 'No input selected'))}</span>`;
+      } else {
+        const liveBins = liveAppsFor(ch.id).map(x => (x.binary || x.app_name || '').toLowerCase());
+        const apps = ch.apps || [];
+        sub = apps.slice(0, 3).map(a => `<span class="mx-app ${liveBins.some(b => b.includes(a)) ? 'live' : ''}">${esc(a)}</span>`).join('')
+          + (apps.length > 3 ? `<span class="mx-app">+${apps.length - 3}</span>` : '')
+          + (apps.length ? '' : `<span>${ch.route_mode === 'desktop' ? 'Desktop audio' : 'No apps'}</span>`);
+      }
+      const rename = !isMic && !isMic2 ? `ondblclick="renameChannel('${ch.id}', this)" title="Double-click to rename"` : '';
+      return `<div class="mx-src"><div class="mx-ico"><span class="material-symbols-outlined text-[20px]">${icon}</span></div>
+        <div class="min-w-0 flex-1"><div class="flex items-center gap-1.5 min-w-0"><span class="nm" ${rename}><span class="name">${esc(ch.name)}</span></span><span class="mx-badge">${badge}</span></div>
+        <div class="sub">${sub}</div></div>
+        ${!isMic && !isMic2 ? `<button class="sm-chip" onclick="removeChannelById('${ch.id}')" title="Remove channel"><span class="material-symbols-outlined">close</span></button>` : ''}</div>`;
+    }
+    function matrixHtml() {
+      const head = MX_COLS.map(col => `<th style="--mx-c:${col.color}"><div class="mx-col"><span class="material-symbols-outlined text-[18px]" style="color:${col.color}">${col.icon}</span><div><b>${col.name}</b><small>${col.sub}</small></div></div><div class="mx-bar"></div></th>`).join('');
+      const rows = smChannels().map(ch => `<tr data-channel-id="${ch.id}"><td>${mxSourceHtml(ch)}</td>${MX_COLS.map(col => `<td>${mxCellHtml(ch, col)}</td>`).join('')}<td></td></tr>`).join('');
+      return `<div class="mx-wrap"><table class="mx"><thead><tr><th>Audio Channels</th>${head}
+          <th class="mx-add" onclick="openAddChannelModal()" title="Add a channel (the four output mixes are fixed)"><div class="mx-addbtn"><span class="material-symbols-outlined text-[20px]">add</span></div><div class="text-[9px] font-bold font-mono mt-0.5 text-[var(--md-sys-color-on-surface-variant)]">ADD</div></th></tr></thead>
+        <tbody>${rows}</tbody></table>
+        <div class="mx-foot"><span>Click: mute · Drag: volume · Double-click: 0 dB · Right-click: remove from a mix · +: add back</span><span>VOD follows each channel's Stream fader · only the mic feeds Voice Chat</span></div></div>`;
+    }
+    function mxMute(id, col) {
+      const m = smMix(id);
+      if (col === 'vod') { toggleMix(id, 'vod'); return; }
+      if (col === 'voice') {
+        if (m.stream_muted) { toggleMix(id, 'stream_mute'); return; } // master mic mute: unmute everything
+        m.voice_muted = !m.voice_muted;
+        post(`mix:${id}:voice_mute:${m.voice_muted ? 'on' : 'off'}`);
+        renderMixerChannelsGrid();
+        return;
+      }
+      toggleMix(id, col === 'stream' ? 'stream_mute' : 'monitor_mute');
+    }
+    function mxRoute(id, col, on) {
+      const m = smMix(id);
+      m[col + '_routed'] = on;
+      post(`mix:${id}:${col}_route:${on ? 'on' : 'off'}`);
+      renderMixerChannelsGrid();
+    }
+    function mxGain(id, col, el) {
+      const v = parseFloat(el.value);
+      const m = smMix(id);
+      const field = { stream: 'stream_gain_db', monitor: 'monitor_gain_db', voice: 'voice_gain_db' }[col];
+      if (!field) return;
+      m[field] = v;
+      const r = document.querySelector(`[data-mx-read="${id}:${col}"]`);
+      if (r) r.textContent = fmtGain(v);
+      if (col === 'stream') {
+        // The VOD cell mirrors the Stream fader.
+        const vs = document.querySelector(`.mx-slider[data-mx="${id}:vod"]`); if (vs) vs.value = v;
+        const vr = document.querySelector(`[data-mx-read="${id}:vod"]`); if (vr) vr.textContent = `${fmtGain(v)} · follows Stream`;
+      }
+      throttled(`gain:${id}:${col}`, 30, () => post(`mix:${id}:${col}_gain:=${v}`));
+    }
+
+    function onGain(id, bus, el) {
+      const v = parseFloat(el.value);
+      setFill(el);
+      const m = smMix(id);
+      if (bus === 'stream') m.stream_gain_db = v; else m.monitor_gain_db = v;
+      const r = document.querySelector(`[data-readout="${id}:${bus}"]`);
+      if (r) r.textContent = fmtGain(v);
+      throttled(`gain:${id}:${bus}`, 30, () => post(`mix:${id}:${bus}_gain:=${v}`));
+    }
+
+    function editGainReadout(key) {
+      const span = key === 'monitor-master' ? document.getElementById('monitor-master-readout') : document.querySelector(`[data-readout="${key}"]`);
+      if (!span) return;
+      const cur = key === 'monitor-master' ? (smCfg().monitor_gain_db || 0) : (key.endsWith(':stream') ? smMix(key.split(':')[0]).stream_gain_db : smMix(key.split(':')[0]).monitor_gain_db) || 0;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = cur.toFixed(1);
+      input.className = 'w-20 text-[11px] font-mono font-bold text-right rounded px-1 bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] border border-[var(--md-sys-color-primary)] outline-none';
+      let done = false;
+      const commit = (ok) => {
+        if (done) return; done = true;
+        input.replaceWith(span);
+        if (!ok) return;
+        let v = parseFloat(input.value.replace(/db|%/gi, ''));
+        if (isNaN(v)) return;
+        if (/%/.test(input.value)) v = v <= 0 ? -60 : 20 * Math.log10(v / 100);
+        v = Math.max(-60, Math.min(12, v));
+        if (key === 'monitor-master') {
+          const sl = document.getElementById('monitor-master-gain');
+          sl.value = v; onMonitorMasterGain(v);
+        } else {
+          const [id, bus] = key.split(':');
+          const sl = span.parentElement.querySelector('.sm-gain');
+          if (sl) { sl.value = v; onGain(id, bus, sl); }
+        }
+      };
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') commit(true); else if (e.key === 'Escape') commit(false); });
+      input.addEventListener('blur', () => commit(true));
+      span.replaceWith(input);
+      input.focus(); input.select();
+    }
+
+    function toggleMix(id, param) {
+      const m = smMix(id);
+      const field = { stream_mute: 'stream_muted', monitor_mute: 'monitor_muted', vod: 'vod', autoduck: 'autoduck', solo: 'solo' }[param];
+      const cur = param === 'vod' ? m.vod !== false : !!m[field];
+      m[field] = !cur;
+      post(`mix:${id}:${param}:${!cur ? 'on' : 'off'}`);
+      if (param === 'solo') renderMixerChannelsGrid(); else refreshCard(id);
+      if (param === 'stream_mute') { window.channelMuteStates[id] = !cur; refreshQuickMutePills(); }
+      if (id === 'mic' && param === 'monitor_mute') updateMonitorUI();
+    }
+
+    function toggleMonitorMode() {
+      const mic = smCfg().mic = smCfg().mic || {};
+      mic.monitor_mode = mic.monitor_mode === 'raw' ? 'processed' : 'raw';
+      post(`mic_option:monitor_raw:${mic.monitor_mode === 'raw' ? 1 : 0}`);
+      refreshCard('mic');
+    }
+    function toggleMicOption(name) {
+      const mic = smCfg().mic = smCfg().mic || {};
+      mic[name] = !mic[name];
+      post(`mic_option:${name}:${mic[name] ? 1 : 0}`);
+      if (name === 'clipguard') { const cb = document.getElementById('nc-limiter-on'); if (cb) cb.checked = mic[name]; }
+      refreshCard('mic');
+    }
+
+    // Quick-access pills and the hero buttons share the same state.
+    function toggleMute(btn, chKeyOverride) {
+      const strip = btn ? btn.closest('[data-channel-id]') : null;
+      const id = chKeyOverride || (strip && strip.dataset.channelId) || 'mic';
+      const m = smMix(id);
+      const next = !m.stream_muted;
+      m.stream_muted = next;
+      if (id !== 'mic') m.monitor_muted = next; // quick mute silences an app channel everywhere
+      post(`mute:${id}:${next ? 1 : 0}`);
+      window.channelMuteStates[id] = next;
+      refreshCard(id);
+      refreshQuickMutePills();
+    }
+    function qaToggleMute(chId) { toggleMute(null, chId); }
+    function toggleSolo(btn, chKeyOverride) { toggleMix(chKeyOverride || 'mic', 'solo'); }
+    function applySoloRouting() { renderMixerChannelsGrid(); }
+
+    function refreshQuickMutePills() {
+      ['mic', 'mic2', 'game', 'voice', 'music', 'capture'].forEach(id => {
+        const b = document.getElementById(`qa-mute-${id}`);
+        if (!b) return;
+        const muted = !!smMix(id).stream_muted;
+        b.classList.toggle('!bg-rose-950/80', muted);
+        b.classList.toggle('!text-rose-300', muted);
+        b.classList.toggle('!border-rose-500/50', muted);
+        const dot = b.querySelector('span:first-child');
+        if (dot) dot.className = 'w-1.5 h-1.5 rounded-full ' + (muted ? 'bg-rose-500' : 'bg-[var(--md-sys-color-success)]');
+      });
+      const hasCh = id => id === 'mic' || id === 'mic2' || (smCfg().virtual_channels || []).some(c => c.id === id);
+      ['game', 'voice', 'music', 'capture'].forEach(id => { const b = document.getElementById(`qa-mute-${id}`); if (b) b.style.display = hasCh(id) ? '' : 'none'; });
+    }
+    window.setMicMuteUI = function () { refreshCard('mic'); refreshQuickMutePills(); };
+
+    // "Hear Myself" = the mic's Monitor branch.
+    function toggleMonitor() { toggleMix('mic', 'monitor_mute'); }
+    function updateMonitorUI() {
+      const on = !smMix('mic').monitor_muted;
+      const cls = on ? 'w-2 h-2 rounded-full bg-[var(--md-sys-color-success)] shadow-[0_0_8px_#6dd58c]' : 'w-2 h-2 rounded-full bg-neutral-600';
+      ['monitor-status-pill', 'qa-sidetone-pill'].forEach(id => { const p = document.getElementById(id); if (p) p.className = cls; });
+      ['btn-monitor-toggle', 'qa-sidetone-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.classList.toggle('!border-emerald-400', on); });
+    }
+
+    // ---------- master monitor ----------
+    function renderMonitorMaster() {
+      const c = smCfg();
+      const sl = document.getElementById('monitor-master-gain');
+      if (sl && document.activeElement !== sl) { sl.value = c.monitor_gain_db || 0; setFill(sl); }
+      const r = document.getElementById('monitor-master-readout');
+      if (r) { r.textContent = fmtGain(c.monitor_gain_db || 0); r.classList.toggle('muted', !!c.monitor_muted); }
+      const mb = document.getElementById('monitor-master-mute');
+      if (mb) mb.classList.toggle('on', !!c.monitor_muted);
+      const os = document.getElementById('monitor-output-selector');
+      if (os) os.value = c.monitor_output || '';
+    }
+    function onMonitorMasterGain(v) {
+      v = parseFloat(v);
+      smCfg().monitor_gain_db = v;
+      const sl = document.getElementById('monitor-master-gain');
+      if (sl) setFill(sl);
+      const r = document.getElementById('monitor-master-readout');
+      if (r) r.textContent = fmtGain(v);
+      throttled('monitor-master', 30, () => post(`monitor_master:gain:=${v}`));
+    }
+    function toggleMonitorMaster() {
+      const c = smCfg();
+      c.monitor_muted = !c.monitor_muted;
+      post(`monitor_master:mute:${c.monitor_muted ? 'on' : 'off'}`);
+      renderMonitorMaster();
+    }
+    function setMonitorOutput(v) { smCfg().monitor_output = v || null; post('monitor_output:' + (v || 'default')); }
+    window.updateOutputDevices = function (devs) {
+      window.outputDevices = devs || [];
+      const sel = document.getElementById('monitor-output-selector');
+      if (!sel) return;
+      const cur = smCfg().monitor_output || '';
+      let html = `<option value="">Default output (follows system)</option>`;
+      if (cur && !window.outputDevices.some(d => d.name === cur)) html += `<option value="${esc(cur)}">Missing: ${esc(cur)}</option>`;
+      window.outputDevices.forEach(d => { html += `<option value="${esc(d.name)}">${esc(d.description)}${d.is_default ? ' [Default]' : ''}</option>`; });
+      sel.innerHTML = html;
+      sel.value = cur;
+    };
+
+    // ---------- devices (never auto-switch a missing saved device) ----------
+    window.populateHardwareDevices = function (devices) {
+      const seen = new Set();
+      window.uniqueHardwareDevices = (devices || []).filter(d => d && d.name && !d.name.toLowerCase().startsWith('studiomic') && !d.name.includes('.monitor') && !seen.has(d.name) && seen.add(d.name));
+      const c = smCfg();
+      const hero = document.getElementById('hw-mic-selector');
+      if (hero) hero.innerHTML = deviceOptions(c.active_hw_mic, true);
+      const hero2 = document.getElementById('hw-mic2-selector');
+      if (hero2) hero2.innerHTML = deviceOptions((c.dual_mic || {}).hw_mic, true);
+      const missing = !!c.active_hw_mic && !window.uniqueHardwareDevices.some(d => d.name === c.active_hw_mic);
+      window.setMicMissing(missing);
+      if (document.getElementById('mixer-channels-grid')) renderMixerChannelsGrid();
+    };
+    window.setMicMissing = function (missing) {
+      document.getElementById('hw-mic-missing')?.classList.toggle('hidden', !missing);
+      const tele = document.getElementById('hero-hw-telemetry');
+      const c = smCfg();
+      const d = (window.uniqueHardwareDevices || []).find(x => x.name === c.active_hw_mic);
+      if (tele) tele.textContent = missing ? 'Missing: microphone unplugged' : `${d ? d.description : 'Microphone'} · 48 kHz`;
+    };
+    function switchHardwareInput(deviceName, skipIpc) {
+      if (!deviceName) return;
+      smCfg().active_hw_mic = deviceName;
+      document.querySelectorAll('#hw-mic-selector, .hw-select[data-ch="mic"]').forEach(s => { s.value = deviceName; });
+      window.setMicMissing(!(window.uniqueHardwareDevices || []).some(d => d.name === deviceName));
+      if (!skipIpc) post('hardware_mic:' + deviceName);
+    }
+    function setChannelHw(id, node) {
+      const ch = (smCfg().virtual_channels || []).find(c => c.id === id);
+      if (ch) { ch.hw_source = node; ch.kind = 'hardware'; }
+      post(`channel_hw:${id}:${node}`);
+    }
+    function rescanDevices() { post('rescan_devices'); window.showNotice('Rescanning audio devices...'); }
+    window.updateCaptureCards = function (cards) { window.__INITIAL_CAPTURE_CARDS__ = cards || []; };
+
+    // ---------- channels ----------
+    function openAddChannelModal() {
+      document.getElementById('add-channel-modal').classList.remove('hidden');
+      onAddChannelPreset(document.getElementById('add-channel-preset').value);
+    }
+    function closeAddChannelModal() { document.getElementById('add-channel-modal').classList.add('hidden'); }
+    function onAddChannelPreset(p) {
+      const names = { game: 'Game', music: 'Music', voice: 'Voice Chat', browser: 'Browser', sfx: 'SFX', capture: 'Capture Card', '': 'New Channel' };
+      document.getElementById('add-channel-name').value = names[p] || 'New Channel';
+    }
+    function commitAddChannel() {
+      const name = document.getElementById('add-channel-name').value.trim();
+      const preset = document.getElementById('add-channel-preset').value;
+      if (!name) return;
+      post('channel_add:' + JSON.stringify({ name, preset }));
+      closeAddChannelModal();
+    }
+    function addVirtualMixChannel() { openAddChannelModal(); }
+    function removeChannelById(id) {
+      const ch = (smCfg().virtual_channels || []).find(c => c.id === id);
+      if (!confirm(`Remove "${ch ? ch.name : id}"? Its apps go back to your default output.`)) return;
+      post('channel_remove:' + id);
+    }
+    function renameChannel(id, el) {
+      const ch = (smCfg().virtual_channels || []).find(c => c.id === id);
+      if (!ch) return;
+      const span = el.querySelector('.name');
+      const input = document.createElement('input');
+      input.type = 'text'; input.value = ch.name;
+      input.className = 'text-xs font-bold rounded px-1 bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] border border-[var(--md-sys-color-primary)] outline-none w-40';
+      let done = false;
+      const commit = ok => {
+        if (done) return; done = true;
+        const v = input.value.trim();
+        input.replaceWith(span);
+        if (ok && v && v !== ch.name) { ch.name = v; span.textContent = v; post(`channel_rename:${id}:${v}`); }
+      };
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') commit(true); else if (e.key === 'Escape') commit(false); });
+      input.addEventListener('blur', () => commit(true));
+      span.replaceWith(input); input.focus(); input.select();
+    }
+    function makeChannelTitleEditable(el, id) { renameChannel(id, el); }
+    function resetChannelsToDefault() {
+      if (!confirm('Reset to the default channels (Game, Voice Chat, Music, Browser, Capture Card)?')) return;
+      post('reset_default_channels');
+    }
+    function applyChannelsToSystem() { window.showNotice('Channels are saved automatically.'); }
+    function setChannelMode(id, mode) {
+      const ch = (smCfg().virtual_channels || []).find(c => c.id === id);
+      if (!ch) return;
+      ch.route_mode = mode;
+      post('channel_apps:' + JSON.stringify({ id, apps: ch.apps || [], mode }));
+    }
+    function removeChannelApp(id, app) {
+      const ch = (smCfg().virtual_channels || []).find(c => c.id === id);
+      if (!ch) return;
+      ch.apps = (ch.apps || []).filter(a => a !== app);
+      post('channel_apps:' + JSON.stringify({ id, apps: ch.apps, mode: ch.route_mode }));
+      refreshCard(id);
+    }
+    // App picker: assigning saves the app (persisted) so it is re-routed automatically next time.
+    function assignAppToMixer(app) {
+      closeBrowseAppsModal();
+      const ch = currentModalTargetChannel;
+      if (!ch) return;
+      const name = (app.binary ? app.binary.split('/').pop() : '') || app.app_name || app.name || '';
+      if (!name) return;
+      post(`assign_app:${name.toLowerCase()}:${ch}`);
+      window.showNotice(`${app.app_name || app.name || name} → ${ch}`);
+    }
+    const _smUpdateLive = window.updateLiveStreams;
+    window.updateLiveStreams = function (streams) {
+      if (_smUpdateLive) _smUpdateLive(streams); else window.liveAudioStreams = streams || [];
+      window.liveAudioStreams = streams || [];
+      // Refresh the app chips / now-playing icons without touching sliders being dragged.
+      (smCfg().virtual_channels || []).forEach(ch => {
+        const card = document.querySelector(`.sm-card[data-channel-id="${ch.id}"]`);
+        if (card && !card.contains(document.activeElement)) refreshCard(ch.id);
+      });
+    };
+
+    // ---------- meters: 30 FPS, peak hold 4 s, 1 s clip flash; idle frames skipped ----------
+    window.channelPeakLevels = window.channelPeakLevels || {};
+    const smMeterState = {};
+    let smLastPeakAt = 0;
+    window.updateChannelPeaks = function (peaks) {
+      if (!peaks || typeof peaks !== 'object') return;
+      Object.assign(window.channelPeakLevels, peaks);
+      smLastPeakAt = performance.now();
+      const duck = document.getElementById('duck-indicator');
+      if (duck && typeof peaks.duck === 'number') {
+        duck.querySelector('span:last-child').textContent = `Duck ${peaks.duck > 0 ? '-' : ''}${peaks.duck.toFixed(1)} dB`;
+        duck.classList.toggle('warn', peaks.duck > 0.5);
+      }
+    };
+    function resetPeak(id) { const st = smMeterState[id]; if (st) { st.hold = -80; st.holdAt = 0; } }
+    // What a strip's meter means. The backend sends `<id>` (level entering the strip, mic after
+    // Clipguard), `out:<id>` (what it sends to the Stream bus, after the fader) and `raw` (hardware
+    // mic). Meters show the Stream send, so they match OBS; with Stream muted they show the input.
+    //   red   (clip)  = audible distortion: the mic converter railing (`raw_clip`, flat-topped
+    //                   samples), or overs with no limiter
+    //   amber (limit) = a limiter is catching peaks (Clipguard, or the Stream bus limiter); not clipping
+    //   amber (hot)   = mic input within 1 dB of full scale but clean: turn the hardware gain down
+    function smStreamMuted(id) { const ch = smChannels().find(c => c.id === id); return !!(ch && ch.mix && ch.mix.stream_muted); }
+    window.smLevelState = function (id) {
+      const L = window.channelPeakLevels || {};
+      const lsp = !!(window.__PLUGINS__ || {}).lsp;
+      if (id.startsWith('bus:')) {
+        const db = L[id] ?? -80;
+        return { db, clip: db > 0.0, limit: lsp && db >= -1.5, muted: false };
+      }
+      const pre = L[id] ?? -80;
+      const muted = smStreamMuted(id);
+      const sent = L['out:' + id];
+      const db = (!muted && typeof sent === 'number') ? sent : pre;
+      const isMic = id === 'mic';
+      const clipguard = isMic && (smCfg().mic || {}).clipguard !== false;
+      const clip = (isMic && (L.raw_clip ?? -80) > 0) || (!lsp && db > 0.0);
+      const limit = !clip && ((!muted && db >= -1.5) || (clipguard && pre >= -1.5));
+      const hot = !clip && isMic && (L.raw ?? -80) >= -1.0;
+      return { db, pre, clip, limit: limit || hot, hot, muted };
+    };
+    let smMeterFrame = 0;
+    function smMeterLoop(ts) {
+      requestAnimationFrame(smMeterLoop);
+      if (!window.isWindowVisible || ts - smMeterFrame < 33) return;
+      const tab = document.getElementById('tab-mixer');
+      if (!tab || tab.classList.contains('hidden')) return;
+      smMeterFrame = ts;
+      const now = performance.now();
+      const idle = now - smLastPeakAt > 1500;
+      document.querySelectorAll('.sm-meter[data-meter]').forEach(el => {
+        const id = el.dataset.meter;
+        const ls = idle ? { db: -80, clip: false, limit: false } : window.smLevelState(id);
+        const db = ls.db;
+        const st = smMeterState[id] || (smMeterState[id] = { pct: -1, hold: -80, holdAt: 0, clipUntil: 0, holdPct: -1, clip: false, limit: false, txt: '' });
+        if (db > st.hold || now - st.holdAt > 4000) { st.hold = db; st.holdAt = now; }
+        if (ls.clip) st.clipUntil = now + 800;
+        const pct = Math.max(0, Math.min(100, (db + 60) / 60 * 100));
+        const holdPct = Math.max(0, Math.min(100, (st.hold + 60) / 60 * 100));
+        const clip = now < st.clipUntil;
+        // Only touch the DOM when something visibly changed (keeps idle CPU near zero).
+        if (Math.abs(pct - st.pct) >= 0.5) { el.firstElementChild.style.width = pct.toFixed(1) + '%'; st.pct = pct; el.style.setProperty('--meter-w', el.clientWidth + 'px'); }
+        if (Math.abs(holdPct - st.holdPct) >= 0.5) { el.lastElementChild.style.left = holdPct.toFixed(1) + '%'; st.holdPct = holdPct; }
+        if (clip !== st.clip) { el.classList.toggle('clip', clip); st.clip = clip; }
+        const limit = !clip && ls.limit;
+        if (limit !== st.limit) { el.classList.toggle('limit', limit); st.limit = limit; }
+        const txt = st.hold <= -60 ? '-∞ dB' : `${st.hold.toFixed(1)} dB`;
+        if (txt !== st.txt) { const p = document.querySelector(`[data-peak="${id}"]`); if (p) p.textContent = txt; st.txt = txt; }
+      });
+      // Routing matrix: each fader track shows what that channel sends into that mix.
+      const sliders = document.querySelectorAll('.mx-slider[data-mx]');
+      if (sliders.length) {
+        const chs = {};
+        smChannels().forEach(ch => { chs[ch.id] = ch; });
+        sliders.forEach(el => {
+          const [id, col] = el.dataset.mx.split(':');
+          const ch = chs[id];
+          if (!ch) return;
+          const db = idle ? -80 : mxLevel(ch, col);
+          const pct = Math.max(0, Math.min(100, (db + 60) / 60 * 100));
+          const last = el.__mxPct ?? -1;
+          if (Math.abs(pct - last) >= 1) { el.style.setProperty('--meter', pct.toFixed(0) + '%'); el.__mxPct = pct; }
+          if (col === 'stream') {
+            const ls = idle ? { clip: false, limit: false } : window.smLevelState(id);
+            const cell = el.closest('.mx-cell');
+            if (cell) {
+              if (cell.__clip !== ls.clip) { cell.classList.toggle('clip', ls.clip); cell.__clip = ls.clip; }
+              const lim = !ls.clip && ls.limit;
+              if (cell.__lim !== lim) { cell.classList.toggle('limit', lim); cell.__lim = lim; }
+            }
+          }
+        });
+      }
+    }
+    requestAnimationFrame(smMeterLoop);
+    // Waveforms only in Normal mode (Simple mode skips them entirely).
+    const _smInitWave = initWaveformVisualizers;
+    initWaveformVisualizers = function () { if ((smCfg().view_mode || 'normal') === 'normal') _smInitWave(); };
+
+    // ---------- Tab 3: denoiser, gate, DSP (all live) ----------
+    function renderDenoiserUI() {
+      const d = smCfg().denoiser || {};
+      const plugins = window.__PLUGINS__ || {};
+      const sel = document.getElementById('dn-engine');
+      if (!sel) return;
+      Array.from(sel.options).forEach(o => {
+        const ok = o.value === 'off' || plugins[o.value];
+        o.disabled = !ok;
+        o.textContent = o.textContent.replace(/ \(not installed\)$/, '') + (ok ? '' : ' (not installed)');
+      });
+      sel.value = d.engine || 'off';
+      document.querySelectorAll('.dn-group').forEach(g => g.classList.toggle('hidden', g.id !== 'dn-group-' + sel.value));
+      const set = (id, v, unit) => { const el = document.getElementById(id); if (el && v !== undefined) { el.value = v; const l = document.getElementById(id + '-lbl'); if (l) l.textContent = `${v} ${unit}`; } };
+      set('dn-df-atten', d.df_attenuation_db, 'dB'); set('dn-df-min', d.df_min_threshold_db, 'dB'); set('dn-df-erb', d.df_max_erb_threshold_db, 'dB');
+      set('dn-rn-vad', d.rn_vad_threshold, '%'); set('dn-rn-grace', d.rn_vad_grace_ms, 'ms'); set('dn-rn-retro', d.rn_retro_grace_ms, 'ms');
+      set('dn-sx', d.speex_suppress_db, 'dB');
+      const st = document.getElementById('dn-status');
+      if (st) st.textContent = (d.engine || 'off') === 'off' ? 'OFF' : 'ACTIVE';
+      const note = document.getElementById('dn-note');
+      if (note) {
+        const missing = ['deepfilter', 'rnnoise', 'speex'].filter(e => !plugins[e]);
+        // Speex and RNNoise are bundled in the app; DeepFilterNet (~54 MB) can be fetched in one click.
+        note.innerHTML = missing.length ? `Not installed: ${missing.join(', ')}. ` +
+          (plugins.deepfilter ? 'Run ./setup-deps.sh to add them.'
+            : `<button class="sm-btn" id="dn-download" onclick="downloadDeepFilter()"><span class="material-symbols-outlined">download</span>Download DeepFilterNet (54 MB)</button>`) : '';
+        note.classList.toggle('hidden', !missing.length);
+      }
+    }
+    function downloadDeepFilter() {
+      const b = document.getElementById('dn-download');
+      if (b) { b.disabled = true; b.lastChild.textContent = 'Downloading…'; }
+      post('denoiser_download');
+    }
+    window.onPluginsChanged = function (plugins) {
+      window.__PLUGINS__ = plugins || {};
+      renderDenoiserUI();
+    };
+    function setDenoiserEngine(v) {
+      const st = document.getElementById('dn-status');
+      if (st) st.textContent = 'SWITCHING…';
+      document.querySelectorAll('.dn-group').forEach(g => g.classList.toggle('hidden', g.id !== 'dn-group-' + v));
+      post('denoiser:' + v);
+    }
+    window.onDenoiserResult = function (active, msg) {
+      if (active) (smCfg().denoiser = smCfg().denoiser || {}).engine = active;
+      renderDenoiserUI();
+      if (msg) window.showNotice(msg);
+    };
+    function onDenoiserParam(name, el) {
+      const v = parseFloat(el.value);
+      (smCfg().denoiser = smCfg().denoiser || {})[name] = v;
+      const l = document.getElementById(el.id + '-lbl');
+      if (l) l.textContent = `${v} ${l.textContent.split(' ').pop()}`;
+      throttled('dn:' + name, 30, () => post(`denoiser_param:${name}:${v}`));
+    }
+    function gateAutoSet() {
+      const b = document.getElementById('btn-gate-autoset');
+      post('gate_autoset');
+      window.showNotice('Type on your keyboard without speaking for 3 seconds...');
+      if (!b) return;
+      b.disabled = true;
+      let n = 3;
+      const lbl = b.innerHTML;
+      const tick = () => { if (n <= 0) { b.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span>Measuring...'; return; } b.innerHTML = `<span class="material-symbols-outlined">keyboard</span>Type now... ${n}`; n--; setTimeout(tick, 1000); };
+      tick();
+      window._gateBtnRestore = () => { b.disabled = false; b.innerHTML = lbl; };
+    }
+    window.onGateAutoSetFailed = function (msg) {
+      if (window._gateBtnRestore) window._gateBtnRestore();
+      window.showNotice(msg);
+    };
+    window.onGateAutoSet = function (peak, thr) {
+      const nc = smCfg().noise_clean = smCfg().noise_clean || {};
+      nc.gate_threshold_db = thr; nc.gate_enabled = true;
+      const g = document.getElementById('nc-gate'); if (g) g.value = thr;
+      const on = document.getElementById('nc-gate-on'); if (on) on.checked = true;
+      ncLabel();
+      if (window._gateBtnRestore) window._gateBtnRestore();
+      window.showNotice(`Typing peaked at ${peak.toFixed(1)} dB → gate opens at ${thr.toFixed(0)} dB, closes at ${(thr - 7).toFixed(0)} dB`);
+    };
+
+    const _smNcLabel = ncLabel;
+    ncLabel = function () {
+      _smNcLabel();
+      const g = id => document.getElementById(id);
+      if (g('nc-gate-close-lbl') && g('nc-gate')) g('nc-gate-close-lbl').textContent = (parseFloat(g('nc-gate').value) - 7) + ' dB';
+      if (g('nc-deess-thresh-lbl') && g('nc-deess-thresh')) g('nc-deess-thresh-lbl').textContent = g('nc-deess-thresh').value + ' dB';
+      if (g('nc-comp-attack-lbl') && g('nc-comp-attack')) g('nc-comp-attack-lbl').textContent = g('nc-comp-attack').value + ' ms';
+      if (g('nc-comp-release-lbl') && g('nc-comp-release')) g('nc-comp-release-lbl').textContent = g('nc-comp-release').value + ' ms';
+    };
+    const _smNcSetUI = ncSetUI;
+    ncSetUI = function (nc) {
+      _smNcSetUI(nc || {});
+      const g = id => document.getElementById(id);
+      if (nc) {
+        if (g('nc-deess-thresh') && nc.deesser_threshold_db !== undefined) g('nc-deess-thresh').value = nc.deesser_threshold_db;
+        if (g('nc-comp-attack') && nc.compressor_attack_ms !== undefined) g('nc-comp-attack').value = nc.compressor_attack_ms;
+        if (g('nc-comp-release') && nc.compressor_release_ms !== undefined) g('nc-comp-release').value = nc.compressor_release_ms;
+        if (g('nc-limiter-on')) g('nc-limiter-on').checked = (smCfg().mic || {}).clipguard !== false;
+      }
+      ncLabel();
+    };
+    applyNoiseClean = function () {
+      const g = id => document.getElementById(id);
+      const num = (id, d) => g(id) ? parseFloat(g(id).value) : d;
+      const chk = (id, d) => g(id) ? g(id).checked : d;
+      const prev = smCfg().noise_clean || {};
+      const nc = Object.assign({}, prev, {
+        rumble_hp_enabled: chk('nc-rumble-on', true), rumble_freq: num('nc-rumble-freq', 80),
+        hiss_lp_enabled: chk('nc-hiss-on', true), hiss_freq: num('nc-hiss-freq', 16000),
+        gate_enabled: chk('nc-gate-on', true), gate_threshold_db: num('nc-gate', -40),
+        deesser_enabled: chk('nc-deess-on', true), deesser_freq: num('nc-deess-freq', 5800),
+        deesser_amount_db: num('nc-deess-amt', -4.5), deesser_threshold_db: num('nc-deess-thresh', -30),
+        compressor_enabled: chk('nc-comp-on', true), compressor_threshold_db: num('nc-comp-thresh', -20),
+        compressor_ratio: num('nc-comp-ratio', 3.5), compressor_makeup_db: num('nc-comp-makeup', 3.5),
+        compressor_attack_ms: num('nc-comp-attack', 10), compressor_release_ms: num('nc-comp-release', 80),
+        // No ceiling control in the UI: keep the saved value (CLI/profiles may set it).
+        limiter_enabled: chk('nc-limiter-on', true), limiter_ceiling_db: ((smCfg().noise_clean || {}).limiter_ceiling_db ?? -0.5),
+      });
+      smCfg().noise_clean = nc;
+      (smCfg().mic = smCfg().mic || {}).clipguard = nc.limiter_enabled;
+      window.isCompressorActive = nc.compressor_enabled;
+      throttled('noise_clean', 30, () => post('noise_clean:' + JSON.stringify(smCfg().noise_clean)));
+    };
+    // Compressor quick toggle (header + hero) goes through the same live path.
+    toggleCompressorQuick = function () {
+      const cb = document.getElementById('nc-comp-on');
+      if (cb) cb.checked = !cb.checked;
+      applyNoiseClean();
+      if (typeof updateCompressorUI === 'function') updateCompressorUI();
+    };
+
+    // EQ: live set-param, throttled to ~30 ms during drags.
+    pushEQToPipeWire = function () {
+      throttled('eq', 30, () => {
+        const payload = getActiveBands().map(b => ({ type: b.type, freq: b.freq, gain: b.gain, q: b.q }));
+        post((activeEQTargetMic === 'mic2' ? 'eq_mic2:' : 'eq:') + JSON.stringify(payload));
+      });
+    };
+
+    function highlightActivePreset() {
+      const name = (smCfg().preset_name || '').trim();
+      document.querySelectorAll('.community-card').forEach(card => {
+        const t = (card.querySelector('h4') || {}).textContent || '';
+        const active = !!name && t.trim() === name;
+        card.classList.toggle('border-2', active);
+        card.classList.toggle('border-[var(--md-sys-color-primary)]', active);
+        const badge = card.querySelector('span.text-\\[10px\\]');
+        if (badge && active) badge.textContent = 'Active';
+      });
+    }
+
+    // ---------- Preview (Tabs 2 & 3) and recorder (Tab 4) ----------
+    let smPreviewAvailable = !!window.__PREVIEW_AVAILABLE__;
+    let smPreviewState = 'stopped';
+    let smDeessPending = false;
+    function renderPreviewBars() {
+      document.querySelectorAll('.preview-bar-slot').forEach(slot => {
+        if (!smPreviewAvailable) {
+          slot.innerHTML = `<div class="sm-preview"><span class="material-symbols-outlined text-amber-300">info</span>
+            <span class="text-xs">No test recording yet. Record a phrase to preview your settings in your headphones.</span>
+            <span class="flex-1"></span><button class="sm-btn primary" onclick="switchTab('tab-calib')"><span class="material-symbols-outlined">mic</span>Record in Tab 4</button></div>`;
+          return;
+        }
+        const playing = smPreviewState === 'playing';
+        slot.innerHTML = `<div class="sm-preview ${playing ? 'playing' : ''}">
+          <span class="material-symbols-outlined ${playing ? 'text-amber-400' : 'text-[var(--md-sys-color-primary)]'}">${playing ? 'graphic_eq' : 'headphones'}</span>
+          <span class="text-xs font-bold">Preview Recording</span>
+          <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">${playing ? 'Playing through the live chain to your headphones only. Stream, VOD and Discord are muted.' : 'Hear your test phrase through the current EQ / DSP settings.'}</span>
+          <span class="flex-1"></span>
+          <button class="sm-btn primary" onclick="previewCmd('play')" ${playing ? 'disabled' : ''}><span class="material-symbols-outlined">play_arrow</span>Play</button>
+          <button class="sm-btn" onclick="previewCmd('loop')" ${playing ? 'disabled' : ''}><span class="material-symbols-outlined">repeat</span>Loop</button>
+          <button class="sm-btn" onclick="previewCmd('stop')" ${playing ? '' : 'disabled'}><span class="material-symbols-outlined">stop</span>Stop</button></div>`;
+      });
+    }
+    function previewCmd(a) { post('preview:' + a); if (a !== 'stop') { smPreviewState = 'playing'; renderPreviewBars(); } }
+    window.updatePreviewState = function (st) { smPreviewState = (st && st.state) || 'stopped'; renderPreviewBars(); };
+    function recordTest() { post('record:start'); }
+    function stopRecording() { post('record:stop'); }
+    function startDeEsserTest() {
+      smDeessPending = true;
+      const s = document.getElementById('deess-test-status');
+      if (s) s.textContent = 'Recording... read the sentence now.';
+      recordTest();
+    }
+    window.updateRecorderState = function (st) {
+      st = st || {};
+      const fill = document.querySelector('#rec-progress .fill');
+      const status = document.getElementById('rec-status');
+      const start = document.getElementById('btn-rec-start');
+      const stop = document.getElementById('btn-rec-stop');
+      if (st.state === 'recording') {
+        const left = (st.max || 10) - (st.elapsed || 0);
+        if (fill) fill.style.width = ((st.elapsed || 0) / (st.max || 10) * 100) + '%';
+        if (status) status.textContent = `Recording... ${left}s left`;
+        if (start) start.disabled = true;
+        if (stop) stop.disabled = false;
+        return;
+      }
+      if (start) start.disabled = false;
+      if (stop) stop.disabled = true;
+      if (fill) fill.style.width = st.state === 'done' ? '100%' : '0%';
+      if (st.state === 'done') {
+        smPreviewAvailable = true;
+        if (status) status.textContent = 'Recorded. Preview it on Tab 2 or Tab 3.';
+        renderPreviewBars();
+        if (smDeessPending) {
+          smDeessPending = false;
+          const s = document.getElementById('deess-test-status');
+          if (s) s.textContent = 'Test recorded.';
+          showM3SuccessModal('De-Esser Test Recorded', 'Sibilance check',
+            `<p>Your sentence is recorded. Harsh "S" and "SH" sounds are best tamed with the <b>Manual De-Esser control in Tab 3</b>, not with EQ cuts (EQ also dulls your normal voice).</p>
+             <p class="mt-2">Open Tab 3 and loop the recording in your headphones while you adjust the De-Esser frequency, threshold and amount?</p>`,
+            'Adjust De-Esser in Tab 3', () => {
+              switchTab('tab-noise');
+              setTimeout(() => {
+                document.getElementById('nc-deess-freq')?.closest('.rounded-\\[24px\\]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                previewCmd('loop');
+              }, 150);
+            });
+        }
+      } else if (st.state === 'expired') {
+        smPreviewAvailable = false;
+        if (status) status.textContent = 'Recording expired after 15 minutes idle.';
+        renderPreviewBars();
+      } else if (st.state === 'failed') {
+        if (status) status.textContent = 'Recording failed: check your microphone selection.';
+      }
+    };
+
+    // ---------- state pushed from the backend (CLI, tray, external volume changes) ----------
+    window.applyBackendState = function (cfg) {
+      if (!cfg) return;
+      const prevBands = JSON.stringify((smCfg().eq_bands || []));
+      window.__SAVED_CONFIG__ = cfg;
+      applyTheme(cfg.theme, true);
+      renderMixerChannelsGrid();
+      renderMonitorMaster();
+      updateMonitorUI();
+      if (cfg.noise_clean) ncSetUI(cfg.noise_clean);
+      renderDenoiserUI();
+      window.isCompressorActive = !!(cfg.noise_clean || {}).compressor_enabled;
+      if (typeof updateCompressorUI === 'function') updateCompressorUI();
+      if (JSON.stringify(cfg.eq_bands || []) !== prevBands && activeEQTargetMic !== 'mic2') {
+        const norm = normalizeBandsFromBackend(cfg.eq_bands);
+        if (norm && norm.length) { currentBands = norm; renderManualBandsTable(); renderMainEQCanvas(); }
+      }
+      highlightActivePreset();
+    };
+
+    // ---------- init (runs after the original load handler) ----------
+    window.addEventListener('load', () => {
+      const c = smCfg();
+      applyTheme(c.theme || 'material_dark', true);
+      window.updateOutputDevices(window.__INITIAL_OUTPUT_DEVICES__ || []);
+      window.populateHardwareDevices(window.__INITIAL_HARDWARE_MICS__ || []);
+      window.liveAudioStreams = window.__INITIAL_LIVE_STREAMS__ || [];
+      renderMixerChannelsGrid();
+      renderDenoiserUI();
+      if (c.noise_clean) ncSetUI(c.noise_clean);
+      updateMonitorUI();
+      highlightActivePreset();
+      renderPreviewBars();
+      const tab = window.__INITIAL_TAB__ || 'tab-mixer';
+      if (document.getElementById(tab)) _smSwitchTab(tab);
+    });
   </script>
 </body>
 </html>
