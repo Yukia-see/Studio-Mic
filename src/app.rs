@@ -56,6 +56,8 @@ pub enum UiPush {
     Recorder(String),
     /// Preview playback state (`{state}`), as for `updatePreviewState`.
     Preview(String),
+    /// Installed desktop apps, for the channel apps picker.
+    InstalledApps(Vec<crate::routing::wireplumber_hook::InstalledApp>),
     /// App streams playing right now (which channel each one is routed to).
     LiveStreams(Vec<crate::routing::wireplumber_hook::HookedStream>),
 }
@@ -760,6 +762,12 @@ impl Controller {
         ));
         self.push(UiPush::Devices { mics, outs });
         self.enqueue(Job::Relink);
+    }
+
+    /// Installed apps for the native UI's apps picker.
+    #[cfg_attr(not(feature = "ui-slint"), allow(dead_code))]
+    pub fn push_installed_apps(&self) {
+        self.push(UiPush::InstalledApps(StreamWatcher::scan_installed_apps()));
     }
 
     /// Device lists for the native UI at startup (no relink, unlike `rescan_devices`).

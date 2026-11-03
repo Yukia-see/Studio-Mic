@@ -70,6 +70,7 @@ pub fn run(
         std::thread::Builder::new().name("ui-devices".into()).spawn(move || {
             c.push_devices();
             c.push_live_streams();
+            c.push_installed_apps();
         })?;
         let c = controller.clone();
         std::thread::Builder::new().name("ui-messages".into()).spawn(move || {
@@ -276,6 +277,10 @@ impl Ctx {
                 *self.mx.outs.borrow_mut() = outs;
                 self.refresh_state();
             }
+            UiPush::InstalledApps(apps) => {
+                *self.mx.installed.borrow_mut() = apps;
+                self.refresh_apps();
+            }
             UiPush::Recorder(json) => self.on_recorder(&json),
             UiPush::Preview(json) => self.on_preview(&json),
             UiPush::LiveStreams(streams) => {
@@ -422,6 +427,7 @@ impl Ctx {
         self.refresh_eq(&s);
         self.refresh_tune(&s);
         drop(s);
+        self.refresh_apps();
         self.refresh_levels();
     }
 
@@ -796,6 +802,9 @@ mod snapshot {
         shot(&window, &dir, "main-700x800@1.0", 700, 800, 1.0);
         win.set_size_factor(1.2);
         shot(&window, &dir, "main-1400x700-large", 1400, 700, 1.0);
+        shot(&window, &dir, "size-large-835x864@1.6", 1336, 1382, 1.6);
+        win.set_size_factor(0.85);
+        shot(&window, &dir, "size-small-835x864@1.6", 1336, 1382, 1.6);
         win.set_size_factor(1.0);
         win.global::<Nav>().set_simple(true);
         shot(&window, &dir, "simple-775x860@1.6", 1240, 1376, 1.6);
@@ -856,6 +865,19 @@ mod snapshot {
         win.global::<Matrix>().set_mix_name("Guest Mix".into());
         shot(&window, &dir, "main-1400x900-addmix", 1400, 900, 1.0);
         win.global::<Matrix>().set_add_mix_open(false);
+        {
+            let m = win.global::<Matrix>();
+            let item = |k: &str, l: &str, sub: &str, here: bool| AppItem { key: k.into(), label: l.into(), sub: sub.into(), here };
+            m.set_apps_channel("Game".into());
+            m.set_apps_current(Rc::new(VecModel::from(vec![SharedString::from("steam"), "proton".into()])).into());
+            m.set_apps_live(Rc::new(VecModel::from(vec![item("firefox", "Firefox", "Playing on your default output", false), item("steam", "Steam", "Playing in this channel", true)])).into());
+            let inst: Vec<AppItem> = ["Audacity", "Discord", "Elisa", "Firefox", "Heroic", "Lutris", "OBS Studio", "Spotify"].iter().map(|n| item(&n.to_lowercase(), n, if *n == "Discord" { "In Voice Chat" } else { "" }, false)).collect();
+            m.set_apps_installed_total(inst.len() as i32);
+            m.set_apps_installed(Rc::new(VecModel::from(inst)).into());
+            m.set_apps_open(true);
+            shot(&window, &dir, "apps-picker-835x864@1.6", 1336, 1382, 1.6);
+            m.set_apps_open(false);
+        }
         sample(&win, true);
         shot(&window, &dir, "widget-420x320", 420, 320, 1.0);
         shot(&window, &dir, "widget-260x200", 260, 200, 1.0);

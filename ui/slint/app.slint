@@ -449,27 +449,21 @@ export component MainWindow inherits Window {
     // (pill 100 + gap 6 → 3 per row) so the scale doesn't depend on its own layout.
     property <int> pill-rows: ceil(Strip.pills.length / 3);
     property <float> widget-natural-h: 8 + 30 + 6 + 62 + 6 + 62 + 6 + pill-rows * 32 + 6 + 24 + 8 + 12;
-    // Main window: the size setting is the largest scale; a smaller window shrinks the whole
-    // interface to fit (down to 55 %) instead of clipping or scrolling sideways. Design sizes
-    // are in units at scale 1: the matrix needs its source column + ~156 per mix, Simple needs
-    // two cards side by side, and the height fits the strip, the tabs and the first three rows.
+    // Main window: the layout is fitted to the window width (down to half size) and the
+    // Small / Medium / Large setting multiplies that, so the three sizes always differ. Design
+    // widths are in units at scale 1: the matrix needs its source column + ~156 per mix, Simple
+    // two cards side by side. Height is never shrunk: tall content scrolls.
     property <int> ncols: Matrix.cols.length;
-    property <int> nrows: Matrix.rows.length;
     property <bool> simple: Nav.simple;
-    property <bool> collapsed: Nav.collapsed;
     property <float> design-w: simple ? 620 : 356 + ncols * 156;
-    property <float> strip-h: collapsed ? 84 : 150 + pill-rows-wide * 32;
-    property <int> pill-rows-wide: ceil(Strip.pills.length / 7);
-    property <float> design-h: 28 + strip-h + 12 + 34 + 12 + (simple ? 300 : 150 + min(nrows, 3) * 84 + 60);
     function rescale() {
         if (Strip.widget-mode) {
             Theme.scale = clamp(min((self.width - 12px) / 400px, (self.height - 12px) / (widget-natural-h * 1px)), 0.45, 3.0);
         } else {
-            Theme.scale = clamp(min(size-factor, self.width / (design-w * 1px), self.height / (design-h * 1px)), 0.55, size-factor);
+            Theme.scale = size-factor * clamp(self.width / (design-w * 1px), 0.5, 1.0);
         }
     }
     changed design-w => { rescale(); }
-    changed design-h => { rescale(); }
     init => { rescale(); }
     changed width => { rescale(); resized(self.width, self.height); }
     changed height => { rescale(); resized(self.width, self.height); }

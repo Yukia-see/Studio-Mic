@@ -51,6 +51,14 @@ export struct MxCellData {
     tip: string,
 }
 
+// An app in the channel apps picker. `key` is the name that gets saved (binary or app name).
+export struct AppItem {
+    key: string,
+    label: string,
+    sub: string,
+    here: bool,         // already in this channel
+}
+
 export struct PresetData {
     glyph: string,
     name: string,
@@ -83,6 +91,15 @@ export global Matrix {
     in-out property <int> mix-color;
     in property <[string]> mix-outputs;
     in-out property <int> mix-output;
+    // Apps picker for one channel
+    in-out property <bool> apps-open;
+    in property <string> apps-channel;
+    in property <[string]> apps-current;
+    in property <[AppItem]> apps-live;
+    in property <[AppItem]> apps-installed;
+    in property <int> apps-installed-total;
+    in-out property <string> apps-filter;
+    in property <int> apps-mode;            // 0 auto, 1 manual, 2 desktop
     // Confirm dialog
     in-out property <string> confirm-text;
     in-out property <string> confirm-ok: "Delete";
@@ -103,6 +120,11 @@ export global Matrix {
     callback commit-add-mix();
     callback confirm-accepted();
     callback rescan();
+    callback open-apps(int);
+    callback app-add(string);
+    callback app-remove(string);
+    callback apps-filter-changed(string);
+    callback apps-set-mode(int);
 }
 
 component MxCell inherits Rectangle {
@@ -367,6 +389,12 @@ component MxSource inherits Rectangle {
                 height: 17 * Theme.u;
                 min-width: 0;
                 clip: true;
+                accessible-role: button;
+                accessible-label: "Choose apps for " + root.data.name;
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { Matrix.open-apps(root.index); }
+                }
                 HorizontalLayout {
                     spacing: 4 * Theme.u;
                     alignment: start;
@@ -386,6 +414,16 @@ component MxSource inherits Rectangle {
                         text: root.data.note;
                         size: 10;
                         color: Theme.on-surface-variant;
+                    }
+                    Rectangle {
+                        width: 17 * Theme.u;
+                        border-radius: 5 * Theme.u;
+                        background: Theme.primary.with-alpha(0.18);
+                        Icon {
+                            glyph: "\u{e145}"; // add
+                            size: 13;
+                            color: Theme.primary;
+                        }
                     }
                 }
                 }
@@ -603,6 +641,13 @@ component SimpleCard inherits Rectangle {
                 font-weight: 700;
                 horizontal-stretch: 1;
             }
+            if !root.data.hw: Btn {
+                y: (parent.height - self.height) / 2;
+                height: 26 * Theme.u;
+                text: root.data.apps.length == 0 ? "Apps" : root.data.apps.length + " apps";
+                glyph: "\u{e5c3}"; // apps
+                clicked => { Matrix.open-apps(root.index); }
+            }
             if root.data.removable: IconBtn {
                 y: (parent.height - self.height) / 2;
                 glyph: "\u{e92e}"; // delete
@@ -768,6 +813,55 @@ component PresetButton inherits Rectangle {
     }
 }
 
+component AppRow inherits Rectangle {
+    in property <AppItem> app;
+    height: 36 * Theme.u;
+    border-radius: 10 * Theme.u;
+    background: ara.has-hover && !app.here ? Theme.surface-highest : transparent;
+    HorizontalLayout {
+        padding-left: 8 * Theme.u;
+        padding-right: 4 * Theme.u;
+        spacing: 8 * Theme.u;
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Label {
+                text: root.app.label;
+                size: 11.5;
+                font-weight: 700;
+            }
+            if root.app.sub != "": Label {
+                text: root.app.sub;
+                size: 9.5;
+                color: Theme.on-surface-variant;
+            }
+        }
+        if root.app.here: Label {
+            text: "In this channel";
+            size: 10;
+            color: Theme.ok;
+        }
+        if !root.app.here: Btn {
+            y: (parent.height - self.height) / 2;
+            height: 26 * Theme.u;
+            text: "Add";
+            glyph: "\u{e145}";
+            clicked => { Matrix.app-add(root.app.key); }
+        }
+    }
+    ara := TouchArea {
+        enabled: false;
+    }
+}
+
+component Section inherits Label {
+    size: 9.5;
+    mono: true;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: Theme.on-surface-variant;
+}
+
 // Add Channel, Add Mix and the confirm dialog, drawn over the whole window.
 export component Overlays inherits Rectangle {
     property <PresetData> picked: Matrix.ac-pick >= 0 && Matrix.ac-pick < Matrix.presets.length ? Matrix.presets[Matrix.ac-pick] : { detail: "" };
@@ -900,6 +994,93 @@ export component Overlays inherits Rectangle {
                 primary: true;
                 enabled: Matrix.mix-name != "";
                 clicked => { Matrix.commit-add-mix(); }
+            }
+        }
+    }
+
+    if Matrix.apps-open: Modal {
+        title: "Apps in " + Matrix.apps-channel;
+        card-w: 620 * Theme.u;
+        close => { Matrix.apps-open = false; }
+        Label {
+            text: "Apps you add here are routed to this channel automatically, now and every time they start.";
+            size: 10.5;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Section {
+                text: "ROUTING";
+                vertical-alignment: center;
+            }
+            Select {
+                horizontal-stretch: 1;
+                height: 30 * Theme.u;
+                options: ["Auto: preset apps plus your list", "Manual: only your list", "Desktop audio: everything not routed elsewhere"];
+                current: Matrix.apps-mode;
+                tooltip: "Routing mode";
+                selected(i) => { Matrix.apps-set-mode(i); }
+            }
+        }
+        if Matrix.apps-current.length > 0: Section { text: "IN THIS CHANNEL"; }
+        if Matrix.apps-current.length > 0: Flickable {
+            height: min(4, Matrix.apps-current.length) * 32 * Theme.u;
+            content-height: Matrix.apps-current.length * 32 * Theme.u;
+            for a[i] in Matrix.apps-current: Rectangle {
+                y: i * 32 * Theme.u;
+                width: parent.width;
+                height: 30 * Theme.u;
+                border-radius: 10 * Theme.u;
+                background: Theme.surface-highest;
+                HorizontalLayout {
+                    padding-left: 10 * Theme.u;
+                    padding-right: 3 * Theme.u;
+                    Label {
+                        text: a;
+                        size: 11.5;
+                        font-weight: 700;
+                        horizontal-stretch: 1;
+                    }
+                    IconBtn {
+                        y: (parent.height - self.height) / 2;
+                        glyph: "\u{e5cd}"; // close
+                        size: 14;
+                        tooltip: "Remove " + a;
+                        clicked => { Matrix.app-remove(a); }
+                    }
+                }
+            }
+        }
+        Section { text: "PLAYING NOW"; }
+        if Matrix.apps-live.length == 0: Label {
+            text: "No apps are playing audio right now. Start one and it shows up here.";
+            size: 10.5;
+            color: Theme.on-surface-variant;
+        }
+        for a in Matrix.apps-live: AppRow { app: a; }
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Section {
+                text: "INSTALLED APPS";
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Field {
+                width: 220 * Theme.u;
+                height: 28 * Theme.u;
+                placeholder: "Search " + Matrix.apps-installed-total + " apps...";
+                text <=> Matrix.apps-filter;
+                changed text => { Matrix.apps-filter-changed(self.text); }
+            }
+        }
+        Flickable {
+            height: min(6, max(1, Matrix.apps-installed.length)) * 36 * Theme.u;
+            content-height: Matrix.apps-installed.length * 36 * Theme.u;
+            for a[i] in Matrix.apps-installed: AppRow {
+                y: i * 36 * Theme.u;
+                width: parent.width;
+                app: a;
             }
         }
     }

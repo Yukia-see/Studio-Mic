@@ -4,7 +4,7 @@
 use super::*;
 use crate::audio::device_discovery::AudioDevice;
 use crate::config::{ChannelMix, StudioMicConfig};
-use crate::routing::wireplumber_hook::HookedStream;
+use crate::routing::wireplumber_hook::{HookedStream, InstalledApp};
 
 /// One-click channel presets (`AC_PRESETS`): (preset, icon, title, default name, subtitle, detail).
 /// detail: "" adds at once, "hw" asks for a hardware input, "name" asks for a name.
@@ -39,6 +39,18 @@ pub(super) struct MatrixState {
     mix_outs: RefCell<Vec<String>>,
     /// Message to send when the confirm dialog is accepted.
     confirm: RefCell<Option<String>>,
+    pub(super) installed: RefCell<Vec<InstalledApp>>,
+    /// Channel whose apps picker is open.
+    apps_for: RefCell<Option<String>>,
+}
+
+const ROUTE_MODES: [&str; 3] = ["auto", "manual", "desktop"];
+
+/// The name an app is saved under: its executable (without path or arguments), else its name.
+fn app_key(binary: &str, app_name: &str, name: &str) -> String {
+    let bin = binary.split_whitespace().next().unwrap_or("").rsplit('/').next().unwrap_or("");
+    let k = if !bin.is_empty() { bin } else if !app_name.is_empty() { app_name } else { name };
+    k.trim().to_lowercase()
 }
 
 /// A mix column.
@@ -638,6 +650,85 @@ impl Ctx {
         m.set_add_channel_open(false);
     }
 
+    /// Fills the apps picker for the channel it's open for (no-op when closed).
+    pub(super) fn refresh_apps(&self) {
+        let Some(id) = self.mx.apps_for.borrow().clone() else { return };
+        let s = self.controller.state.lock().unwrap().clone();
+        let Some(ch) = s.channel(&id) else {
+            self.win.global::<Matrix>().set_apps_open(false);
+            return;
+        };
+        let m = self.win.global::<Matrix>();
+        m.set_apps_channel(ch.name.as_str().into());
+        m.set_apps_mode(ROUTE_MODES.iter().position(|x| *x == ch.route_mode).unwrap_or(0) as i32);
+        m.set_apps_current(strings(&ch.apps));
+        let here = |k: &str| ch.apps.iter().any(|a| a == k);
+        let channel_name = |cid: &Option<String>| match cid {
+            Some(c) if c == &id => "Playing in this channel".to_string(),
+            Some(c) => format!("Playing in {}", s.channel(c).map(|x| x.name.as_str()).unwrap_or(c)),
+            None => "Playing on your default output".to_string(),
+        };
+        let mut seen = std::collections::HashSet::new();
+        let live: Vec<AppItem> = self
+            .mx
+            .live
+            .borrow()
+            .iter()
+            .filter_map(|x| {
+                let key = app_key(&x.binary, &x.app_name, &x.name);
+                if key.is_empty() || !seen.insert(key.clone()) {
+                    return None;
+                }
+                let label = if x.app_name.is_empty() { key.clone() } else { x.app_name.clone() };
+                Some(AppItem { here: here(&key), key: key.into(), label: label.into(), sub: channel_name(&x.channel).into() })
+            })
+            .collect();
+        m.set_apps_live(Rc::new(VecModel::from(live)).into());
+        let q = m.get_apps_filter().to_lowercase();
+        let installed = self.mx.installed.borrow();
+        m.set_apps_installed_total(installed.len() as i32);
+        let mut list: Vec<&InstalledApp> = installed
+            .iter()
+            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q) || a.app_name.to_lowercase().contains(&q) || a.binary.to_lowercase().contains(&q))
+            .collect();
+        list.sort_by_key(|a| a.name.to_lowercase());
+        let items: Vec<AppItem> = list
+            .into_iter()
+            .take(100)
+            .map(|a| {
+                let key = app_key(&a.binary, &a.app_name, &a.name);
+                let elsewhere = s.virtual_channels.iter().find(|c| c.id != id && c.apps.iter().any(|x| *x == key));
+                AppItem {
+                    here: here(&key),
+                    label: a.name.as_str().into(),
+                    sub: elsewhere.map(|c| format!("In {}", c.name)).unwrap_or_default().into(),
+                    key: key.into(),
+                }
+            })
+            .collect();
+        m.set_apps_installed(Rc::new(VecModel::from(items)).into());
+    }
+
+    fn mx_open_apps(&self, row: i32) {
+        let Some(id) = self.mx.row_ids.borrow().get(row as usize).cloned() else { return };
+        *self.mx.apps_for.borrow_mut() = Some(id);
+        let m = self.win.global::<Matrix>();
+        m.set_apps_filter(SharedString::new());
+        self.refresh_apps();
+        m.set_apps_open(true);
+        // Fresh list of what's playing.
+        self.post("get_live_streams");
+    }
+
+    /// Saves this channel's app list / mode.
+    fn mx_set_apps(&self, f: impl FnOnce(&mut Vec<String>, &mut String)) {
+        let Some(id) = self.mx.apps_for.borrow().clone() else { return };
+        let Some(ch) = self.controller.state.lock().unwrap().channel(&id).cloned() else { return };
+        let (mut apps, mut mode) = (ch.apps, ch.route_mode);
+        f(&mut apps, &mut mode);
+        self.post(format!("channel_apps:{}", serde_json::json!({ "id": id, "apps": apps, "mode": mode })));
+    }
+
     fn mx_open_add_mix(&self) {
         let outs = self.mx.outs.borrow();
         let mut labels = vec!["No output · capture in OBS / apps".to_string()];
@@ -728,6 +819,16 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
             None => {}
         }
     }));
+    m.on_open_apps(cb!(|c, i| c.mx_open_apps(i)));
+    m.on_app_add(cb!(|c, key| {
+        let id = c.mx.apps_for.borrow().clone();
+        if let Some(id) = id {
+            c.post(format!("assign_app:{key}:{id}"));
+        }
+    }));
+    m.on_app_remove(cb!(|c, app| c.mx_set_apps(|apps, _| apps.retain(|a| a.as_str() != app.as_str()))));
+    m.on_apps_set_mode(cb!(|c, i| c.mx_set_apps(|_, mode| *mode = ROUTE_MODES.get(i as usize).unwrap_or(&"auto").to_string())));
+    m.on_apps_filter_changed(cb!(|c, _q| c.refresh_apps()));
     m.on_rescan(cb!(|c| {
         c.post("rescan_devices");
         c.notice("Rescanning audio devices...");
@@ -774,6 +875,13 @@ mod tests {
         assert!(v.excluded && v.muted && v.gain == -6.0 && !v.editable);
         // Not in a custom mix until it's routed there.
         assert!(!cell(&r, "x_guest").routed);
+    }
+
+    #[test]
+    fn app_keys_are_executable_names() {
+        assert_eq!(app_key("/usr/bin/firefox %u", "Firefox", "x"), "firefox");
+        assert_eq!(app_key("", "Spotify", "spotify-client"), "spotify");
+        assert_eq!(app_key("", "", "VLC"), "vlc");
     }
 
     #[test]
