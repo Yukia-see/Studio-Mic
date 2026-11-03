@@ -203,8 +203,8 @@ pub fn print_help() {
 USAGE
   studiomic                       open the window (or focus the running one)
   studiomic --background          start in the tray (also: --start-minimized, --tray, -b, --daemon)
-  studiomic --ui-backend slint    native window (preview: studio strip and widget only;
-                                  also STUDIOMIC_UI=slint). Default: web
+  studiomic --ui-backend slint|web   native window or the webview (also STUDIOMIC_UI);
+                                  default: the 'native window' setting in Settings (off = webview)
   studiomic --eq | --noise | --calib    open on a specific tab
 
 CONTROL (talks to the running instance over ~/.cache/studio-mic/studio-mic.sock,

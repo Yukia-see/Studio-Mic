@@ -12,12 +12,14 @@ import { MatrixView, SimpleView, Matrix, Overlays } from "matrix.slint";
 import { EqView, Eq } from "eq.slint";
 import { TuneView, Tune } from "tune.slint";
 import { CheckView, PreviewBar, Check } from "check.slint";
+import { SettingsOverlay, Settings } from "settings.slint";
 
 export { Theme, Level, PillData, BadgeData } from "common.slint";
 export { Matrix } from "matrix.slint";
 export { Eq } from "eq.slint";
 export { Tune } from "tune.slint";
 export { Check } from "check.slint";
+export { Settings } from "settings.slint";
 
 // Pills flow into as many columns as fit (Slint has no flex-wrap, so this places them on a grid).
 component PillGrid inherits Rectangle {
@@ -253,6 +255,11 @@ component Tools inherits HorizontalLayout {
         on: Strip.on-top;
         tooltip: "Keep the widget on top";
         clicked => { Strip.toggle-on-top(); }
+    }
+    if !Strip.widget-mode: ToolButton {
+        glyph: "\u{e8b8}"; // settings
+        tooltip: "Settings: theme, startup, Mic 2, profiles";
+        clicked => { Settings.open = true; }
     }
     if !Strip.widget-mode: ToolButton {
         glyph: Nav.collapsed ? "\u{e5d7}" : "\u{e5d6}"; // unfold_more / unfold_less
@@ -501,6 +508,12 @@ export component MainWindow inherits Window {
         if root.tab == 1: EqView { vertical-stretch: 1; }
         if root.tab == 2: TuneView { vertical-stretch: 1; }
         if root.tab == 3: CheckView { vertical-stretch: 1; }
+    }
+
+    // Settings sits under the other overlays, so its confirm dialog (Overlays) shows on top.
+    if !Strip.widget-mode: SettingsOverlay {
+        width: parent.width;
+        height: parent.height;
     }
 
     if !Strip.widget-mode: Overlays {

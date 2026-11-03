@@ -11,6 +11,7 @@ slint::include_modules!();
 mod check;
 mod eq;
 mod matrix;
+mod settings;
 mod tune;
 
 use crate::app::{Controller, UiPush};
@@ -124,6 +125,7 @@ pub fn run(
     eq::wire(&ctx);
     tune::wire(&ctx);
     check::wire(&ctx);
+    settings::wire(&ctx);
     ctx.refresh_state();
 
     win.window().set_size(slint::LogicalSize::new(cfg.window_width as f32, cfg.window_height as f32));
@@ -426,6 +428,7 @@ impl Ctx {
         self.refresh_matrix(&s);
         self.refresh_eq(&s);
         self.refresh_tune(&s);
+        self.refresh_settings(&s);
         drop(s);
         self.refresh_apps();
         self.refresh_levels();
@@ -858,6 +861,19 @@ mod snapshot {
         win.global::<Nav>().set_tab(1);
         shot(&window, &dir, "eq-preview-775x860@1.6", 1240, 1376, 1.6);
         win.global::<Nav>().set_tab(0);
+        {
+            let st = win.global::<Settings>();
+            st.set_profiles(Rc::new(VecModel::from(vec![SharedString::from("Podcast"), "Streaming".into()])).into());
+            st.set_autostart(true);
+            st.set_open(true);
+            shot(&window, &dir, "settings-835x864@1.6", 1336, 1382, 1.6);
+            st.set_open(false);
+            win.global::<Theme>().set_name("light".into());
+            shot(&window, &dir, "theme-light-1400x900", 1400, 900, 1.0);
+            win.global::<Theme>().set_name("oled_black".into());
+            shot(&window, &dir, "theme-oled-1400x900", 1400, 900, 1.0);
+            win.global::<Theme>().set_name("material_dark".into());
+        }
         win.global::<Matrix>().set_empty(true);
         shot(&window, &dir, "main-1400x900-empty", 1400, 900, 1.0);
         win.global::<Matrix>().set_empty(false);

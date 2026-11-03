@@ -6,17 +6,19 @@ export global Theme {
     in-out property <float> scale: 1.0;
     out property <length> u: 1px * scale;
     out property <string> icon-font: "Material Symbols Outlined";
-    // Material Dark tokens (same values as the HTML UI's default theme).
-    out property <color> surface: #111318;
-    out property <color> surface-low: #191c20;
-    out property <color> surface-mid: #1d2024;
-    out property <color> surface-high: #272a2f;
-    out property <color> surface-highest: #32353a;
-    out property <color> on-surface: #e2e2e9;
-    out property <color> on-surface-variant: #c4c6d0;
-    out property <color> outline: #44474f;
-    out property <color> primary: #a8c7fa;
-    out property <color> on-primary: #062e6f;
+    // Theme tokens (same values as the HTML UI's themes): material_dark (default), oled_black,
+    // midnight_slate, light. Rust sets `name` from the saved `theme`.
+    in property <string> name: "material_dark";
+    out property <color> surface: name == "oled_black" ? #000000 : name == "midnight_slate" ? #0F172A : name == "light" ? #F8FAFC : #111318;
+    out property <color> surface-low: name == "oled_black" ? #050505 : name == "midnight_slate" ? #162036 : name == "light" ? #f3f6fa : #191c20;
+    out property <color> surface-mid: name == "oled_black" ? #080808 : name == "midnight_slate" ? #1E293B : name == "light" ? #FFFFFF : #1d2024;
+    out property <color> surface-high: name == "oled_black" ? #101010 : name == "midnight_slate" ? #263449 : name == "light" ? #eef2f7 : #272a2f;
+    out property <color> surface-highest: name == "oled_black" ? #161616 : name == "midnight_slate" ? #334155 : name == "light" ? #e3e8ef : #32353a;
+    out property <color> on-surface: name == "oled_black" ? #e2e2e9 : name == "midnight_slate" ? #e2e8f0 : name == "light" ? #1a1c20 : #e2e2e9;
+    out property <color> on-surface-variant: name == "oled_black" ? #c4c6d0 : name == "midnight_slate" ? #a8b3c7 : name == "light" ? #4a4f5a : #c4c6d0;
+    out property <color> outline: name == "oled_black" ? #2a2a2a : name == "midnight_slate" ? #334155 : name == "light" ? #cfd5df : #44474f;
+    out property <color> primary: name == "oled_black" ? #8ab4ff : name == "midnight_slate" ? #93c5fd : name == "light" ? #1b5fc1 : #a8c7fa;
+    out property <color> on-primary: name == "oled_black" ? #062e6f : name == "midnight_slate" ? #0b2a5b : name == "light" ? #ffffff : #062e6f;
     out property <color> ok: #10b981;
     out property <color> hot: #f59e0b;
     out property <color> clip: #ef4444;
@@ -44,6 +46,7 @@ export component Icon inherits Text {
     in property <string> glyph;
     in property <float> size: 18;
     text: glyph;
+    color: Theme.on-surface;
     font-family: Theme.icon-font;
     font-size: size * Theme.u;
     horizontal-alignment: center;

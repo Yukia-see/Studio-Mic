@@ -179,6 +179,11 @@ impl Ctx {
         eq.set_profile_title(p.map(|p| p.profile_title.as_str()).unwrap_or("").into());
         eq.set_profile_summary(p.map(|p| p.profile_summary.as_str()).unwrap_or("").into());
 
+        let titles: Vec<String> = s.user_presets.iter().map(|p| p.title.clone()).collect();
+        eq.set_my_presets(Rc::new(VecModel::from(titles.iter().map(SharedString::from).collect::<Vec<_>>())).into());
+        let in_use = if mic2 { None } else { titles.iter().position(|t| s.preset_name == format!("Custom: {t}")) };
+        eq.set_my_preset(in_use.map_or(-1, |i| i as i32));
+
         if self.eq.edited.get().is_some_and(|t| t.elapsed() < EDIT_HOLD) {
             return;
         }
@@ -298,6 +303,31 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
         }
     })));
     eq.on_flat(cb!(|c| c.eq_replace(vec![EqBand { freq: 1000.0, gain_db: 0.0, q: 1.0, filter_type: FilterType::Peaking }], "Flat")));
+    eq.on_apply_my_preset(cb!(|c, i| {
+        let p = c.controller.state.lock().unwrap().user_presets.get(i as usize).cloned();
+        if let Some(p) = p {
+            c.eq_replace(p.bands.clone(), &format!("Custom: {}", p.title));
+        }
+    }));
+    eq.on_save_my_preset(cb!(|c| {
+        let eq = c.win.global::<Eq>();
+        let title = eq.get_my_preset_name().trim().to_string();
+        if title.is_empty() || c.eq.mic2.get() {
+            return;
+        }
+        let id = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+        let mic = c.controller.state.lock().unwrap().default_mic_id.clone();
+        let preset = serde_json::json!({ "id": id, "title": title, "mic": mic, "date": "Saved preset", "bands": payload(&c.eq.bands.borrow()) });
+        c.post(format!("save_user_preset:{preset}"));
+        eq.set_my_preset_name(SharedString::new());
+        c.notice(&format!("Saved EQ preset \"{title}\""));
+    }));
+    eq.on_delete_my_preset(cb!(|c, i| {
+        let p = c.controller.state.lock().unwrap().user_presets.get(i as usize).cloned();
+        if let Some(p) = p {
+            c.ask(&format!("Delete the EQ preset \"{}\"? The current curve stays as it is.", p.title), "Delete", &format!("delete_user_preset:{}", p.id));
+        }
+    }));
     eq.on_factory(cb!(|c| {
         c.eq.edited.set(None);
         c.post("reset_default_eq");

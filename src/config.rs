@@ -596,6 +596,9 @@ pub struct StudioMicConfig {
     /// Native UI: top studio strip collapsed to one row.
     #[serde(default)]
     pub strip_collapsed: bool,
+    /// Open the native (Slint) window instead of the webview when no --ui-backend is given.
+    #[serde(default)]
+    pub native_ui: bool,
 }
 
 fn default_theme() -> String { "material_dark".into() }
@@ -668,6 +671,7 @@ impl Default for StudioMicConfig {
             always_on_top: true,
             mixer_simple: false,
             strip_collapsed: false,
+            native_ui: false,
         }
     }
 }
@@ -1101,6 +1105,12 @@ impl StudioMicConfig {
             .unwrap_or_default();
         out.sort();
         out
+    }
+
+    pub fn delete_profile(name: &str) -> std::io::Result<()> {
+        let safe = sanitize_profile_name(name)
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid profile name"))?;
+        fs::remove_file(profiles_dir().join(format!("{}.json", safe)))
     }
 }
 

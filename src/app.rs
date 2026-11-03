@@ -1359,6 +1359,10 @@ impl Controller {
                 s.mixer_simple = rest == "simple";
                 Ok(String::new())
             }),
+            "native_ui" => self.mutate(|s| {
+                s.native_ui = rest == "1";
+                Ok(String::new())
+            }),
             "strip_collapsed" => self.mutate(|s| {
                 s.strip_collapsed = rest == "1";
                 Ok(String::new())
@@ -1626,6 +1630,9 @@ impl Controller {
             // --- Profiles ---
             "profile_save" => self.save_profile(rest),
             "profile_load" => self.load_profile(rest),
+            "profile_delete" => StudioMicConfig::delete_profile(rest)
+                .map(|_| format!("Deleted profile '{}'", rest))
+                .map_err(|e| format!("cannot delete profile '{}': {}", rest, e)),
             "profiles_list" => {
                 self.js(format!("window.updateProfilesList && window.updateProfilesList({})", serde_json::to_string(&StudioMicConfig::list_profiles()).unwrap()));
                 Ok(String::new())

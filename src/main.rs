@@ -29,7 +29,8 @@ type UiSend = Arc<dyn Fn(UiPush) + Send + Sync>;
 
 /// `--ui-backend slint|web` (or STUDIOMIC_UI). The webview stays the default until the native
 /// UI has every tab.
-fn wants_slint(args: &[String]) -> bool {
+/// `--ui-backend slint|web` (or `STUDIOMIC_UI`) wins; otherwise the saved `native_ui` choice.
+fn wants_slint(args: &[String], native_default: bool) -> bool {
     let flag = args
         .iter()
         .position(|a| a == "--ui-backend")
@@ -37,7 +38,11 @@ fn wants_slint(args: &[String]) -> bool {
         .map(|s| s.to_string())
         .or_else(|| args.iter().find_map(|a| a.strip_prefix("--ui-backend=").map(str::to_string)))
         .or_else(|| std::env::var("STUDIOMIC_UI").ok());
-    flag.is_some_and(|v| v == "slint")
+    match flag.as_deref() {
+        Some("slint") | Some("native") => true,
+        Some(_) => false,
+        None => native_default,
+    }
 }
 
 const BACKGROUND_FLAGS: [&str; 5] = ["--background", "--start-minimized", "--tray", "-b", "--daemon"];
@@ -120,7 +125,7 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
     let controller = Controller::new(state.clone(), engine.clone());
 
     // 3. UI event loop (Slint window or tao + webview) and the push plumbing into it.
-    let use_slint = wants_slint(&args);
+    let use_slint = wants_slint(&args, cfg.native_ui);
     if use_slint && !cfg!(feature = "ui-slint") {
         eprintln!("This build has no native UI (feature ui-slint); using the webview.");
     }

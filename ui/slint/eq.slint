@@ -2,7 +2,7 @@
 // a band list, the "Recommended EQ for <mic>" profiles and three style presets. Rust side:
 // src/ui_slint/eq.rs (curve math, sorting, the eq: / eq_mic2: messages).
 
-import { Theme, Icon, Label, Fader, IconBtn, Btn, Select } from "common.slint";
+import { Theme, Icon, Label, Fader, IconBtn, Btn, Field, Select } from "common.slint";
 
 export struct EqBandData {
     kind: int,          // index into Eq.types
@@ -25,6 +25,10 @@ export global Eq {
     in property <string> preset-name;
     in property <string> profile-title;
     in property <string> profile-summary;
+    // Your saved curves (user_presets); `my-preset` is the one in use, if any.
+    in property <[string]> my-presets;
+    in property <int> my-preset: -1;
+    in-out property <string> my-preset-name;
     out property <[string]> types: ["Peaking", "Low Shelf", "High Shelf", "High Pass", "Low Pass", "Notch"];
 
     callback graph-resized(float, float);
@@ -42,6 +46,9 @@ export global Eq {
     callback remove-band(int);
     callback flat();
     callback factory();
+    callback apply-my-preset(int);
+    callback save-my-preset();
+    callback delete-my-preset(int);
 }
 
 global EqFmt {
@@ -484,6 +491,51 @@ export component EqView inherits Rectangle {
                         clicked => { Eq.style(2); }
                     }
                 }
+                Label {
+                    text: "MY PRESETS";
+                    size: 9.5;
+                    mono: true;
+                    font-weight: 800;
+                    letter-spacing: 0.8px;
+                    color: Theme.on-surface-variant;
+                }
+                HorizontalLayout {
+                    spacing: 6 * Theme.u;
+                    Select {
+                        horizontal-stretch: 1;
+                        height: 30 * Theme.u;
+                        options: Eq.my-presets;
+                        current: Eq.my-preset;
+                        placeholder: Eq.my-presets.length == 0 ? "No saved presets yet" : "Apply a saved preset...";
+                        tooltip: "My presets";
+                        selected(i) => { Eq.apply-my-preset(i); }
+                    }
+                    IconBtn {
+                        y: (parent.height - self.height) / 2;
+                        glyph: "\u{e92e}"; // delete
+                        size: 16;
+                        enabled: Eq.my-preset >= 0;
+                        tooltip: "Delete the preset in use";
+                        clicked => { Eq.delete-my-preset(Eq.my-preset); }
+                    }
+                }
+                if !Eq.target-mic2: HorizontalLayout {
+                    spacing: 6 * Theme.u;
+                    Field {
+                        horizontal-stretch: 1;
+                        height: 30 * Theme.u;
+                        placeholder: "Save this curve as...";
+                        text <=> Eq.my-preset-name;
+                        accepted => { Eq.save-my-preset(); }
+                    }
+                    Btn {
+                        height: 30 * Theme.u;
+                        text: "Save";
+                        glyph: "\u{e161}"; // save
+                        enabled: Eq.my-preset-name != "";
+                        clicked => { Eq.save-my-preset(); }
+                    }
+                }
             }
         }
         // Narrow windows: profile picker under the bands.
@@ -497,6 +549,15 @@ export component EqView inherits Rectangle {
                 placeholder: "Recommended EQ for your mic...";
                 tooltip: "Microphone model";
                 selected(i) => { Eq.pick-profile(i); }
+            }
+            Select {
+                width: 170 * Theme.u;
+                height: 32 * Theme.u;
+                options: Eq.my-presets;
+                current: Eq.my-preset;
+                placeholder: "My presets...";
+                tooltip: "My presets";
+                selected(i) => { Eq.apply-my-preset(i); }
             }
             Select {
                 width: 170 * Theme.u;

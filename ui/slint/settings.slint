@@ -1,0 +1,172 @@
+// Settings (gear in the top bar): theme, startup, second microphone, native window by default,
+// and profiles (named snapshots of every setting). Rust side: src/ui_slint/settings.rs.
+
+import { Theme, Icon, Label, IconBtn, Btn, Field, Select, Switch } from "common.slint";
+import { Modal, Section } from "matrix.slint";
+
+export global Settings {
+    in-out property <bool> open;
+    in property <int> theme;                // index into the theme list
+    in property <bool> autostart;
+    in property <bool> start-minimized;
+    in property <bool> mic2;
+    in property <bool> native-default;
+    in property <[string]> profiles;
+    in-out property <string> profile-name;
+
+    callback set-theme(int);
+    callback toggle(string);
+    callback save-profile();
+    callback load-profile(int);
+    callback delete-profile(int);
+    callback opened();
+}
+
+component Row inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> note;
+    in property <bool> on;
+    callback toggled;
+    spacing: 10 * Theme.u;
+    VerticalLayout {
+        horizontal-stretch: 1;
+        alignment: center;
+        Label {
+            text: root.title;
+            size: 12;
+            font-weight: 700;
+        }
+        if root.note != "": Label {
+            text: root.note;
+            size: 10;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+        }
+    }
+    Switch {
+        y: (parent.height - self.height) / 2;
+        on: root.on;
+        label: root.title;
+        toggled => { root.toggled(); }
+    }
+}
+
+export component SettingsOverlay inherits Rectangle {
+    if Settings.open: Modal {
+        title: "Settings";
+        card-w: 560 * Theme.u;
+        close => { Settings.open = false; }
+        init => { Settings.opened(); }
+        Section { text: "APPEARANCE"; }
+        HorizontalLayout {
+            spacing: 10 * Theme.u;
+            Label {
+                text: "Theme";
+                size: 12;
+                font-weight: 700;
+                horizontal-stretch: 1;
+            }
+            Select {
+                width: 220 * Theme.u;
+                height: 30 * Theme.u;
+                options: ["Material Dark", "OLED Black", "Midnight Slate", "Light"];
+                current: Settings.theme;
+                tooltip: "Theme";
+                selected(i) => { Settings.set-theme(i); }
+            }
+        }
+        Row {
+            title: "Open the native window by default";
+            note: "Also when Studio Mic starts with your computer or from the tray. Off: the classic web window. --ui-backend web|slint overrides it.";
+            on: Settings.native-default;
+            toggled => { Settings.toggle("native"); }
+        }
+        Section { text: "STARTUP"; }
+        Row {
+            title: "Start with my computer";
+            on: Settings.autostart;
+            toggled => { Settings.toggle("autostart"); }
+        }
+        Row {
+            title: "Start minimized to the tray";
+            on: Settings.start-minimized;
+            toggled => { Settings.toggle("minimized"); }
+        }
+        Section { text: "MICROPHONES"; }
+        Row {
+            title: "Second microphone (Mic 2)";
+            note: "A guest or co-host mic with its own EQ, shown in the mixer.";
+            on: Settings.mic2;
+            toggled => { Settings.toggle("mic2"); }
+        }
+        Section { text: "PROFILES"; }
+        Label {
+            text: "A profile saves every setting (EQ, processing, channels, mixes). Loading one keeps this computer's devices.";
+            size: 10.5;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Field {
+                horizontal-stretch: 1;
+                placeholder: "Profile name, e.g. Streaming";
+                text <=> Settings.profile-name;
+                accepted => { Settings.save-profile(); }
+            }
+            Btn {
+                text: "Save";
+                glyph: "\u{e161}"; // save
+                primary: true;
+                enabled: Settings.profile-name != "";
+                clicked => { Settings.save-profile(); }
+            }
+        }
+        if Settings.profiles.length == 0: Label {
+            text: "No profiles saved yet.";
+            size: 10.5;
+            color: Theme.on-surface-variant;
+        }
+        Flickable {
+            height: min(5, Settings.profiles.length) * 38 * Theme.u;
+            content-height: Settings.profiles.length * 38 * Theme.u;
+            for p[i] in Settings.profiles: Rectangle {
+                y: i * 38 * Theme.u;
+                width: parent.width;
+                height: 34 * Theme.u;
+                border-radius: 10 * Theme.u;
+                background: Theme.surface-highest;
+                HorizontalLayout {
+                    padding-left: 10 * Theme.u;
+                    padding-right: 3 * Theme.u;
+                    spacing: 6 * Theme.u;
+                    Icon {
+                        glyph: "\u{e617}"; // folder_special
+                        size: 16;
+                        color: Theme.primary;
+                        width: 18 * Theme.u;
+                    }
+                    Label {
+                        text: p;
+                        size: 11.5;
+                        font-weight: 700;
+                        horizontal-stretch: 1;
+                    }
+                    Btn {
+                        y: (parent.height - self.height) / 2;
+                        height: 26 * Theme.u;
+                        text: "Load";
+                        clicked => { Settings.load-profile(i); }
+                    }
+                    IconBtn {
+                        y: (parent.height - self.height) / 2;
+                        glyph: "\u{e92e}"; // delete
+                        size: 15;
+                        tooltip: "Delete profile " + p;
+                        clicked => { Settings.delete-profile(i); }
+                    }
+                }
+            }
+        }
+    }
+}

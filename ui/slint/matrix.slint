@@ -728,7 +728,7 @@ export component SimpleView inherits Rectangle {
 }
 
 // Modal card on a dimmed backdrop. Clicking the backdrop closes it.
-component Modal inherits Rectangle {
+export component Modal inherits Rectangle {
     in property <string> title;
     in property <length> card-w: 520 * Theme.u;
     callback close;
@@ -854,7 +854,7 @@ component AppRow inherits Rectangle {
     }
 }
 
-component Section inherits Label {
+export component Section inherits Label {
     size: 9.5;
     mono: true;
     font-weight: 800;
