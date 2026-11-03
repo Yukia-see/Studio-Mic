@@ -325,13 +325,15 @@ component StudioStrip inherits Rectangle {
 // Widget mode: the strip alone, filling the window. One fixed layout (fader cards side by side,
 // pills two across) that only scales, so nothing rearranges or flickers while resizing.
 component WidgetStrip inherits Rectangle {
+    in property <length> extra-gap;
     border-radius: 16 * Theme.u;
     background: Theme.surface-mid;
     border-width: 1px;
     border-color: Theme.outline;
     VerticalLayout {
         padding: 8 * Theme.u;
-        spacing: 6 * Theme.u;
+        spacing: 6 * Theme.u + root.extra-gap;
+        alignment: center;
         HorizontalLayout {
             spacing: 8 * Theme.u;
             Logo { }
@@ -473,11 +475,15 @@ export component MainWindow inherits Window {
     changed widget-mode => { rescale(); }
 
     // Centered; when the window is wider or taller than the fitted design, the card keeps its size.
+    // The card covers the whole window; the scaled layout is centered inside it, and spare
+    // height opens up the gaps between rows a little (capped).
+    property <length> widget-spare: (self.height - 12px) - widget-scale * (162 + ceil(npills / 2) * 32) * 1px;
     if Strip.widget-mode: WidgetStrip {
+        x: 6px;
+        y: 6px;
         width: parent.width - 12px;
-        height: min(parent.height - 12px, self.preferred-height);
-        x: (parent.width - self.width) / 2;
-        y: max(6px, (parent.height - self.height) / 2);
+        height: parent.height - 12px;
+        extra-gap: clamp(root.widget-spare / 6, 0px, 12 * Theme.u);
     }
 
     if !Strip.widget-mode: VerticalLayout {
