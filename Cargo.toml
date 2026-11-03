@@ -13,6 +13,19 @@ tao = "0.37.2"
 # Only used to catch SIGINT/SIGTERM.
 tokio = { version = "1.54.1", features = ["rt", "signal", "macros"] }
 wry = "0.57.1"
+# Native UI (--ui-backend slint). Winit + OpenGL (femtovg), software fallback; no Qt needed.
+slint = { version = "1.18.1", optional = true, default-features = false, features = ["std", "backend-winit", "renderer-femtovg", "renderer-software", "software-renderer-systemfonts", "accessibility", "compat-1-2", "unstable-winit-030"] }
+
+[dev-dependencies]
+# Offscreen snapshots of the native UI (ui_slint::tests::snapshots).
+png = "0.18.1"
+
+[build-dependencies]
+slint-build = { version = "1.18.1", optional = true }
+
+[features]
+default = ["ui-slint"]
+ui-slint = ["dep:slint", "dep:slint-build"]
 
 [workspace]
 members = [".", "tools/latency-probe", "tools/gap-probe"]

@@ -16,6 +16,9 @@ fn main() {
 
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     bundle_ui(&out.join("ui.html"));
+    #[cfg(feature = "ui-slint")]
+    slint_build::compile_with_config("ui/slint/app.slint", slint_build::CompilerConfiguration::new().with_style("fluent-dark".into()))
+        .expect("compile ui/slint/app.slint");
     // Embedded denoisers (see src/audio/plugins_bundle.rs). Both are optional: a machine without
     // speexdsp headers, or a checkout where setup-deps.sh hasn't staged RNNoise, still builds.
     if build_speex(&out.join("libspeex_ladspa.so")) {

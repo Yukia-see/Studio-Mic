@@ -6,6 +6,8 @@ mod ipc;
 mod models;
 mod routing;
 mod tray;
+#[cfg(feature = "ui-slint")]
+mod ui_slint;
 
 use app::{Controller, UiPush};
 use std::sync::atomic::Ordering;
@@ -20,6 +22,22 @@ use wry::WebViewBuilder;
 #[derive(Debug, Clone)]
 pub enum AppEvent {
     Ui(UiPush),
+}
+
+/// Where backend → UI events go (the active UI's event loop). Any thread.
+type UiSend = Arc<dyn Fn(UiPush) + Send + Sync>;
+
+/// `--ui-backend slint|web` (or STUDIOMIC_UI). The webview stays the default until the native
+/// UI has every tab.
+fn wants_slint(args: &[String]) -> bool {
+    let flag = args
+        .iter()
+        .position(|a| a == "--ui-backend")
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.to_string())
+        .or_else(|| args.iter().find_map(|a| a.strip_prefix("--ui-backend=").map(str::to_string)))
+        .or_else(|| std::env::var("STUDIOMIC_UI").ok());
+    flag.is_some_and(|v| v == "slint")
 }
 
 const BACKGROUND_FLAGS: [&str; 5] = ["--background", "--start-minimized", "--tray", "-b", "--daemon"];
@@ -101,14 +119,31 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
     engine.ui_visible.store(!background, Ordering::SeqCst);
     let controller = Controller::new(state.clone(), engine.clone());
 
-    // 3. Event loop + proxy plumbing.
-    let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
-    let proxy = Arc::new(Mutex::new(event_loop.create_proxy()));
+    // 3. UI event loop (Slint window or tao + webview) and the push plumbing into it.
+    let use_slint = wants_slint(&args);
+    if use_slint && !cfg!(feature = "ui-slint") {
+        eprintln!("This build has no native UI (feature ui-slint); using the webview.");
+    }
+    #[cfg(feature = "ui-slint")]
+    let slint_window = if use_slint { Some(ui_slint::create_window()?) } else { None };
+    #[cfg(not(feature = "ui-slint"))]
+    let slint_window: Option<()> = None;
+    let event_loop = slint_window.is_none().then(|| EventLoopBuilder::<AppEvent>::with_user_event().build());
+    let send: UiSend = match &event_loop {
+        Some(el) => {
+            let proxy = Mutex::new(el.create_proxy());
+            Arc::new(move |push| {
+                let _ = proxy.lock().unwrap().send_event(AppEvent::Ui(push));
+            })
+        }
+        #[cfg(feature = "ui-slint")]
+        None => Arc::new(ui_slint::push),
+        #[cfg(not(feature = "ui-slint"))]
+        None => unreachable!(),
+    };
     {
-        let p = proxy.clone();
-        controller.set_ui_sink(move |push| {
-            let _ = p.lock().unwrap().send_event(AppEvent::Ui(push));
-        });
+        let s = send.clone();
+        controller.set_ui_sink(move |push| s(push));
     }
 
     // 4. Control socket for the CLI / StreamController.
@@ -118,7 +153,7 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
 
     // 5. SIGINT / SIGTERM -> clean quit (state flushed, children stopped).
     {
-        let p = proxy.clone();
+        let s = send.clone();
         let eng = engine.clone();
         let st = state.clone();
         std::thread::Builder::new().name("signals".into()).spawn(move || {
@@ -135,7 +170,7 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
                 }
             });
             println!("Signal received: shutting down.");
-            let _ = p.lock().unwrap().send_event(AppEvent::Ui(UiPush::Quit));
+            s(UiPush::Quit);
             // If the event loop is wedged, still leave PipeWire clean.
             std::thread::sleep(std::time::Duration::from_secs(4));
             let _ = st.lock().unwrap().write_atomic();
@@ -152,12 +187,33 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
 
     // 7. Tray.
     let tray_handle = {
-        let p = proxy.clone();
-        tray::spawn_tray(controller.clone(), move |push| {
-            let _ = p.lock().unwrap().send_event(AppEvent::Ui(push));
-        })
-        .ok()
+        let s = send.clone();
+        tray::spawn_tray(controller.clone(), move |push| s(push)).ok()
     };
+
+    // State flush + engine stop, once (Quit, window loop end, or signal).
+    let shutdown = {
+        let engine = engine.clone();
+        let state = state.clone();
+        let mut done = false;
+        move || {
+            if done {
+                return;
+            }
+            done = true;
+            let _ = state.lock().unwrap().write_atomic();
+            config::flush_now();
+            engine.shutdown();
+            let _ = std::fs::remove_file(ipc::socket_path());
+        }
+    };
+
+    #[cfg(feature = "ui-slint")]
+    if let Some(win) = slint_window {
+        println!("Studio Mic UI ready (native){}.", if background { " (background)" } else { "" });
+        return ui_slint::run(win, controller, engine, background, tray_handle, Box::new(shutdown));
+    }
+    let event_loop = event_loop.expect("webview event loop");
 
     // 8. Window + webview.
     let window = WindowBuilder::new()
@@ -297,19 +353,7 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
 
     println!("Studio Mic UI ready{}.", if background { " (background)" } else { "" });
 
-    let shutdown_engine = engine.clone();
-    let shutdown_state = state.clone();
-    let mut shut_down = false;
-    let mut do_shutdown = move || {
-        if shut_down {
-            return;
-        }
-        shut_down = true;
-        let _ = shutdown_state.lock().unwrap().write_atomic();
-        config::flush_now();
-        shutdown_engine.shutdown();
-        let _ = std::fs::remove_file(ipc::socket_path());
-    };
+    let mut do_shutdown = shutdown;
 
     // Normal window size while the widget is shown (restored when it's left).
     let mut widget_saved: Option<tao::dpi::LogicalSize<f64>> = None;
@@ -359,6 +403,8 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
                     }
                     let _ = webview.evaluate_script(&format!("window.setWidgetMode && window.setWidgetMode({})", on));
                 }
+                // Typed events are for the native UI; the webview gets their `Js` twins.
+                UiPush::State | UiPush::Peaks(_) | UiPush::Notice(_) | UiPush::MicMissing(_) | UiPush::Plugins(_) | UiPush::Devices { .. } | UiPush::LiveStreams(_) => {}
                 UiPush::Quit => {
                     println!("Quitting Studio Mic...");
                     window.set_visible(false);

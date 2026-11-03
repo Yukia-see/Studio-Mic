@@ -1,0 +1,822 @@
+// Tab 1: the routing matrix (Wave Link style). Rows are sources (mic, Mic 2, channels), columns
+// are mixes (My Mix, Stream, VOD, Voice Chat, custom mixes). A cell is routed (mute + meter +
+// fader), empty (+ adds it) or locked (the echo guard). Rust builds every cell from the saved
+// state (src/ui_slint/matrix.rs), with the same rules as the HTML UI's mxCell.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Level, Icon, Label, Fader, Meter, MuteButton, IconBtn, Btn, Field, Select, Fmt } from "common.slint";
+
+export enum CellKind { none, empty, routed, locked }
+
+export struct MxColData {
+    key: string,
+    name: string,
+    sub: string,
+    glyph: string,
+    color: color,
+    custom: bool,
+    outputs: [string],
+    output: int,
+    output-missing: bool,
+}
+
+export struct AppTag {
+    name: string,
+    live: bool,
+}
+
+export struct MxRowData {
+    id: string,
+    name: string,
+    glyph: string,
+    badge: string,
+    renamable: bool,
+    removable: bool,
+    hw: bool,
+    hw-options: [string],
+    hw-current: int,
+    hw-missing: bool,
+    apps: [AppTag],
+    note: string,
+}
+
+export struct MxCellData {
+    kind: CellKind,
+    muted: bool,
+    gain: float,
+    editable: bool,
+    removable: bool,
+    vod: bool,
+    glyph: string,
+    tip: string,
+}
+
+export struct PresetData {
+    glyph: string,
+    name: string,
+    sub: string,
+    taken: bool,
+    detail: string,   // "" = one click, "hw" = pick an input, "name" = name it
+}
+
+export global Matrix {
+    in property <[MxColData]> cols;
+    in property <[MxRowData]> rows;
+    // Flat, row-major: index = row * cols.length + col.
+    in property <[MxCellData]> cells;
+    in property <[float]> meters;
+    in property <bool> mon-muted;
+    in property <float> mon-gain;
+    in property <bool> empty;              // no channels yet: show the empty-state card
+
+    // Add Channel
+    in-out property <bool> add-channel-open;
+    in property <[PresetData]> presets;
+    in-out property <int> ac-pick: -1;
+    in-out property <string> ac-name;
+    in property <[string]> hw-options;
+    in-out property <int> ac-hw: -1;
+    // Add Mix
+    in-out property <bool> add-mix-open;
+    in-out property <string> mix-name;
+    in property <[color]> mix-colors;
+    in-out property <int> mix-color;
+    in property <[string]> mix-outputs;
+    in-out property <int> mix-output;
+    // Confirm dialog
+    in-out property <string> confirm-text;
+    in-out property <string> confirm-ok: "Delete";
+
+    callback cell-mute(int, int);
+    callback cell-route(int, int, bool);
+    callback cell-gain(int, int, float);
+    callback set-output(int, int);
+    callback set-hw(int, int);
+    callback rename(int, string);
+    callback remove-channel(int);
+    callback remove-mix(int);
+    callback master-mute();
+    callback open-add-channel();
+    callback pick-preset(int);
+    callback commit-add-channel();
+    callback open-add-mix();
+    callback commit-add-mix();
+    callback confirm-accepted();
+    callback rescan();
+}
+
+component MxCell inherits Rectangle {
+    in property <MxCellData> cell;
+    in property <float> meter;
+    in property <color> accent;
+    in property <string> mix-name;
+    callback mute();
+    callback route(bool);
+    callback gain(float);
+    height: 66 * Theme.u;
+
+    if root.cell.kind == CellKind.locked: Rectangle {
+        border-radius: 12 * Theme.u;
+        background: Theme.surface.with-alpha(0.5);
+        HorizontalLayout {
+            alignment: center;
+            spacing: 4 * Theme.u;
+            Icon {
+                glyph: "\u{e899}"; // lock
+                size: 14;
+                color: Theme.on-surface-variant.with-alpha(0.7);
+            }
+            Label {
+                text: "Echo guard";
+                size: 10;
+                color: Theme.on-surface-variant.with-alpha(0.7);
+            }
+        }
+        TouchArea { }
+    }
+
+    if root.cell.kind == CellKind.empty: Rectangle {
+        border-radius: 12 * Theme.u;
+        border-width: 1px;
+        border-color: eta.has-hover ? root.accent.with-alpha(0.6) : Theme.outline.with-alpha(0.5);
+        background: eta.has-hover ? root.accent.with-alpha(0.06) : transparent;
+        accessible-role: button;
+        accessible-label: "Add to " + root.mix-name;
+        Rectangle {
+            width: 28 * Theme.u;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: eta.has-hover ? root.accent.with-alpha(0.25) : Theme.surface-highest;
+            Icon {
+                glyph: "\u{e145}"; // add
+                size: 18;
+                color: eta.has-hover ? root.accent : Theme.on-surface-variant;
+            }
+        }
+        eta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.route(true); }
+        }
+    }
+
+    if root.cell.kind == CellKind.routed: Rectangle {
+        border-radius: 12 * Theme.u;
+        background: root.cell.muted ? Theme.clip.with-alpha(0.07) : root.accent.with-alpha(0.08);
+        border-width: 1px;
+        border-color: root.cell.muted ? Theme.clip.with-alpha(0.45) : root.accent.with-alpha(0.35);
+        // Behind the controls: right-click removes the source from this mix.
+        TouchArea {
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down && e.button == PointerEventButton.right && root.cell.removable) {
+                    root.route(false);
+                }
+            }
+        }
+        VerticalLayout {
+            padding: 6 * Theme.u;
+            padding-top: 4 * Theme.u;
+            spacing: 3 * Theme.u;
+            HorizontalLayout {
+                spacing: 4 * Theme.u;
+                IconBtn {
+                    glyph: root.cell.glyph;
+                    size: 16;
+                    tint: root.cell.muted ? Theme.clip : root.accent;
+                    hover-color: Theme.surface-highest;
+                    tooltip: root.cell.tip;
+                    clicked => { root.mute(); }
+                }
+                Label {
+                    text: Fmt.db(fader.value) + (root.cell.vod ? " · follows Stream" : "");
+                    size: 9.5;
+                    mono: true;
+                    font-weight: 700;
+                    color: root.cell.muted ? Theme.on-surface-variant : Theme.on-surface;
+                    horizontal-stretch: 1;
+                }
+                if root.cell.removable: IconBtn {
+                    glyph: "\u{e5cd}"; // close
+                    size: 13;
+                    tooltip: "Remove from " + root.mix-name;
+                    clicked => { root.route(false); }
+                }
+            }
+            Meter {
+                level: root.meter;
+                hold: 0;
+                height: max(3px, 4 * Theme.u);
+            }
+            fader := Fader {
+                minimum: -60;
+                maximum: 12;
+                model-value: root.cell.gain;
+                accent: root.cell.muted ? Theme.on-surface-variant : root.accent;
+                enabled: root.cell.editable && !root.cell.muted;
+                min-width: 40 * Theme.u;
+                moved(v) => { root.gain(v); }
+            }
+        }
+    }
+}
+
+component MxHead inherits Rectangle {
+    in property <MxColData> data;
+    in property <int> index;
+    border-radius: 14 * Theme.u;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    clip: true;
+    VerticalLayout {
+        padding: 8 * Theme.u;
+        padding-bottom: 10 * Theme.u;
+        spacing: 6 * Theme.u;
+        HorizontalLayout {
+            spacing: 6 * Theme.u;
+            Icon {
+                glyph: root.data.glyph;
+                size: 18;
+                color: root.data.color;
+                width: 22 * Theme.u;
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                Label {
+                    text: root.data.name;
+                    size: 12;
+                    font-weight: 700;
+                }
+                Label {
+                    text: root.data.sub;
+                    size: 9;
+                    color: Theme.on-surface-variant;
+                }
+            }
+            if root.data.custom: IconBtn {
+                glyph: "\u{e5cd}"; // close
+                size: 14;
+                tooltip: "Delete mix " + root.data.name;
+                clicked => { Matrix.remove-mix(root.index); }
+            }
+        }
+        if root.data.key == "monitor": HorizontalLayout {
+            spacing: 6 * Theme.u;
+            IconBtn {
+                glyph: Matrix.mon-muted ? "\u{e33a}" : "\u{f01f}"; // headset_off / headphones
+                size: 16;
+                tint: Matrix.mon-muted ? Theme.clip : root.data.color;
+                tooltip: "Master headphone mute";
+                clicked => { Matrix.master-mute(); }
+            }
+            Label {
+                text: Fmt.db(Matrix.mon-gain);
+                size: 10;
+                mono: true;
+                font-weight: 700;
+                color: Theme.primary;
+                horizontal-stretch: 1;
+            }
+        }
+        Select {
+            options: root.data.outputs;
+            current: root.data.output;
+            warn: root.data.output-missing;
+            tooltip: "Physical output for " + root.data.name;
+            selected(i) => { Matrix.set-output(root.index, i); }
+        }
+    }
+    Rectangle {
+        y: parent.height - self.height;
+        height: 3 * Theme.u;
+        background: root.data.color;
+    }
+}
+
+component MxSource inherits Rectangle {
+    in property <MxRowData> data;
+    in property <int> index;
+    property <bool> editing;
+    HorizontalLayout {
+        spacing: 8 * Theme.u;
+        padding-left: 4 * Theme.u;
+        Rectangle {
+            width: 34 * Theme.u;
+            height: self.width;
+            y: (parent.height - self.height) / 2;
+            border-radius: 10 * Theme.u;
+            background: Theme.surface-highest;
+            Icon {
+                glyph: root.data.glyph;
+                size: 20;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 4 * Theme.u;
+            horizontal-stretch: 1;
+            HorizontalLayout {
+                spacing: 6 * Theme.u;
+                if !root.editing: Label {
+                    text: root.data.name;
+                    size: 12.5;
+                    font-weight: 700;
+                    horizontal-stretch: 1;
+                    TouchArea {
+                        double-clicked => {
+                            if (root.data.renamable) { root.editing = true; }
+                        }
+                    }
+                }
+                if root.editing: f := Field {
+                    text: root.data.name;
+                    height: 24 * Theme.u;
+                    horizontal-stretch: 1;
+                    init => { self.focus-all(); }
+                    accepted => {
+                        Matrix.rename(root.index, self.text);
+                        root.editing = false;
+                    }
+                    cancelled => { root.editing = false; }
+                }
+                Rectangle {
+                    width: bl.preferred-width + 10 * Theme.u;
+                    height: 16 * Theme.u;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 5 * Theme.u;
+                    background: Theme.surface-highest;
+                    bl := Label {
+                        text: root.data.badge;
+                        size: 8.5;
+                        mono: true;
+                        font-weight: 800;
+                        color: Theme.on-surface-variant;
+                        overflow: clip;
+                    }
+                }
+            }
+            if root.data.hw: Select {
+                min-width: 0;
+                options: root.data.hw-options;
+                current: root.data.hw-current;
+                warn: root.data.hw-missing;
+                placeholder: "Choose the input...";
+                tooltip: "Hardware input";
+                selected(i) => { Matrix.set-hw(root.index, i); }
+            }
+            if !root.data.hw: Rectangle {
+                height: 17 * Theme.u;
+                min-width: 0;
+                clip: true;
+                HorizontalLayout {
+                    spacing: 4 * Theme.u;
+                    alignment: start;
+                    for a in root.data.apps: Rectangle {
+                        width: al.preferred-width + 10 * Theme.u;
+                        height: 17 * Theme.u;
+                        border-radius: 5 * Theme.u;
+                        background: a.live ? Theme.ok.with-alpha(0.15) : Theme.surface-highest;
+                        al := Label {
+                            text: a.name;
+                            size: 9;
+                            color: a.live ? Theme.ok : Theme.on-surface-variant;
+                            overflow: clip;
+                        }
+                    }
+                    if root.data.note != "": Label {
+                        text: root.data.note;
+                        size: 10;
+                        color: Theme.on-surface-variant;
+                    }
+                }
+                }
+        }
+        if root.data.removable: IconBtn {
+            y: (parent.height - self.height) / 2;
+            glyph: "\u{e92e}"; // delete
+            size: 17;
+            tooltip: "Delete this channel";
+            clicked => { Matrix.remove-channel(root.index); }
+        }
+    }
+}
+
+// The whole matrix, scrollable both ways when the window is smaller than the grid.
+export component MatrixView inherits Rectangle {
+    property <length> gap: 6 * Theme.u;
+    property <length> pad: 10 * Theme.u;
+    property <length> src-w: (self.width < 900 * Theme.u ? 190 : 230) * Theme.u;
+    property <length> add-w: 64 * Theme.u;
+    property <int> ncols: Matrix.cols.length;
+    // Columns share the free width, but never get narrower than a usable fader.
+    property <length> col-w: max(150 * Theme.u, (self.width - 2 * pad - src-w - add-w - (ncols + 1) * gap - 8 * Theme.u) / max(1, ncols));
+    property <length> total-w: src-w + ncols * (col-w + gap) + add-w + gap + 8 * Theme.u;
+
+    border-radius: 22 * Theme.u;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    clip: true;
+
+    fl := ScrollView {
+        x: root.pad;
+        y: root.pad;
+        width: parent.width - 2 * root.pad;
+        height: parent.height - 2 * root.pad;
+        content-width: max(self.visible-width, root.total-w);
+        content-height: max(self.visible-height, content.preferred-height + 12px);
+        content := VerticalLayout {
+            width: root.total-w;
+            alignment: start;
+            spacing: root.gap;
+            // Header: mixes.
+            HorizontalLayout {
+                spacing: root.gap;
+                padding-left: 4 * Theme.u;
+                Rectangle {
+                    width: root.src-w;
+                    HorizontalLayout {
+                        y: parent.height - self.height - 2 * Theme.u;
+                        height: self.preferred-height;
+                        padding-left: 4 * Theme.u;
+                        spacing: 4 * Theme.u;
+                        Label {
+                            text: "AUDIO CHANNELS";
+                            size: 10;
+                            mono: true;
+                            font-weight: 800;
+                            letter-spacing: 1px;
+                            color: Theme.on-surface-variant;
+                            horizontal-stretch: 1;
+                        }
+                        IconBtn {
+                            glyph: "\u{e5d5}"; // refresh
+                            size: 16;
+                            tooltip: "Rescan audio devices";
+                            clicked => { Matrix.rescan(); }
+                        }
+                    }
+                }
+                for c[j] in Matrix.cols: MxHead {
+                    width: root.col-w;
+                    data: c;
+                    index: j;
+                }
+                Rectangle {
+                    width: root.add-w;
+                    border-radius: 14 * Theme.u;
+                    border-width: 1px;
+                    border-color: ata.has-hover ? Theme.primary : Theme.outline.with-alpha(0.6);
+                    accessible-role: button;
+                    accessible-label: "Add a mix";
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2 * Theme.u;
+                        Icon {
+                            glyph: "\u{e145}"; // add
+                            size: 22;
+                            color: ata.has-hover ? Theme.primary : Theme.on-surface-variant;
+                        }
+                        Label {
+                            text: "ADD MIX";
+                            size: 8.5;
+                            mono: true;
+                            font-weight: 800;
+                            horizontal-alignment: center;
+                            color: Theme.on-surface-variant;
+                        }
+                    }
+                    ata := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { Matrix.open-add-mix(); }
+                    }
+                }
+            }
+            // One row per source.
+            for r[i] in Matrix.rows: Rectangle {
+                height: 78 * Theme.u;
+                border-radius: 16 * Theme.u;
+                background: Theme.surface-mid;
+                HorizontalLayout {
+                    padding: 6 * Theme.u;
+                    padding-left: 4 * Theme.u;
+                    spacing: root.gap;
+                    MxSource {
+                        width: root.src-w;
+                        data: r;
+                        index: i;
+                    }
+                    for c[j] in Matrix.cols: MxCell {
+                        width: root.col-w;
+                        y: (parent.height - self.height) / 2;
+                        cell: Matrix.cells[i * root.ncols + j];
+                        meter: Matrix.meters[i * root.ncols + j];
+                        accent: c.color;
+                        mix-name: c.name;
+                        mute => { Matrix.cell-mute(i, j); }
+                        route(on) => { Matrix.cell-route(i, j, on); }
+                        gain(v) => { Matrix.cell-gain(i, j, v); }
+                    }
+                    Rectangle { width: root.add-w; }
+                }
+            }
+            // Add Channel / empty state.
+            if Matrix.empty: Rectangle {
+                height: es.preferred-height;
+                border-radius: 16 * Theme.u;
+                border-width: 1px;
+                border-color: Theme.outline.with-alpha(0.6);
+                es := VerticalLayout {
+                    padding: 18 * Theme.u;
+                    spacing: 8 * Theme.u;
+                    alignment: center;
+                    Icon {
+                        glyph: "\u{e03b}"; // playlist_add
+                        size: 32;
+                        color: Theme.primary;
+                    }
+                    Label {
+                        text: "No extra virtual channels created. Choose only what you need.";
+                        size: 12;
+                        horizontal-alignment: center;
+                        color: Theme.on-surface-variant;
+                    }
+                    HorizontalLayout {
+                        alignment: center;
+                        Btn {
+                            text: "Add Channel";
+                            glyph: "\u{e145}";
+                            primary: true;
+                            clicked => { Matrix.open-add-channel(); }
+                        }
+                    }
+                }
+            }
+            if !Matrix.empty: HorizontalLayout {
+                alignment: start;
+                padding-left: 4 * Theme.u;
+                Btn {
+                    text: "Add Channel";
+                    glyph: "\u{e145}";
+                    clicked => { Matrix.open-add-channel(); }
+                }
+            }
+            Label {
+                text: "Click: mute · Drag: volume · Double-click: 0 dB · x or right-click: remove from a mix · +: add.  VOD follows each channel's Stream fader · Voice Chat takes everything except the voice-chat channel (echo guard).";
+                size: 10;
+                color: Theme.on-surface-variant;
+                wrap: word-wrap;
+                width: min(root.total-w, fl.visible-width);
+            }
+        }
+    }
+}
+
+// Modal card on a dimmed backdrop. Clicking the backdrop closes it.
+component Modal inherits Rectangle {
+    in property <string> title;
+    in property <length> card-w: 520 * Theme.u;
+    callback close;
+    background: #000000a0;
+    TouchArea {
+        clicked => { root.close(); }
+    }
+    card := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: min(parent.width - 24px, root.card-w);
+        height: min(parent.height - 24px, body.preferred-height);
+        border-radius: 22 * Theme.u;
+        background: Theme.surface-high;
+        border-width: 1px;
+        border-color: Theme.outline;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #0009;
+        clip: true;
+        TouchArea { }  // clicks on the card don't close it
+        body := VerticalLayout {
+            padding: 20 * Theme.u;
+            spacing: 14 * Theme.u;
+            HorizontalLayout {
+                Label {
+                    text: root.title;
+                    size: 16;
+                    font-weight: 700;
+                    horizontal-stretch: 1;
+                }
+                IconBtn {
+                    glyph: "\u{e5cd}";
+                    size: 18;
+                    tooltip: "Close";
+                    clicked => { root.close(); }
+                }
+            }
+            @children
+        }
+    }
+}
+
+component PresetButton inherits Rectangle {
+    in property <PresetData> p;
+    in property <bool> picked;
+    callback clicked;
+    height: 52 * Theme.u;
+    border-radius: 14 * Theme.u;
+    background: picked ? Theme.primary.with-alpha(0.15) : pta.has-hover && !p.taken ? Theme.surface-highest.brighter(0.1) : Theme.surface-highest;
+    border-width: 1px;
+    border-color: picked ? Theme.primary : Theme.outline;
+    opacity: p.taken ? 0.45 : 1;
+    accessible-role: button;
+    accessible-label: p.name;
+    HorizontalLayout {
+        padding: 10 * Theme.u;
+        spacing: 10 * Theme.u;
+        Icon {
+            glyph: root.p.glyph;
+            size: 22;
+            color: root.picked ? Theme.primary : Theme.on-surface;
+            width: 26 * Theme.u;
+        }
+        VerticalLayout {
+            alignment: center;
+            Label {
+                text: root.p.name;
+                size: 12;
+                font-weight: 700;
+            }
+            Label {
+                text: root.p.taken ? "Already added" : root.p.sub;
+                size: 10;
+                color: Theme.on-surface-variant;
+            }
+        }
+    }
+    pta := TouchArea {
+        enabled: !root.p.taken;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Add Channel, Add Mix and the confirm dialog, drawn over the whole window.
+export component Overlays inherits Rectangle {
+    property <PresetData> picked: Matrix.ac-pick >= 0 && Matrix.ac-pick < Matrix.presets.length ? Matrix.presets[Matrix.ac-pick] : { detail: "" };
+
+    if Matrix.add-channel-open: Modal {
+        title: "Add Channel";
+        card-w: 600 * Theme.u;
+        close => { Matrix.add-channel-open = false; }
+        // Two columns of presets.
+        GridLayout {
+            spacing: 8 * Theme.u;
+            for p[i] in Matrix.presets: PresetButton {
+                row: floor(i / 2);
+                col: mod(i, 2);
+                p: p;
+                picked: i == Matrix.ac-pick;
+                clicked => { Matrix.pick-preset(i); }
+            }
+        }
+        if root.picked.detail != "": VerticalLayout {
+            spacing: 8 * Theme.u;
+            Label {
+                text: "Name";
+                size: 11;
+                color: Theme.on-surface-variant;
+            }
+            name := Field {
+                text <=> Matrix.ac-name;
+                init => { self.focus-all(); }
+                accepted => { Matrix.commit-add-channel(); }
+                cancelled => { Matrix.add-channel-open = false; }
+            }
+            if root.picked.detail == "hw": Label {
+                text: "Hardware input";
+                size: 11;
+                color: Theme.on-surface-variant;
+            }
+            if root.picked.detail == "hw": Select {
+                height: 32 * Theme.u;
+                options: Matrix.hw-options;
+                current: Matrix.ac-hw;
+                placeholder: "Choose the input...";
+                tooltip: "Hardware input";
+                selected(i) => { Matrix.ac-hw = i; }
+            }
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8 * Theme.u;
+                Btn {
+                    text: "Cancel";
+                    clicked => { Matrix.add-channel-open = false; }
+                }
+                Btn {
+                    text: "Add";
+                    glyph: "\u{e145}";
+                    primary: true;
+                    enabled: Matrix.ac-name != "" && (root.picked.detail != "hw" || Matrix.ac-hw >= 0);
+                    clicked => { Matrix.commit-add-channel(); }
+                }
+            }
+        }
+    }
+
+    if Matrix.add-mix-open: Modal {
+        title: "Add Mix";
+        card-w: 460 * Theme.u;
+        close => { Matrix.add-mix-open = false; }
+        Label {
+            text: "A new output bus (guest mix, speakers, a second recording track...). It shows up in OBS and other apps as its own device.";
+            size: 11;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+        }
+        Label {
+            text: "Name";
+            size: 11;
+            color: Theme.on-surface-variant;
+        }
+        Field {
+            text <=> Matrix.mix-name;
+            init => { self.focus-all(); }
+            accepted => { Matrix.commit-add-mix(); }
+            cancelled => { Matrix.add-mix-open = false; }
+        }
+        Label {
+            text: "Colour";
+            size: 11;
+            color: Theme.on-surface-variant;
+        }
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            alignment: start;
+            for c[i] in Matrix.mix-colors: Rectangle {
+                width: 28 * Theme.u;
+                height: self.width;
+                border-radius: self.width / 2;
+                background: c;
+                border-width: i == Matrix.mix-color ? 3px : 0;
+                border-color: Theme.on-surface;
+                accessible-role: button;
+                accessible-label: "Colour " + (i + 1);
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { Matrix.mix-color = i; }
+                }
+            }
+        }
+        Label {
+            text: "Output";
+            size: 11;
+            color: Theme.on-surface-variant;
+        }
+        Select {
+            height: 32 * Theme.u;
+            options: Matrix.mix-outputs;
+            current: Matrix.mix-output;
+            tooltip: "Physical output";
+            selected(i) => { Matrix.mix-output = i; }
+        }
+        HorizontalLayout {
+            alignment: end;
+            spacing: 8 * Theme.u;
+            Btn {
+                text: "Cancel";
+                clicked => { Matrix.add-mix-open = false; }
+            }
+            Btn {
+                text: "Create Mix";
+                glyph: "\u{e145}";
+                primary: true;
+                enabled: Matrix.mix-name != "";
+                clicked => { Matrix.commit-add-mix(); }
+            }
+        }
+    }
+
+    if Matrix.confirm-text != "": Modal {
+        title: "Are you sure?";
+        card-w: 420 * Theme.u;
+        close => { Matrix.confirm-text = ""; }
+        Label {
+            text: Matrix.confirm-text;
+            size: 12;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            alignment: end;
+            spacing: 8 * Theme.u;
+            Btn {
+                text: "Cancel";
+                clicked => { Matrix.confirm-text = ""; }
+            }
+            Btn {
+                text: Matrix.confirm-ok;
+                primary: true;
+                clicked => {
+                    Matrix.confirm-text = "";
+                    Matrix.confirm-accepted();
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,527 @@
+// Shared building blocks for the native UI: theme tokens, icons, faders, meters, buttons.
+
+import "../material-symbols-outlined.ttf";
+
+export global Theme {
+    in-out property <float> scale: 1.0;
+    out property <length> u: 1px * scale;
+    out property <string> icon-font: "Material Symbols Outlined";
+    // Material Dark tokens (same values as the HTML UI's default theme).
+    out property <color> surface: #111318;
+    out property <color> surface-low: #191c20;
+    out property <color> surface-mid: #1d2024;
+    out property <color> surface-high: #272a2f;
+    out property <color> surface-highest: #32353a;
+    out property <color> on-surface: #e2e2e9;
+    out property <color> on-surface-variant: #c4c6d0;
+    out property <color> outline: #44474f;
+    out property <color> primary: #a8c7fa;
+    out property <color> on-primary: #062e6f;
+    out property <color> ok: #10b981;
+    out property <color> hot: #f59e0b;
+    out property <color> clip: #ef4444;
+    out property <color> mic-accent: #38bdf8;
+    out property <color> mon-accent: #34c759;
+}
+
+// Level status, shared by meters, pills and mute rings.
+export enum Level { ok, hot, peak, muted }
+
+export struct PillData {
+    id: string,
+    label: string,
+    glyph: string,
+    level: Level,
+}
+
+export struct BadgeData {
+    id: string,
+    label: string,
+    on: bool,
+}
+
+export component Icon inherits Text {
+    in property <string> glyph;
+    in property <float> size: 18;
+    text: glyph;
+    font-family: Theme.icon-font;
+    font-size: size * Theme.u;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+}
+
+export component Label inherits Text {
+    in property <float> size: 11;
+    in property <bool> mono: false;
+    font-size: size * Theme.u;
+    font-family: mono ? "monospace" : "";
+    color: Theme.on-surface;
+    vertical-alignment: center;
+    overflow: elide;
+}
+
+// Horizontal fader: track + knob. `model-value` comes from the backend; `value` is what's shown.
+export component Fader inherits Rectangle {
+    in property <float> minimum: -24;
+    in property <float> maximum: 12;
+    in property <float> step: 0.5;
+    in property <float> model-value;
+    in-out property <float> value;
+    in property <color> accent: Theme.mic-accent;
+    in property <bool> enabled: true;
+    callback moved(float);
+    out property <bool> busy: ta.pressed || hold.running;
+    property <length> knob: 14 * Theme.u;
+    property <float> fraction: clamp((value - minimum) / (maximum - minimum), 0, 1);
+
+    min-width: 80 * Theme.u;
+    height: max(16px, 18 * Theme.u);
+    opacity: enabled ? 1 : 0.4;
+
+    init => { value = model-value; }
+    changed model-value => {
+        if (!busy) { value = model-value; }
+    }
+
+    pure function value-at(x: length) -> float {
+        return round((minimum + clamp((x - knob / 2) / (root.width - knob), 0, 1) * (maximum - minimum)) / step) * step;
+    }
+    function set-value(v: float) {
+        if (v != value) {
+            value = v;
+            moved(v);
+        }
+    }
+
+    track := Rectangle {
+        y: (parent.height - self.height) / 2;
+        height: max(4px, 5 * Theme.u);
+        border-radius: self.height / 2;
+        background: Theme.surface-highest;
+        Rectangle {
+            x: 0;
+            width: root.knob / 2 + (parent.width - root.knob) * root.fraction;
+            border-radius: parent.border-radius;
+            background: root.accent.with-alpha(0.45);
+        }
+    }
+
+    Rectangle {
+        x: (parent.width - root.knob) * root.fraction;
+        y: (parent.height - self.height) / 2;
+        width: root.knob;
+        height: root.knob;
+        border-radius: self.width / 2;
+        background: root.accent;
+        border-width: 2px;
+        border-color: Theme.surface;
+        drop-shadow-blur: 6px;
+        drop-shadow-color: root.accent.with-alpha(0.6);
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                root.set-value(root.value-at(self.mouse-x));
+            }
+            if (e.kind == PointerEventKind.up) {
+                hold.running = false;
+                hold.running = true;
+            }
+        }
+        moved => {
+            if (self.pressed) { root.set-value(root.value-at(self.mouse-x)); }
+        }
+        double-clicked => {
+            if (root.minimum <= 0 && root.maximum >= 0) { root.set-value(0); }
+        }
+        scroll-event(e) => {
+            if (e.delta-y > 0) {
+                root.set-value(min(root.maximum, root.value + root.step));
+            } else if (e.delta-y < 0) {
+                root.set-value(max(root.minimum, root.value - root.step));
+            }
+            hold.running = false;
+            hold.running = true;
+            accept
+        }
+    }
+
+    hold := Timer {
+        interval: 250ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            root.value = root.model-value;
+        }
+    }
+}
+
+// Level meter: fill (0..1) plus a peak-hold tick.
+export component Meter inherits Rectangle {
+    in property <float> level;
+    in property <float> hold;
+    in property <Level> state: Level.ok;
+    height: max(4px, 6 * Theme.u);
+    border-radius: self.height / 2;
+    background: Theme.surface-highest;
+    clip: true;
+    Rectangle {
+        x: 0;
+        width: parent.width * clamp(root.level, 0, 1);
+        border-radius: parent.border-radius;
+        background: root.state == Level.peak ? Theme.clip
+            : root.state == Level.hot ? Theme.hot
+            : @linear-gradient(90deg, #10b981 0%, #34d399 70%, #f59e0b 100%);
+        animate width { duration: 70ms; }
+    }
+    Rectangle {
+        visible: root.hold > 0.01;
+        x: parent.width * clamp(root.hold, 0, 1) - self.width;
+        width: 2px;
+        background: root.state == Level.peak ? Theme.clip : Theme.on-surface-variant;
+    }
+}
+
+export component StatusDot inherits Rectangle {
+    in property <Level> level;
+    property <bool> blink;
+    width: 8 * Theme.u;
+    height: self.width;
+    border-radius: self.width / 2;
+    background: level == Level.muted ? Theme.clip
+        : level == Level.peak ? (blink ? Theme.clip.with-alpha(0.25) : Theme.clip)
+        : level == Level.hot ? Theme.hot : Theme.ok;
+    Timer {
+        interval: 125ms;
+        running: root.level == Level.peak;
+        triggered => { root.blink = !root.blink; }
+    }
+}
+
+export component MuteButton inherits Rectangle {
+    in property <string> glyph;
+    in property <bool> muted;
+    in property <Level> level: Level.ok;
+    in property <bool> show-dot: true;
+    callback clicked;
+    width: 38 * Theme.u;
+    height: self.width;
+    border-radius: 10 * Theme.u;
+    background: muted ? Theme.clip.with-alpha(0.2) : ta.has-hover ? Theme.surface-highest.brighter(0.15) : Theme.surface-highest;
+    border-width: level == Level.peak ? 2px : 1px;
+    border-color: muted || level == Level.peak ? Theme.clip : level == Level.hot ? Theme.hot : Theme.outline;
+    Icon {
+        glyph: root.glyph;
+        size: 20;
+        color: root.muted ? Theme.clip : Theme.on-surface;
+    }
+    if root.show-dot: StatusDot {
+        x: parent.width - self.width * 0.7;
+        y: -self.height * 0.3;
+        level: root.muted ? Level.muted : root.level;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component Chip inherits Rectangle {
+    in property <string> text;
+    in property <string> glyph;
+    in property <bool> on;
+    in property <color> on-color: Theme.mic-accent;
+    in property <string> tooltip;
+    callback clicked;
+    height: 24 * Theme.u;
+    min-width: lay.preferred-width;
+    border-radius: 8 * Theme.u;
+    background: ta.has-hover ? Theme.surface-highest.brighter(0.15) : Theme.surface-highest;
+    border-width: 1px;
+    border-color: on ? on-color : Theme.outline;
+    accessible-role: button;
+    accessible-label: tooltip != "" ? tooltip : text;
+    lay := HorizontalLayout {
+        padding-left: 8 * Theme.u;
+        padding-right: 8 * Theme.u;
+        spacing: 4 * Theme.u;
+        if root.glyph != "": Icon {
+            glyph: root.glyph;
+            size: 15;
+            color: root.on ? root.on-color : Theme.on-surface-variant;
+        }
+        if root.text != "": Label {
+            text: root.text;
+            size: 10;
+            mono: true;
+            font-weight: 800;
+            color: root.on ? root.on-color : Theme.on-surface-variant;
+            overflow: clip;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component Pill inherits Rectangle {
+    in property <PillData> data;
+    callback clicked;
+    height: 26 * Theme.u;
+    border-radius: self.height / 2;
+    background: data.level == Level.muted ? Theme.clip.with-alpha(0.18) : ta.has-hover ? Theme.surface-highest.brighter(0.15) : Theme.surface-highest;
+    border-width: 1px;
+    border-color: data.level == Level.muted || data.level == Level.peak ? Theme.clip : data.level == Level.hot ? Theme.hot : Theme.outline;
+    accessible-role: button;
+    accessible-label: (data.level == Level.muted ? "Unmute " : "Mute ") + data.label;
+    HorizontalLayout {
+        padding-left: 9 * Theme.u;
+        padding-right: 9 * Theme.u;
+        spacing: 5 * Theme.u;
+        alignment: center;
+        StatusDot {
+            level: root.data.level;
+            y: (parent.height - self.height) / 2;
+        }
+        Icon {
+            glyph: root.data.glyph;
+            size: 15;
+            color: root.data.level == Level.muted ? Theme.clip : Theme.on-surface;
+        }
+        Label {
+            text: root.data.level == Level.muted ? "MUTED" : root.data.level == Level.peak ? "PEAK!" : root.data.label;
+            size: 10;
+            mono: true;
+            font-weight: 800;
+            color: root.data.level == Level.muted || root.data.level == Level.peak ? Theme.clip : Theme.on-surface;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ToolButton inherits Rectangle {
+    in property <string> glyph;
+    in property <bool> on;
+    in property <string> tooltip;
+    callback clicked;
+    width: 30 * Theme.u;
+    height: self.width;
+    border-radius: 8 * Theme.u;
+    background: ta.has-hover ? Theme.surface-highest : transparent;
+    accessible-role: button;
+    accessible-label: tooltip;
+    Icon {
+        glyph: root.glyph;
+        size: 19;
+        color: root.on ? Theme.mic-accent : Theme.on-surface-variant;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export global Fmt {
+    // dB · % (0 dB = 100 %), same as the HTML UI's fmtGain.
+    pure public function db(v: float) -> string {
+        return v <= -60 ? "-∞ dB · 0%" : (v > 0 ? "+" : "") + v.to-fixed(1) + " dB · " + round(pow(10, v / 20) * 100) + "%";
+    }
+}
+
+
+// Small round icon button (remove x, delete, mute in a matrix cell).
+export component IconBtn inherits Rectangle {
+    in property <string> glyph;
+    in property <float> size: 16;
+    in property <color> tint: Theme.on-surface-variant;
+    in property <color> hover-color: Theme.surface-highest;
+    in property <string> tooltip;
+    in property <bool> enabled: true;
+    callback clicked;
+    width: (size + 10) * Theme.u;
+    height: self.width;
+    border-radius: self.width / 2;
+    background: ta.has-hover && enabled ? hover-color : transparent;
+    opacity: enabled ? 1 : 0.4;
+    accessible-role: button;
+    accessible-label: tooltip;
+    Icon {
+        glyph: root.glyph;
+        size: root.size;
+        color: root.tint;
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Text button. `primary` = filled.
+export component Btn inherits Rectangle {
+    in property <string> text;
+    in property <string> glyph;
+    in property <bool> primary;
+    in property <bool> enabled: true;
+    callback clicked;
+    height: 32 * Theme.u;
+    min-width: lay.preferred-width;
+    border-radius: self.height / 2;
+    background: primary ? (ta.has-hover ? Theme.primary.brighter(0.1) : Theme.primary)
+        : (ta.has-hover ? Theme.surface-highest.brighter(0.15) : Theme.surface-highest);
+    border-width: primary ? 0 : 1px;
+    border-color: Theme.outline;
+    opacity: enabled ? 1 : 0.45;
+    accessible-role: button;
+    accessible-label: text;
+    lay := HorizontalLayout {
+        padding-left: 14 * Theme.u;
+        padding-right: 16 * Theme.u;
+        spacing: 6 * Theme.u;
+        alignment: center;
+        if root.glyph != "": Icon {
+            glyph: root.glyph;
+            size: 18;
+            color: root.primary ? Theme.on-primary : Theme.on-surface;
+        }
+        Label {
+            text: root.text;
+            size: 12;
+            font-weight: 700;
+            color: root.primary ? Theme.on-primary : Theme.on-surface;
+            overflow: clip;
+        }
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Single-line text field.
+export component Field inherits Rectangle {
+    in-out property <string> text <=> ti.text;
+    in property <string> placeholder;
+    callback accepted;
+    callback cancelled;
+    public function focus-all() {
+        ti.focus();
+        ti.select-all();
+    }
+    height: 32 * Theme.u;
+    border-radius: 8 * Theme.u;
+    background: Theme.surface-highest;
+    border-width: ti.has-focus ? 2px : 1px;
+    border-color: ti.has-focus ? Theme.primary : Theme.outline;
+    Label {
+        x: 10 * Theme.u;
+        width: parent.width - 20 * Theme.u;
+        visible: ti.text == "";
+        text: root.placeholder;
+        size: 12;
+        color: Theme.on-surface-variant;
+    }
+    ti := TextInput {
+        x: 10 * Theme.u;
+        width: parent.width - 20 * Theme.u;
+        font-size: 12 * Theme.u;
+        color: Theme.on-surface;
+        selection-background-color: Theme.primary.with-alpha(0.4);
+        vertical-alignment: center;
+        single-line: true;
+        accepted => { root.accepted(); }
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                root.cancelled();
+                return accept;
+            }
+            reject
+        }
+    }
+}
+
+// Drop-down list. `current` = -1 shows the placeholder.
+export component Select inherits Rectangle {
+    in property <[string]> options;
+    in property <int> current: -1;
+    in property <string> placeholder: "Choose...";
+    in property <bool> warn;
+    in property <string> tooltip;
+    callback selected(int);
+    property <length> row-h: 28 * Theme.u;
+    height: 26 * Theme.u;
+    min-width: 60 * Theme.u;
+    border-radius: 8 * Theme.u;
+    background: ta.has-hover ? Theme.surface-highest.brighter(0.15) : Theme.surface-highest;
+    border-width: 1px;
+    border-color: warn ? Theme.hot : Theme.outline;
+    accessible-role: combobox;
+    accessible-label: tooltip;
+    accessible-value: current >= 0 && current < options.length ? options[current] : placeholder;
+    HorizontalLayout {
+        padding-left: 8 * Theme.u;
+        padding-right: 2 * Theme.u;
+        spacing: 2 * Theme.u;
+        Label {
+            text: root.current >= 0 && root.current < root.options.length ? root.options[root.current] : root.placeholder;
+            size: 10.5;
+            horizontal-stretch: 1;
+            color: root.warn ? Theme.hot : root.current < 0 ? Theme.on-surface-variant : Theme.on-surface;
+        }
+        Icon {
+            glyph: "\u{e5cf}"; // expand_more
+            size: 16;
+            color: Theme.on-surface-variant;
+            width: 18 * Theme.u;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { popup.show(); }
+    }
+    popup := PopupWindow {
+        x: 0;
+        y: root.height + 2px;
+        width: max(root.width, 240 * Theme.u);
+        height: min(root.options.length * root.row-h + 8 * Theme.u, 320 * Theme.u);
+        Rectangle {
+            background: Theme.surface-high;
+            border-radius: 10 * Theme.u;
+            border-width: 1px;
+            border-color: Theme.outline;
+            drop-shadow-blur: 12px;
+            drop-shadow-color: #0008;
+            clip: true;
+            Flickable {
+                content-height: root.options.length * root.row-h + 8 * Theme.u;
+                for o[i] in root.options: Rectangle {
+                    x: 4 * Theme.u;
+                    y: 4 * Theme.u + i * root.row-h;
+                    width: parent.width - 8 * Theme.u;
+                    height: root.row-h;
+                    border-radius: 6 * Theme.u;
+                    background: ota.has-hover ? Theme.surface-highest : i == root.current ? Theme.primary.with-alpha(0.12) : transparent;
+                    Label {
+                        x: 8 * Theme.u;
+                        width: parent.width - 16 * Theme.u;
+                        text: o;
+                        size: 11;
+                        color: i == root.current ? Theme.primary : Theme.on-surface;
+                    }
+                    ota := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.selected(i); }
+                    }
+                }
+            }
+        }
+    }
+}

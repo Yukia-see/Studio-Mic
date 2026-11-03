@@ -1,0 +1,453 @@
+// Studio Mic native UI (Slint). Rust side: src/ui_slint/.
+//
+// Scaling: every size is a multiple of Theme.u. In the main window u follows the Small / Medium /
+// Large setting (ui_size); in widget mode it is fitted to the window, so the widget grows and
+// shrinks as one piece instead of clipping or wrapping.
+//
+// Faders never snap back: while one is pressed (and 250 ms after release, which absorbs the
+// backend's echo), new values from the backend are held and applied afterwards.
+
+import { Theme, Level, PillData, BadgeData, Icon, Label, Fader, Meter, StatusDot, MuteButton, Chip, Pill, ToolButton, Fmt } from "common.slint";
+import { MatrixView, Matrix, Overlays } from "matrix.slint";
+
+export { Theme, Level, PillData, BadgeData } from "common.slint";
+export { Matrix } from "matrix.slint";
+
+// Pills flow into as many columns as fit (Slint has no flex-wrap, so this places them on a grid).
+component PillGrid inherits Rectangle {
+    in property <[PillData]> pills;
+    callback toggle(string);
+    property <length> pill-w: 100 * Theme.u;
+    property <length> gap: 6 * Theme.u;
+    property <int> cols: max(1, floor((self.width + gap) / (pill-w + gap)));
+    property <length> cell-w: (self.width - (cols - 1) * gap) / cols;
+    property <int> rows: ceil(pills.length / cols);
+    min-width: pill-w;
+    height: rows == 0 ? 0 : rows * 26 * Theme.u + (rows - 1) * gap;
+    for p[i] in pills: Pill {
+        x: mod(i, root.cols) * (root.cell-w + root.gap);
+        y: floor(i / root.cols) * (self.height + root.gap);
+        width: root.cell-w;
+        data: p;
+        clicked => { root.toggle(p.id); }
+    }
+}
+
+// One dual-track strip: mute | (name, readout / meter / fader).
+component StripCard inherits Rectangle {
+    in property <string> name;
+    in property <string> glyph;
+    in property <bool> muted;
+    in property <Level> level;
+    in property <float> meter-level;
+    in property <float> meter-hold;
+    in property <string> readout;
+    in property <string> extra;            // e.g. "-3.1 dBFS" peak readout
+    in property <string> badge;            // e.g. "PAD -6 dB"
+    in property <bool> hear-myself-visible;
+    in property <bool> hear-myself;
+    in property <float> minimum;
+    in property <float> maximum;
+    in property <float> model-value;
+    in property <color> accent;
+    callback mute-clicked;
+    callback hear-myself-clicked;
+    callback moved(float);
+    min-width: 200 * Theme.u;
+    border-radius: 16 * Theme.u;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    HorizontalLayout {
+        padding: 6 * Theme.u;
+        padding-left: 8 * Theme.u;
+        padding-right: 10 * Theme.u;
+        spacing: 8 * Theme.u;
+        MuteButton {
+            glyph: root.glyph;
+            muted: root.muted;
+            level: root.level;
+            y: (parent.height - self.height) / 2;
+            clicked => { root.mute-clicked(); }
+        }
+        VerticalLayout {
+            spacing: 3 * Theme.u;
+            alignment: center;
+            HorizontalLayout {
+                spacing: 6 * Theme.u;
+                Label {
+                    text: root.name;
+                    size: 12;
+                    font-weight: 700;
+                    horizontal-stretch: 1;
+                    min-width: 40 * Theme.u;
+                }
+                if root.badge != "": Chip {
+                    text: root.badge;
+                    on: true;
+                    on-color: Theme.hot;
+                    height: 18 * Theme.u;
+                }
+                if root.hear-myself-visible: Chip {
+                    text: "HEAR MYSELF";
+                    on: root.hear-myself;
+                    on-color: Theme.mon-accent;
+                    height: 18 * Theme.u;
+                    tooltip: "Hear Myself: your mic in your headphones";
+                    clicked => { root.hear-myself-clicked(); }
+                }
+                Label {
+                    text: root.readout;
+                    size: 10;
+                    mono: true;
+                    font-weight: 700;
+                    color: Theme.primary;
+                    overflow: clip;
+                    horizontal-stretch: 0;
+                }
+                if root.extra != "": Label {
+                    text: root.extra;
+                    size: 10;
+                    mono: true;
+                    font-weight: 700;
+                    color: root.level == Level.peak ? Theme.clip : root.level == Level.hot ? Theme.hot : Theme.ok;
+                    overflow: clip;
+                    horizontal-stretch: 0;
+                }
+            }
+            Meter {
+                level: root.meter-level;
+                hold: root.meter-hold;
+                state: root.level == Level.muted ? Level.ok : root.level;
+            }
+            Fader {
+                minimum: root.minimum;
+                maximum: root.maximum;
+                model-value: root.model-value;
+                accent: root.accent;
+                moved(v) => { root.moved(v); }
+            }
+        }
+    }
+}
+
+component Logo inherits Rectangle {
+    width: 30 * Theme.u;
+    height: self.width;
+    border-radius: 10 * Theme.u;
+    background: Theme.primary;
+    Icon {
+        glyph: "\u{e01d}"; // equalizer
+        size: 18;
+        color: Theme.on-primary;
+    }
+}
+
+export global Strip {
+    // Mic
+    in property <bool> mic-muted;
+    in property <Level> mic-level;
+    in property <float> mic-meter;
+    in property <float> mic-hold;
+    in property <float> mic-trim;
+    in property <string> mic-peak-text;
+    in property <string> mic-name: "Microphone";
+    in property <string> pad-text;
+    // Headphones
+    in property <bool> mon-muted;
+    in property <Level> mon-level;
+    in property <float> mon-meter;
+    in property <float> mon-hold;
+    in property <float> mon-gain;
+    in property <bool> hear-myself;
+    // Pills / badges
+    in property <[PillData]> pills;
+    in property <[BadgeData]> badges;
+    in property <string> size-label: "M";
+    in property <bool> on-top;
+    in property <bool> widget-mode;
+
+    callback mic-mute();
+    callback mic-trim-moved(float);
+    callback mon-mute();
+    callback mon-gain-moved(float);
+    callback hear-myself-toggle();
+    callback pill-toggle(string);
+    callback badge-clicked(string);
+    callback cycle-size();
+    callback toggle-widget();
+    callback toggle-on-top();
+}
+
+component MicCard inherits StripCard {
+    name: Strip.mic-name;
+    glyph: Strip.mic-muted ? "\u{e02b}" : "\u{e31d}"; // mic_off / mic
+    muted: Strip.mic-muted;
+    level: Strip.mic-level;
+    meter-level: Strip.mic-meter;
+    meter-hold: Strip.mic-hold;
+    readout: (Strip.mic-trim > 0 ? "+" : "") + Strip.mic-trim.to-fixed(1) + " dB";
+    extra: Strip.mic-peak-text;
+    badge: Strip.pad-text;
+    minimum: -24;
+    maximum: 12;
+    model-value: Strip.mic-trim;
+    accent: Theme.mic-accent;
+    mute-clicked => { Strip.mic-mute(); }
+    moved(v) => { Strip.mic-trim-moved(v); }
+}
+
+component MonCard inherits StripCard {
+    name: "Headphones";
+    glyph: Strip.mon-muted ? "\u{e33a}" : "\u{f01f}"; // headset_off / headphones
+    muted: Strip.mon-muted;
+    level: Strip.mon-level;
+    meter-level: Strip.mon-meter;
+    meter-hold: Strip.mon-hold;
+    readout: Fmt.db(Strip.mon-gain);
+    hear-myself-visible: true;
+    hear-myself: Strip.hear-myself;
+    minimum: -60;
+    maximum: 12;
+    model-value: Strip.mon-gain;
+    accent: Theme.mon-accent;
+    mute-clicked => { Strip.mon-mute(); }
+    hear-myself-clicked => { Strip.hear-myself-toggle(); }
+    moved(v) => { Strip.mon-gain-moved(v); }
+}
+
+component Badges inherits HorizontalLayout {
+    spacing: 5 * Theme.u;
+    alignment: start;
+    for b in Strip.badges: Chip {
+        text: b.label;
+        on: b.on;
+        clicked => { Strip.badge-clicked(b.id); }
+    }
+}
+
+component Tools inherits HorizontalLayout {
+    spacing: 2 * Theme.u;
+    ToolButton {
+        glyph: "\u{e245}"; // format_size
+        tooltip: "Control size: " + Strip.size-label;
+        clicked => { Strip.cycle-size(); }
+    }
+    if Strip.widget-mode: ToolButton {
+        glyph: "\u{f10d}"; // push_pin
+        on: Strip.on-top;
+        tooltip: "Keep the widget on top";
+        clicked => { Strip.toggle-on-top(); }
+    }
+    ToolButton {
+        glyph: Strip.widget-mode ? "\u{f1ce}" : "\u{e911}"; // open_in_full / picture_in_picture_alt
+        tooltip: Strip.widget-mode ? "Back to the full window" : "Mini floating widget";
+        clicked => { Strip.toggle-widget(); }
+    }
+}
+
+// Top bar of the full window: wide → one row of cards; narrow → cards stacked.
+component StudioStrip inherits Rectangle {
+    border-radius: 22 * Theme.u;
+    background: Theme.surface-mid;
+    border-width: 1px;
+    border-color: Theme.outline;
+    property <bool> wide: self.width > 760 * Theme.u;
+    VerticalLayout {
+        padding: 10 * Theme.u;
+        spacing: 8 * Theme.u;
+        HorizontalLayout {
+            spacing: 10 * Theme.u;
+            Logo { y: (parent.height - self.height) / 2; }
+            Label {
+                text: "STUDIO MIC";
+                size: 11;
+                mono: true;
+                font-weight: 800;
+                letter-spacing: 1.5px;
+                horizontal-stretch: 1;
+            }
+            Tools { }
+        }
+        if root.wide: HorizontalLayout {
+            spacing: 10 * Theme.u;
+            MicCard { horizontal-stretch: 1; }
+            MonCard { horizontal-stretch: 1; }
+        }
+        if !root.wide: VerticalLayout {
+            spacing: 8 * Theme.u;
+            MicCard { }
+            MonCard { }
+        }
+        PillGrid {
+            pills: Strip.pills;
+            toggle(id) => { Strip.pill-toggle(id); }
+        }
+        Badges { }
+    }
+}
+
+// Widget mode: the strip alone, stacked, designed at 400 units wide and fitted to the window.
+component WidgetStrip inherits Rectangle {
+    border-radius: 16 * Theme.u;
+    background: Theme.surface-mid;
+    border-width: 1px;
+    border-color: Theme.outline;
+    VerticalLayout {
+        padding: 8 * Theme.u;
+        spacing: 6 * Theme.u;
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Logo { }
+            Rectangle { horizontal-stretch: 1; }
+            Tools { }
+        }
+        MicCard { }
+        MonCard { }
+        PillGrid {
+            pills: Strip.pills;
+            toggle(id) => { Strip.pill-toggle(id); }
+        }
+        Badges { }
+    }
+}
+
+export global Nav {
+    in-out property <int> tab: 0;
+}
+
+// Tab bar: 1 Mixer, 2 EQ, 3 Manual Fine-Tune, 4 Test & Optimize (spec order).
+component Tabs inherits HorizontalLayout {
+    spacing: 4 * Theme.u;
+    alignment: start;
+    for t[i] in [
+        { name: "Mixer", glyph: "\u{e429}" },          // tune
+        { name: "EQ", glyph: "\u{e1b8}" },             // graphic_eq
+        { name: "Manual Fine-Tune", glyph: "\u{e026}" }, // instant_mix
+        { name: "Test & Optimize", glyph: "\u{ea4b}" }, // science
+    ]: Rectangle {
+        height: 34 * Theme.u;
+        width: tl.preferred-width;
+        border-radius: self.height / 2;
+        background: Nav.tab == i ? Theme.primary.with-alpha(0.16) : tta.has-hover ? Theme.surface-high : transparent;
+        accessible-role: tab;
+        accessible-label: t.name;
+        tl := HorizontalLayout {
+            padding-left: 12 * Theme.u;
+            padding-right: 14 * Theme.u;
+            spacing: 6 * Theme.u;
+            Icon {
+                glyph: t.glyph;
+                size: 18;
+                color: Nav.tab == i ? Theme.primary : Theme.on-surface-variant;
+            }
+            Label {
+                text: t.name;
+                size: 12;
+                font-weight: 700;
+                color: Nav.tab == i ? Theme.primary : Theme.on-surface-variant;
+                overflow: clip;
+            }
+        }
+        tta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { Nav.tab = i; }
+        }
+    }
+}
+
+export component MainWindow inherits Window {
+    property <int> tab: Nav.tab;
+    in property <float> size-factor: 1.0;      // ui_size: Small .85 / Medium 1 / Large 1.2
+    in property <string> notice;
+    callback resized(length, length);
+    title: Strip.widget-mode ? "Studio Mic Widget" : "Studio Mic";
+    background: Theme.surface;
+    default-font-size: 12px;
+    min-width: 160px;
+    min-height: 120px;
+
+    // Widget: fit the 400-unit design to the window. Rows of pills are estimated at that width
+    // (pill 100 + gap 6 → 3 per row) so the scale doesn't depend on its own layout.
+    property <int> pill-rows: ceil(Strip.pills.length / 3);
+    property <float> widget-natural-h: 8 + 30 + 6 + 62 + 6 + 62 + 6 + pill-rows * 32 + 6 + 24 + 8 + 12;
+    function rescale() {
+        if (Strip.widget-mode) {
+            Theme.scale = clamp(min((self.width - 12px) / 400px, (self.height - 12px) / (widget-natural-h * 1px)), 0.45, 3.0);
+        } else {
+            Theme.scale = size-factor;
+        }
+    }
+    init => { rescale(); }
+    changed width => { rescale(); resized(self.width, self.height); }
+    changed height => { rescale(); resized(self.width, self.height); }
+    changed size-factor => { rescale(); }
+    changed pill-rows => { rescale(); }
+    property <bool> widget-mode: Strip.widget-mode;
+    changed widget-mode => { rescale(); }
+
+    // Centered; when the window is wider or taller than the fitted design, the card keeps its size.
+    if Strip.widget-mode: WidgetStrip {
+        width: min(parent.width - 12px, 400 * Theme.u);
+        height: min(parent.height - 12px, self.preferred-height);
+        x: (parent.width - self.width) / 2;
+        y: max(6px, (parent.height - self.height) / 2);
+    }
+
+    if !Strip.widget-mode: VerticalLayout {
+        padding: 14 * Theme.u;
+        spacing: 12 * Theme.u;
+        StudioStrip { }
+        Tabs { }
+        if root.tab == 0: MatrixView { vertical-stretch: 1; }
+        if root.tab != 0: Rectangle {
+            vertical-stretch: 1;
+            border-radius: 22 * Theme.u;
+            background: Theme.surface-low;
+            border-width: 1px;
+            border-color: Theme.outline;
+            VerticalLayout {
+                alignment: center;
+                spacing: 6 * Theme.u;
+                padding: 20 * Theme.u;
+                Label {
+                    text: "This tab is coming to the native window next.";
+                    size: 14;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                Label {
+                    text: "Until then, start Studio Mic with --ui-backend web for EQ, Fine-Tune and Test & Optimize.";
+                    size: 12;
+                    color: Theme.on-surface-variant;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+    }
+
+    if !Strip.widget-mode: Overlays {
+        width: parent.width;
+        height: parent.height;
+    }
+
+    if root.notice != "": Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: parent.height - self.height - 16 * Theme.u;
+        width: min(parent.width - 32px, n.preferred-width + 32 * Theme.u);
+        height: n.preferred-height + 20 * Theme.u;
+        border-radius: 14 * Theme.u;
+        background: Theme.surface-highest;
+        border-width: 1px;
+        border-color: Theme.outline;
+        n := Label {
+            text: root.notice;
+            size: 12;
+            wrap: word-wrap;
+            horizontal-alignment: center;
+            width: parent.width - 32 * Theme.u;
+        }
+    }
+}

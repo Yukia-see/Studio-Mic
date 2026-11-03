@@ -39,6 +39,21 @@ pub enum UiPush {
     TrayRefresh,
     /// Enter / leave the mini floating widget (window size, always-on-top, title).
     Widget { on: bool, width: f64, height: f64, on_top: bool },
+    // Typed events for the native (Slint) UI. The webview ignores them and uses the `Js` twins.
+    /// The saved state changed: re-read `Controller::state`.
+    State,
+    /// Meter levels (`Engine::peak_map` as JSON), ~20 Hz while the window is visible.
+    Peaks(String),
+    /// Short message for the user (toast).
+    Notice(String),
+    /// The saved hardware mic is unplugged (true) or back (false).
+    MicMissing(bool),
+    /// Available LADSPA plugins changed (`Engine::plugins_json`).
+    Plugins(String),
+    /// Hardware inputs and outputs (after a rescan).
+    Devices { mics: Vec<crate::audio::device_discovery::AudioDevice>, outs: Vec<crate::audio::device_discovery::AudioDevice> },
+    /// App streams playing right now (which channel each one is routed to).
+    LiveStreams(Vec<crate::routing::wireplumber_hook::HookedStream>),
 }
 
 pub struct Controller {
@@ -173,6 +188,11 @@ impl Controller {
         self.push(UiPush::Js(script));
     }
 
+    fn notice(&self, msg: String) {
+        self.js(format!("window.showNotice && window.showNotice({})", serde_json::to_string(&msg).unwrap()));
+        self.push(UiPush::Notice(msg));
+    }
+
     fn worker_loop(self: Arc<Self>) {
         let (lock, cv) = &*self.jobs;
         loop {
@@ -245,24 +265,31 @@ impl Controller {
     pub fn sync_ui(&self) {
         let json = serde_json::to_string(&*self.state.lock().unwrap()).unwrap_or_else(|_| "{}".into());
         self.js(format!("window.applyBackendState && window.applyBackendState({})", json));
+        self.push(UiPush::State);
         self.push(UiPush::TrayRefresh);
     }
 
     fn on_engine_event(&self, ev: EngineEvent) {
         match ev {
             // 20 Hz: the JSON is embedded (and parsed) once per push.
-            EngineEvent::Peaks(json) => self.js(format!(
-                "(p => {{ window.updateChannelPeaks && window.updateChannelPeaks(p); window.updatePeakMeter && window.updatePeakMeter(p.mic); }})({})",
-                json
-            )),
+            EngineEvent::Peaks(json) => {
+                self.js(format!(
+                    "(p => {{ window.updateChannelPeaks && window.updateChannelPeaks(p); window.updatePeakMeter && window.updatePeakMeter(p.mic); }})({})",
+                    json
+                ));
+                self.push(UiPush::Peaks(json));
+            }
             EngineEvent::Recorder(json) => self.js(format!("window.updateRecorderState && window.updateRecorderState({})", json)),
             EngineEvent::Preview(json) => {
                 self.js(format!("window.updatePreviewState && window.updatePreviewState({})", json));
                 self.push(UiPush::TrayRefresh);
             }
             EngineEvent::MonitorMaster => self.sync_ui(),
-            EngineEvent::PluginsChanged(json) => self.js(format!("window.onPluginsChanged && window.onPluginsChanged({})", json)),
-            EngineEvent::Notice(msg) => self.js(format!("window.showNotice && window.showNotice({})", serde_json::to_string(&msg).unwrap())),
+            EngineEvent::PluginsChanged(json) => {
+                self.js(format!("window.onPluginsChanged && window.onPluginsChanged({})", json));
+                self.push(UiPush::Plugins(json));
+            }
+            EngineEvent::Notice(msg) => self.notice(msg),
             EngineEvent::GateMeasured(None) => self.js(
                 "window.onGateAutoSetFailed && window.onGateAutoSetFailed('No signal from the microphone: check that it is plugged in and selected. The gate was not changed.')"
                     .into(),
@@ -278,7 +305,10 @@ impl Controller {
                 self.enqueue(Job::Dsp);
                 self.js(format!("window.onGateAutoSet && window.onGateAutoSet({:.1}, {:.1})", peak_db, thr.round()));
             }
-            EngineEvent::MicMissing(missing) => self.js(format!("window.setMicMissing && window.setMicMissing({})", missing)),
+            EngineEvent::MicMissing(missing) => {
+                self.js(format!("window.setMicMissing && window.setMicMissing({})", missing));
+                self.push(UiPush::MicMissing(missing));
+            }
         }
     }
 
@@ -708,7 +738,14 @@ impl Controller {
             serde_json::to_string(&outs).unwrap_or_default(),
             serde_json::to_string(&cards).unwrap_or_default()
         ));
+        self.push(UiPush::Devices { mics, outs });
         self.enqueue(Job::Relink);
+    }
+
+    /// Device lists for the native UI at startup (no relink, unlike `rescan_devices`).
+    #[cfg_attr(not(feature = "ui-slint"), allow(dead_code))]
+    pub fn push_devices(&self) {
+        self.push(UiPush::Devices { mics: DeviceDiscovery::get_input_devices(), outs: DeviceDiscovery::get_output_devices() });
     }
 
     // -----------------------------------------------------------------------------------------
@@ -1597,7 +1634,7 @@ impl Controller {
         };
         if let Err(e) = res {
             eprintln!("UI message '{}' failed: {}", cmd, e);
-            self.js(format!("window.showNotice && window.showNotice({})", serde_json::to_string(&e).unwrap()));
+            self.notice(e.clone());
         }
     }
 
@@ -1645,6 +1682,7 @@ impl Controller {
             serde_json::to_string(&streams).unwrap_or_default(),
             serde_json::to_string(&tabs).unwrap_or_default()
         ));
+        self.push(UiPush::LiveStreams(streams.to_vec()));
     }
 }
 
