@@ -130,6 +130,8 @@ pub struct Engine {
     /// The mic's real resolution as detected from its samples (`BitDepth`): 16, 24 (24-bit or
     /// float), or 0 while unknown.
     pub mic_bits: std::sync::atomic::AtomicU8,
+    /// The mic is an interface that delivers float audio (see `ClipRule::float_device`).
+    mic_float: AtomicBool,
     peak_hold: Mutex<HashMap<String, f32>>,
     duck_db: Mutex<f32>,
     pub ui_visible: AtomicBool,
@@ -265,13 +267,23 @@ fn block_peak_db(buf: &[u8]) -> f32 {
 pub(crate) struct ClipRule {
     min_run: usize,
     min_runs: usize,
+    /// A run only counts at or above this level (linear).
+    min_abs: f32,
 }
 
 impl ClipRule {
-    /// 24-bit and float mics.
-    pub(crate) const FINE: ClipRule = ClipRule { min_run: 6, min_runs: 1 };
+    /// 24-bit mics.
+    pub(crate) const FINE: ClipRule = ClipRule { min_run: 6, min_runs: 1, min_abs: 0.5 };
     /// 16-bit mics, and any mic until `BitDepth` knows better.
-    pub(crate) const COARSE: ClipRule = ClipRule { min_run: 12, min_runs: 2 };
+    pub(crate) const COARSE: ClipRule = ClipRule { min_run: 12, min_runs: 2, min_abs: 0.5 };
+
+    /// Interfaces that deliver float audio (Elgato Wave XLR MK.2): they do their own gain and
+    /// limiting before Studio Mic sees the signal, and their limiter can hold a run of samples
+    /// at its ceiling without distorting. Only a run at full scale (the device itself railing,
+    /// scaled by the input volume `vol`) is real clipping.
+    pub(crate) fn float_device(vol: f32) -> ClipRule {
+        ClipRule { min_run: 6, min_runs: 1, min_abs: 0.999 * vol.clamp(0.05, 1.0) }
+    }
 }
 
 fn has_flat_top(buf: &[u8], channels: usize, rule: ClipRule) -> bool {
@@ -281,7 +293,7 @@ fn has_flat_top(buf: &[u8], channels: usize, rule: ClipRule) -> bool {
         let (mut run, mut runs) = (1usize, 0usize);
         let mut prev = f32::NAN;
         for &x in samples.iter().skip(c).step_by(ch) {
-            if x.abs() > 0.5 && x == prev {
+            if x.abs() >= rule.min_abs && x == prev {
                 run += 1;
                 if run == rule.min_run {
                     runs += 1;
@@ -443,6 +455,7 @@ impl Engine {
             meters: Mutex::new(HashMap::new()),
             peaks: Mutex::new(HashMap::new()),
             mic_bits: std::sync::atomic::AtomicU8::new(0),
+            mic_float: AtomicBool::new(false),
             peak_hold: Mutex::new(HashMap::new()),
             duck_db: Mutex::new(0.0),
             ui_visible: AtomicBool::new(true),
@@ -1673,7 +1686,8 @@ impl Engine {
             "  resolution: {}",
             match self.mic_bits.load(Ordering::SeqCst) {
                 16 => "16-bit (strict clip check)",
-                24 => "24-bit or float",
+                24 => "24-bit",
+                32 => "float interface (it limits itself: clip = full scale only, no auto-pad)",
                 _ => "detecting (needs about 1 s of sound)",
             }
         ));
@@ -1796,6 +1810,14 @@ impl Engine {
                 pw::link(src_port, &in_port);
             }
         }
+        // The mic's native format: float interfaces get their own clip rule and no auto-pad.
+        let float_vol = target.filter(|_| key == "raw").and_then(pw::find_node).and_then(|n| {
+            let float = n.params["Format"][0]["format"].as_str().is_some_and(|f| f.starts_with('F'));
+            float.then(|| pw::node_volume(&n).map(|(v, _)| v).unwrap_or(1.0))
+        });
+        if key == "raw" {
+            self.mic_float.store(float_vol.is_some(), Ordering::SeqCst);
+        }
         let engine = self.clone();
         let k = key.to_string();
         let ch = channels as usize;
@@ -1807,11 +1829,12 @@ impl Engine {
             // A new meter (mic switched, PipeWire restarted) starts detection over.
             let mut depth = BitDepth::default();
             if detect_clip {
-                engine.mic_bits.store(0, Ordering::SeqCst);
+                // Float interfaces say so in their format; integer ones are measured.
+                engine.mic_bits.store(if float_vol.is_some() { 32 } else { 0 }, Ordering::SeqCst);
             }
             while stdout.read_exact(&mut buf).is_ok() {
                 if detect_clip {
-                    let known = depth.bits();
+                    let known = if float_vol.is_some() { Some(32) } else { depth.bits() };
                     depth.observe(&buf, ch);
                     if known.is_none() {
                         if let Some(bits) = depth.bits() {
@@ -1819,7 +1842,8 @@ impl Engine {
                             println!("Microphone resolution: {}", if bits == 16 { "16-bit" } else { "24-bit or float" });
                         }
                     }
-                    if has_flat_top(&buf, ch, depth.clip_rule()) {
+                    let rule = float_vol.map(ClipRule::float_device).unwrap_or_else(|| depth.clip_rule());
+                    if has_flat_top(&buf, ch, rule) {
                         engine.peaks.lock().unwrap().insert("raw_clip".into(), (1.0, Instant::now()));
                         // Only real clipping lowers the hardware gain (see clipguard_autopad).
                         if !engine.measuring.load(Ordering::SeqCst) {
@@ -1935,7 +1959,9 @@ impl Engine {
             let s = self.state.lock().unwrap();
             (s.mic.clipguard, s.active_hw_mic.clone())
         };
-        if !enabled {
+        // A float interface clips (or limits) inside the device, before the volume Studio Mic
+        // can lower: stepping it down only makes the voice quieter.
+        if !enabled || self.mic_float.load(Ordering::SeqCst) {
             return;
         }
         let Some(hw) = hw else { return };
@@ -2474,6 +2500,19 @@ mod tests {
             let st: Vec<f32> = railed.iter().flat_map(|&r| [0.1, r]).collect();
             assert!(has_flat_top(&bytes(&st), 2, rule));
         }
+    }
+
+    #[test]
+    fn float_interfaces_only_clip_at_full_scale() {
+        // A float interface's own limiter holding a run at its ceiling: not clipping.
+        let held: Vec<f32> = sine(200.0, 1.6, 1200, 0.0).iter().map(|x| x.clamp(-0.89, 0.89)).collect();
+        assert!(has_flat_top(&bytes(&held), 1, ClipRule::FINE), "an integer mic would call this clipping");
+        assert!(!has_flat_top(&bytes(&held), 1, ClipRule::float_device(1.0)));
+        // The device itself railing at full scale: clipping, also behind -6 dB of input volume.
+        let railed: Vec<f32> = sine(200.0, 1.6, 1200, 0.0).iter().map(|x| x.clamp(-1.0, 1.0)).collect();
+        assert!(has_flat_top(&bytes(&railed), 1, ClipRule::float_device(1.0)));
+        let quiet: Vec<f32> = railed.iter().map(|x| x * 0.5).collect();
+        assert!(has_flat_top(&bytes(&quiet), 1, ClipRule::float_device(0.5)));
     }
 
     #[test]
