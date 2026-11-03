@@ -155,7 +155,7 @@ pub fn instance_running() -> bool {
 pub fn run_client(args: &[String]) -> i32 {
     if let Some((ok, msg)) = send(args) {
         if !msg.is_empty() {
-            if ok { println!("{}", msg) } else { eprintln!("studiomic: {}", msg) }
+            if ok { print_reply(&msg) } else { eprintln!("studiomic: {}", msg) }
         }
         return if ok { 0 } else { 1 };
     }
@@ -187,13 +187,21 @@ pub fn run_client(args: &[String]) -> i32 {
         std::thread::sleep(Duration::from_millis(250));
         if let Some((ok, msg)) = send(args) {
             if !msg.is_empty() {
-                if ok { println!("{}", msg) } else { eprintln!("studiomic: {}", msg) }
+                if ok { print_reply(&msg) } else { eprintln!("studiomic: {}", msg) }
             }
             return if ok { 0 } else { 1 };
         }
     }
     eprintln!("studiomic: engine did not come up (see ~/.cache/studio-mic/engine.log)");
     2
+}
+
+/// Prints a CLI reply. A reader that stops early (`studiomic --status --json | head`) closes
+/// the pipe; that ends the output quietly instead of panicking like `println!` does.
+fn print_reply(msg: &str) {
+    use std::io::Write;
+    let mut out = std::io::stdout().lock();
+    let _ = writeln!(out, "{}", msg).and_then(|_| out.flush());
 }
 
 pub fn print_help() {
