@@ -42,6 +42,8 @@ pub(super) struct MatrixState {
     pub(super) installed: RefCell<Vec<InstalledApp>>,
     /// Channel whose apps picker is open.
     apps_for: RefCell<Option<String>>,
+    /// Keys of the built-in mixes hidden from the matrix (for "Show" in Add Mix).
+    hidden: RefCell<Vec<String>>,
     /// A Custom channel just requested: open its apps picker once it exists.
     pick_apps_for_new: RefCell<Option<String>>,
 }
@@ -65,21 +67,33 @@ struct Col {
     custom: Option<String>,
 }
 
+/// Built-in mixes: (key, default name, subtitle, icon, colour).
+const BUILTIN: [(&str, &str, &str, &str, &str); 4] = [
+    ("monitor", "My Mix", "Monitor_Mix · headphones", "headphones", "#34c759"),
+    ("stream", "Stream", "Stream_Mix · OBS Track 1", "sensors", "#c084fc"),
+    ("vod", "Recording · VOD", "VOD_Mix · Track 2 (DMCA safe)", "movie", "#fbbf24"),
+    ("voice", "Voice Chat", "Voice_Out · Discord", "forum", "#60a5fa"),
+];
+
+/// A built-in mix's label (renamed or default).
+fn builtin_name(s: &StudioMicConfig, key: &str, default: &str) -> String {
+    s.mix_labels.get(key).filter(|n| !n.trim().is_empty()).cloned().unwrap_or_else(|| default.to_string())
+}
+
+/// Columns shown in the matrix: built-in mixes that aren't hidden, then custom mixes.
 fn cols(s: &StudioMicConfig) -> Vec<Col> {
-    let b = |key: &str, name: &str, sub: &str, icon: &str, color: &str| Col {
-        key: key.into(),
-        name: name.into(),
-        sub: sub.into(),
-        icon: icon.into(),
-        color: color.into(),
-        custom: None,
-    };
-    let mut v = vec![
-        b("monitor", "My Mix", "Monitor_Mix · headphones", "headphones", "#34c759"),
-        b("stream", "Stream", "Stream_Mix · OBS Track 1", "sensors", "#c084fc"),
-        b("vod", "Recording · VOD", "VOD_Mix · Track 2 (DMCA safe)", "movie", "#fbbf24"),
-        b("voice", "Voice Chat", "Voice_Out · Discord", "forum", "#60a5fa"),
-    ];
+    let mut v: Vec<Col> = BUILTIN
+        .iter()
+        .filter(|(k, ..)| !s.hidden_mixes.iter().any(|h| h == k))
+        .map(|&(key, name, sub, icon, color)| Col {
+            key: key.into(),
+            name: builtin_name(s, key, name),
+            sub: sub.into(),
+            icon: icon.into(),
+            color: color.into(),
+            custom: None,
+        })
+        .collect();
     v.extend(s.custom_mixes.iter().map(|m| Col {
         key: format!("x_{}", m.id),
         name: m.name.clone(),
@@ -418,10 +432,19 @@ impl Ctx {
         m.set_mon_muted(s.monitor_muted);
         m.set_mon_gain(s.monitor_gain_db);
         m.set_empty(s.virtual_channels.is_empty());
+        let hidden: Vec<(String, String)> = BUILTIN
+            .iter()
+            .filter(|(k, ..)| s.hidden_mixes.iter().any(|h| h == k))
+            .map(|&(k, name, ..)| (k.to_string(), builtin_name(s, k, name)))
+            .collect();
+        m.set_hidden_builtins(strings(&hidden.iter().map(|h| h.1.clone()).collect::<Vec<_>>()));
+        *self.mx.hidden.borrow_mut() = hidden.into_iter().map(|h| h.0).collect();
 
         let b = build(s, &self.mx.mics.borrow(), &self.mx.outs.borrow(), &self.mx.live.borrow());
         let (col_data, row_data, cell_data, keys, ids) = (b.cols, b.rows, b.cells, b.keys, b.ids);
         let (col_outputs, row_hw) = (b.col_outputs, b.row_hw);
+        let simple: Vec<i32> = ["monitor", "stream"].iter().filter_map(|k| keys.iter().position(|x| x == k)).map(|i| i as i32).collect();
+        m.set_simple_cols(Rc::new(VecModel::from(simple)).into());
         let structural = *self.mx.col_keys.borrow() != keys || *self.mx.row_ids.borrow() != ids;
         *self.mx.col_outputs.borrow_mut() = col_outputs;
         *self.mx.row_hw.borrow_mut() = row_hw;
@@ -818,6 +841,14 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
     }));
     m.on_remove_mix(cb!(|c, j| {
         let key = c.mx.col_keys.borrow().get(j as usize).cloned();
+        if let (Some(k), Some(col)) = (key.as_deref().filter(|k| !k.starts_with("x_")), c.mx.cols.row_data(j as usize)) {
+            c.mx_confirm(
+                format!("Hide \"{}\" from the mixer? Only the column goes: its audio keeps working (OBS, Discord and your headphones are not affected). Bring it back from + Add Mix.", col.name),
+                "Hide",
+                format!("mix_hide:{k}:1"),
+            );
+            return;
+        }
         if let (Some(col), Some(id)) = (c.mx.cols.row_data(j as usize), key.as_deref().and_then(|k| k.strip_prefix("x_"))) {
             c.mx_confirm(
                 format!("Delete the mix \"{}\"? Its bus StudioMic_Mix_{id} disappears from OBS and other apps.", col.name),
@@ -830,10 +861,16 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
         let v = name.trim().to_string();
         let key = c.mx.col_keys.borrow().get(j as usize).cloned();
         let old = c.mx.cols.row_data(j as usize).map(|x| x.name.to_string());
-        if let (Some(id), Some(old)) = (key.as_deref().and_then(|k| k.strip_prefix("x_")), old) {
+        if let (Some(id), Some(old)) = (key.as_deref().map(|k| k.strip_prefix("x_").unwrap_or(k)), old) {
             if !v.is_empty() && v != old {
                 c.post(format!("mix_rename:{id}:{v}"));
             }
+        }
+    }));
+    m.on_unhide(cb!(|c, i| {
+        let key = c.mx.hidden.borrow().get(i as usize).cloned();
+        if let Some(k) = key {
+            c.post(format!("mix_hide:{k}:0"));
         }
     }));
     m.on_master_mute(cb!(|c| c.win.global::<Strip>().invoke_mon_mute()));

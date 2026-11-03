@@ -76,6 +76,8 @@ export global Matrix {
     in property <bool> mon-muted;
     in property <float> mon-gain;
     in property <bool> empty;              // no channels yet: show the empty-state card
+    in property <[int]> simple-cols;       // column indices of My Mix and Stream (if shown)
+    in property <[string]> hidden-builtins; // built-in mixes hidden from the matrix
 
     // Add Channel
     in-out property <bool> add-channel-open;
@@ -114,6 +116,7 @@ export global Matrix {
     callback remove-channel(int);
     callback remove-mix(int);
     callback rename-mix(int, string);
+    callback unhide(int);
     callback master-mute();
     callback open-add-channel();
     callback pick-preset(int);
@@ -271,9 +274,7 @@ component MxHead inherits Rectangle {
                     size: 12;
                     font-weight: 700;
                     TouchArea {
-                        double-clicked => {
-                            if (root.data.custom) { root.editing = true; }
-                        }
+                        double-clicked => { root.editing = true; }
                     }
                 }
                 if root.editing: Field {
@@ -292,10 +293,10 @@ component MxHead inherits Rectangle {
                     color: Theme.on-surface-variant;
                 }
             }
-            if root.data.custom: IconBtn {
+            IconBtn {
                 glyph: "\u{e5cd}"; // close
                 size: 14;
-                tooltip: "Delete mix " + root.data.name;
+                tooltip: root.data.custom ? "Delete mix " + root.data.name : "Hide " + root.data.name + " (its audio keeps working)";
                 clicked => { Matrix.remove-mix(root.index); }
             }
         }
@@ -674,10 +675,10 @@ component SimpleCard inherits Rectangle {
                 clicked => { Matrix.remove-channel(root.index); }
             }
         }
-        for k[j] in [0, 1]: VerticalLayout {
+        for k[j] in Matrix.simple-cols: VerticalLayout {
             spacing: 2 * Theme.u;
             Label {
-                text: j == 0 ? "MY MIX · HEADPHONES" : "STREAM · OBS";
+                text: Matrix.cols[k].name.to-uppercase() + (Matrix.cols[k].key == "monitor" ? " · HEADPHONES" : " · OBS");
                 size: 8.5;
                 mono: true;
                 font-weight: 800;
@@ -947,6 +948,30 @@ export component Overlays inherits Rectangle {
         title: "Add Mix";
         card-w: 460 * Theme.u;
         close => { Matrix.add-mix-open = false; }
+        if Matrix.hidden-builtins.length > 0: Section { text: "HIDDEN MIXES"; }
+        for h[i] in Matrix.hidden-builtins: Rectangle {
+            height: 34 * Theme.u;
+            border-radius: 10 * Theme.u;
+            background: Theme.surface-highest;
+            HorizontalLayout {
+                padding-left: 10 * Theme.u;
+                padding-right: 3 * Theme.u;
+                Label {
+                    text: h;
+                    size: 11.5;
+                    font-weight: 700;
+                    horizontal-stretch: 1;
+                }
+                Btn {
+                    y: (parent.height - self.height) / 2;
+                    height: 26 * Theme.u;
+                    text: "Show";
+                    glyph: "\u{e145}";
+                    clicked => { Matrix.unhide(i); }
+                }
+            }
+        }
+        if Matrix.hidden-builtins.length > 0: Section { text: "NEW MIX"; }
         Label {
             text: "A new output bus (guest mix, speakers, a second recording track...). It shows up in OBS and other apps as its own device.";
             size: 11;

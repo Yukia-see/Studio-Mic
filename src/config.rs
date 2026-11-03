@@ -601,6 +601,12 @@ pub struct StudioMicConfig {
     /// switch away for a release.
     #[serde(default = "default_true")]
     pub native_ui: bool,
+    /// Matrix labels for the built-in mixes (monitor / stream / vod / voice); unset = default.
+    #[serde(default)]
+    pub mix_labels: std::collections::BTreeMap<String, String>,
+    /// Built-in mixes hidden from the matrix. Only the column goes: the bus keeps running.
+    #[serde(default)]
+    pub hidden_mixes: Vec<String>,
 }
 
 fn default_theme() -> String { "material_dark".into() }
@@ -674,6 +680,8 @@ impl Default for StudioMicConfig {
             mixer_simple: false,
             strip_collapsed: false,
             native_ui: true,
+            mix_labels: Default::default(),
+            hidden_mixes: vec![],
         }
     }
 }

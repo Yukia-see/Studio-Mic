@@ -377,7 +377,7 @@ impl Ctx {
         strip.set_mic_name(if self.mic_missing.get() { "Mic unplugged".into() } else { "Microphone".into() });
         strip.set_mon_muted(s.monitor_muted);
         strip.set_mon_gain(s.monitor_gain_db);
-        strip.set_hear_myself(!s.mic.mix.monitor_muted);
+        strip.set_hear_myself(s.mic.mix.monitor_routed && !s.mic.mix.monitor_muted);
         strip.set_on_top(s.always_on_top);
         strip.set_widget_mode(s.widget_mode);
         let nav = self.win.global::<Nav>();
@@ -630,10 +630,19 @@ fn wire_callbacks(ctx: &Rc<Ctx>) {
         c.throttled("monitor_gain", format!("monitor_master:gain:={}", v));
     }));
     strip.on_hear_myself_toggle(cb!(|c| {
-        // "Hear Myself" = the mic's Monitor branch.
-        let hear = state(&c).mic.mix.monitor_muted;
-        c.win.global::<Strip>().set_hear_myself(hear);
-        c.post(format!("mix:mic:monitor_mute:{}", if hear { "off" } else { "on" }));
+        // "Hear Myself" = the mic in My Mix. Turning it on always works: it puts the mic back
+        // into My Mix if it was removed there, and unmutes it.
+        let m = state(&c).mic.mix;
+        let hearing = m.monitor_routed && !m.monitor_muted;
+        c.win.global::<Strip>().set_hear_myself(!hearing);
+        if hearing {
+            c.post("mix:mic:monitor_mute:on");
+        } else {
+            if !m.monitor_routed {
+                c.post("mix:mic:monitor_route:on");
+            }
+            c.post("mix:mic:monitor_mute:off");
+        }
     }));
     strip.on_pill_toggle(cb!(|c, id| {
         let muted = state(&c).mix(&id).is_some_and(|m| m.stream_muted);
@@ -766,6 +775,7 @@ mod snapshot {
         m.set_cells(Rc::new(VecModel::from(b.cells)).into());
         m.set_meters(Rc::new(VecModel::from((0..n).map(|i| [0.0, 0.7, 0.55, 0.4][i % 4]).collect::<Vec<f32>>())).into());
         m.set_mon_gain(-3.0);
+        m.set_simple_cols(Rc::new(VecModel::from(vec![0, 1])).into());
     }
 
     fn shot(window: &MinimalSoftwareWindow, dir: &std::path::Path, name: &str, w: u32, h: u32, scale: f32) {

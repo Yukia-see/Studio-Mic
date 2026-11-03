@@ -589,6 +589,11 @@ impl Controller {
             return Err("mix name required".into());
         }
         let r = self.mutate(|s| {
+            if config::RESERVED_MIX_IDS.contains(&id) {
+                // Built-in mixes: only the label in the matrix changes.
+                s.mix_labels.insert(id.to_string(), name.to_string());
+                return Ok(format!("Mix renamed to {}", name));
+            }
             let m = s.custom_mixes.iter_mut().find(|m| m.id == id).ok_or_else(|| format!("unknown mix '{}'", id))?;
             m.name = name.to_string();
             Ok(format!("Mix renamed to {}", name))
@@ -1423,6 +1428,23 @@ impl Controller {
                 }
             }
             "mix_remove" => self.remove_mix(rest),
+            // Hide / show a built-in mix's column (its bus keeps running).
+            "mix_hide" => {
+                let (id, hide) = (arg(0), arg(1) == "1");
+                if !config::RESERVED_MIX_IDS.contains(&id) {
+                    Err(format!("'{}' is not a built-in mix", id))
+                } else {
+                    let r = self.mutate(|s| {
+                        s.hidden_mixes.retain(|m| m != id);
+                        if hide {
+                            s.hidden_mixes.push(id.to_string());
+                        }
+                        Ok(String::new())
+                    });
+                    self.sync_ui();
+                    r
+                }
+            }
             "mix_rename" => self.rename_mix(arg(0), &rest[arg(0).len().min(rest.len())..].trim_start_matches(':')),
             "mix_output" => self.set_mix_output(arg(0), rest.split_once(':').map(|x| x.1).unwrap_or("")),
             "channel_rename" => self.rename_channel(arg(0), &rest[arg(0).len().min(rest.len())..].trim_start_matches(':')),
