@@ -323,7 +323,7 @@ component StudioStrip inherits Rectangle {
 
 // Widget mode: the strip alone, filling the window (see MainWindow.widget-scale).
 component WidgetStrip inherits Rectangle {
-    property <bool> side: self.width >= 640 * Theme.u;
+    property <bool> side: self.width >= 560 * Theme.u;
     border-radius: 16 * Theme.u;
     background: Theme.surface-mid;
     border-width: 1px;
@@ -454,24 +454,16 @@ export component MainWindow inherits Window {
     min-width: 160px;
     min-height: 120px;
 
-    // Widget: the card always fills the window. Its scale is the largest at which the content
-    // fits: at most window width / 400 units, and small enough for the height. A wide window
-    // gives the card more units across, so the pills use more columns (and from 640 units the
-    // mic and headphone cards sit side by side), which lowers the height needed: two passes
-    // find a scale whose layout fits. All sizes are in units at scale 1.
+    // Widget: the card always fills the window width, at the largest scale whose content fits
+    // the height. A wider card (in units) puts more pills per row and, from 560 units, the mic
+    // and headphone cards side by side, so the height needed depends on the scale.
     property <int> npills: Strip.pills.length;
     property <float> ww: (self.width - 12px) / 1px;
     property <float> wh: (self.height - 12px) / 1px;
-    pure function widget-h(rows: int, side: bool) -> float {
-        return 100 + (side ? 62 : 130) + rows * 32;
-    }
-    pure function pills-per-row(units: float) -> int {
-        return max(1, floor((units - 16 + 6) / 106));
-    }
-    property <float> s0: min(ww / 400, wh / widget-h(ceil(npills / 3), false));
-    property <float> s1: min(ww / 400, wh / widget-h(ceil(npills / pills-per-row(ww / s0)), ww / s0 >= 640));
-    property <float> s2: min(ww / 400, wh / widget-h(ceil(npills / pills-per-row(ww / s1)), ww / s1 >= 640));
-    property <float> widget-scale: min(s1, s2);
+    // Largest scale whose layout fits (Rust: ui_slint::widget_scale, a bisection, since the
+    // layout itself depends on the scale).
+    pure callback widget-fit(float, float, int) -> float;
+    property <float> widget-scale: widget-fit(ww, wh, npills);
     // Main window: the Small / Medium / Large setting; the layout reflows to the window and
     // anything that doesn't fit scrolls.
     function rescale() {
