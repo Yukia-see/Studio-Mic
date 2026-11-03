@@ -99,6 +99,7 @@ export global Matrix {
     in property <[AppItem]> apps-installed;
     in property <int> apps-installed-total;
     in-out property <string> apps-filter;
+    in-out property <string> apps-typed;
     in property <int> apps-mode;            // 0 auto, 1 manual, 2 desktop
     // Confirm dialog
     in-out property <string> confirm-text;
@@ -1066,6 +1067,31 @@ export component Overlays inherits Rectangle {
                         tooltip: "Remove " + a;
                         clicked => { Matrix.app-remove(a); }
                     }
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 6 * Theme.u;
+            Field {
+                horizontal-stretch: 1;
+                height: 28 * Theme.u;
+                placeholder: "Add an app by name (the program's name, e.g. obs or firefox)";
+                text <=> Matrix.apps-typed;
+                accepted => {
+                    if (Matrix.apps-typed != "") {
+                        Matrix.app-add(Matrix.apps-typed);
+                        Matrix.apps-typed = "";
+                    }
+                }
+            }
+            Btn {
+                height: 28 * Theme.u;
+                text: "Add";
+                glyph: "\u{e145}";
+                enabled: Matrix.apps-typed != "";
+                clicked => {
+                    Matrix.app-add(Matrix.apps-typed);
+                    Matrix.apps-typed = "";
                 }
             }
         }

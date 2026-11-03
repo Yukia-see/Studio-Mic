@@ -42,6 +42,8 @@ pub(super) struct MatrixState {
     pub(super) installed: RefCell<Vec<InstalledApp>>,
     /// Channel whose apps picker is open.
     apps_for: RefCell<Option<String>>,
+    /// A Custom channel just requested: open its apps picker once it exists.
+    pick_apps_for_new: RefCell<Option<String>>,
 }
 
 const ROUTE_MODES: [&str; 3] = ["auto", "manual", "desktop"];
@@ -235,6 +237,10 @@ fn device_choice(devs: &[&AudioDevice], selected: Option<&str>) -> (Vec<String>,
     (labels, names, current, missing)
 }
 
+fn ids_before_contains(ids: &[String], id: &str) -> bool {
+    ids.iter().any(|x| x == id)
+}
+
 /// Everything the matrix shows, built from the saved state plus the device and app lists.
 pub(super) struct Built {
     pub(super) cols: Vec<MxColData>,
@@ -420,6 +426,18 @@ impl Ctx {
         *self.mx.col_outputs.borrow_mut() = col_outputs;
         *self.mx.row_hw.borrow_mut() = row_hw;
         if structural {
+            let pending = self.mx.pick_apps_for_new.borrow().clone();
+            if let Some(name) = pending {
+                let new = row_data.iter().find(|r| r.name.as_str() == name && !ids_before_contains(&self.mx.row_ids.borrow(), &r.id));
+                if let Some(r) = new {
+                    *self.mx.pick_apps_for_new.borrow_mut() = None;
+                    *self.mx.apps_for.borrow_mut() = Some(r.id.to_string());
+                    let m = self.win.global::<Matrix>();
+                    m.set_apps_filter(SharedString::new());
+                    m.set_apps_open(true);
+                    self.post("get_live_streams");
+                }
+            }
             // Sources or mixes were added / removed: rebuild the grid.
             *self.mx.col_keys.borrow_mut() = keys;
             *self.mx.row_ids.borrow_mut() = ids;
@@ -648,6 +666,9 @@ impl Ctx {
         }
         self.post(format!("channel_add:{msg}"));
         m.set_add_channel_open(false);
+        if detail == "name" {
+            *self.mx.pick_apps_for_new.borrow_mut() = Some(name);
+        }
     }
 
     /// Fills the apps picker for the channel it's open for (no-op when closed).
