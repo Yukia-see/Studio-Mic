@@ -542,9 +542,9 @@ impl Ctx {
         h.val
     }
 
-    /// Same meaning as `smLevelState` in the HTML UI. Meters show what a strip sends to the
-    /// Stream bus (so they match OBS); red = real distortion, amber = a limiter catching peaks
-    /// or a hot mic input. See CLAUDE.md "Meters".
+    /// Same meaning as `smLevelState` in the HTML UI. Channel meters show what a strip sends to
+    /// the Stream bus (so they match OBS), the mic its own processed level; red = real
+    /// distortion, amber = a limiter catching peaks or a hot mic input. See CLAUDE.md "Meters".
     fn level_state(&self, id: &str, s: &StudioMicConfig) -> LevelState {
         let lsp = self.lsp.get();
         if id.starts_with("bus:") {
@@ -553,8 +553,12 @@ impl Ctx {
         }
         let pre = self.peak(id);
         let muted = s.mix(id).is_some_and(|m| m.stream_muted);
-        let db = if muted { pre } else { self.peaks.borrow().get(&format!("out:{id}")).copied().unwrap_or(pre) };
         let is_mic = id == "mic";
+        // The mic shows its own level (after processing and the trim, which its strip fader
+        // sets), not its Stream send: with the matrix Stream fader above 0 dB the send reads
+        // hotter than the mic really is, and the Stream bus limiter catches it before OBS.
+        // Other channels show what they send to Stream (what OBS gets).
+        let db = if muted || is_mic { pre } else { self.peaks.borrow().get(&format!("out:{id}")).copied().unwrap_or(pre) };
         let clipguard = is_mic && s.mic.clipguard;
         let clip = (is_mic && self.peak("raw_clip") > 0.0) || (!lsp && db > 0.0);
         let limit = !clip && ((!muted && db >= -1.5) || (clipguard && pre >= -1.5));

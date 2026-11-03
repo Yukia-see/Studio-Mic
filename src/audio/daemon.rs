@@ -968,9 +968,28 @@ impl Engine {
         // Keep the headphone meter tap (`bus:monitor`); it's linked by WirePlumber, not by us.
         keep_mon.extend(pw::links().into_iter().filter(|(o, i)| o.starts_with(&mon_prefix) && i.starts_with("StudioMic_Meter_")));
         pw::unlink_outputs_of(&mon, &keep_mon);
+        let nodes = pw::nodes();
+        // Hardware inputs feeding a channel strip or Mic 2 that are no longer chosen (switching a
+        // Line In / capture card channel to another input, and back, used to leave the old link
+        // in place, so both played until a restart). Only links whose source is a physical
+        // capture device are touched: app streams into a channel sink stay.
+        let hw_sources: std::collections::HashSet<String> = nodes
+            .iter()
+            .filter(|n| n.class.starts_with("Audio/Source") && !n.name.starts_with("StudioMic_") && !n.name.starts_with("studiomic"))
+            .map(|n| n.name.clone())
+            .collect();
+        let mut hw_fed: Vec<String> = s.virtual_channels.iter().map(|c| fc::channel_sink(&c.id)).collect();
+        hw_fed.push(MIC2_IN.to_string());
+        for (o, i) in pw::links() {
+            let from_hw = o.split_once(':').is_some_and(|(node, _)| hw_sources.contains(node));
+            let into_strip = i.split_once(':').is_some_and(|(node, _)| hw_fed.iter().any(|n| n == node));
+            if from_hw && into_strip && !desired.contains(&(o.clone(), i.clone())) {
+                pw::unlink(&o, &i);
+            }
+        }
         // Other mixes: drop only links into physical outputs that are no longer chosen. Never
         // touch app links (OBS, Discord, recorders): their ports aren't Audio/Sink devices.
-        let sinks: std::collections::HashSet<String> = pw::nodes()
+        let sinks: std::collections::HashSet<String> = nodes
             .into_iter()
             .filter(|n| n.class == "Audio/Sink" && !n.name.starts_with("StudioMic_"))
             .map(|n| n.name)

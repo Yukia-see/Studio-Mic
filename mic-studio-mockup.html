@@ -6306,8 +6306,10 @@
       const pre = L[id] ?? -80;
       const muted = smStreamMuted(id);
       const sent = L['out:' + id];
-      const db = (!muted && typeof sent === 'number') ? sent : pre;
       const isMic = id === 'mic';
+      // The mic shows its own level (what its trim fader sets), not its Stream send, which reads
+      // hotter than the mic with the Stream fader above 0 dB (the bus limiter catches that).
+      const db = (!muted && !isMic && typeof sent === 'number') ? sent : pre;
       const clipguard = isMic && (smCfg().mic || {}).clipguard !== false;
       const clip = (isMic && (L.raw_clip ?? -80) > 0) || (!lsp && db > 0.0);
       const limit = !clip && ((!muted && db >= -1.5) || (clipguard && pre >= -1.5));
