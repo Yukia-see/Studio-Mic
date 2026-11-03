@@ -356,6 +356,19 @@
     .mx-empty:hover { border-color: var(--mx-c); }
     .mx-empty:hover .mx-plus { background: var(--mx-c); color: #000; }
     .mx-locked { min-height: 44px; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 4px; font: 700 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); opacity: .55; }
+    .mx-cell { position: relative; }
+    .mx-x { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+      background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface-variant); border: 1px solid var(--md-sys-color-outline-variant); opacity: .55; cursor: pointer; z-index: 1; }
+    .mx-x .material-symbols-outlined { font-size: 12px; }
+    .mx-x:hover { opacity: 1; background: #ef4444; color: #fff; border-color: #ef4444; }
+    .mx-sel { width: 100%; margin-top: 6px; font-size: 10px; font-weight: 600; border-radius: 10px; padding: 3px 6px; }
+    .mx-src .mx-sel { margin-top: 2px; max-width: 220px; }
+    .mx-master { display: flex; align-items: center; gap: 6px; margin-top: 6px; --mx-c: #34c759; }
+    .mx-master .mx-mute { width: 24px; height: 24px; flex: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-surface-container-highest); color: #34c759; cursor: pointer; }
+    .mx-master .mx-mute .material-symbols-outlined { font-size: 15px; }
+    .mx-master .mx-mute.on { background: #ef4444; color: #fff; }
+    .mx-swatch { width: 26px; height: 26px; border-radius: 999px; border: 2px solid transparent; cursor: pointer; }
+    .mx-swatch.on { border-color: var(--md-sys-color-on-surface); box-shadow: 0 0 0 2px var(--md-sys-color-surface-container); }
     .mx-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 8px 18px; font: 600 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); border-top: 1px solid var(--md-sys-color-outline-variant); }
     .sm-peak { font: 700 10px ui-monospace, monospace; color: var(--md-sys-color-on-surface-variant); cursor: pointer; text-align: right; }
     .sm-src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; }
@@ -1507,6 +1520,27 @@
     </div>
 
   <!-- ==================== ADD CHANNEL MODAL ==================== -->
+  <div id="add-mix-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-[var(--md-sys-color-surface-container)] border border-[var(--md-sys-color-outline-variant)] rounded-[32px] p-6 max-w-md w-full shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center"><span class="material-symbols-outlined">alt_route</span></div>
+        <div><h3 class="text-base font-bold">Add Mix</h3><p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">A new output bus with its own levels per channel. OBS and apps can capture it, and it can also play to a device.</p></div>
+      </div>
+      <label class="block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Name
+        <input id="add-mix-name" type="text" value="Guest Mix" onkeydown="if(event.key==='Enter')commitAddMix(); else if(event.key==='Escape')closeAddMixModal()" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5 bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] border border-[var(--md-sys-color-outline-variant)] outline-none">
+      </label>
+      <div class="text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Colour
+        <div id="add-mix-colors" class="flex gap-2 mt-1.5"></div>
+      </div>
+      <label class="block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Output
+        <select id="add-mix-output" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5"></select>
+      </label>
+      <div class="flex gap-2 pt-1">
+        <button onclick="closeAddMixModal()" class="sm-btn flex-1 justify-center">Cancel</button>
+        <button onclick="commitAddMix()" class="sm-btn primary flex-1 justify-center"><span class="material-symbols-outlined">add</span>Create Mix</button>
+      </div>
+    </div>
+  </div>
   <div id="add-channel-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-[var(--md-sys-color-surface-container)] border border-[var(--md-sys-color-outline-variant)] rounded-[32px] p-6 max-w-md w-full shadow-2xl space-y-4">
       <div class="flex items-center gap-3">
@@ -5737,61 +5771,78 @@
     }
 
     // ---------- Tab 1 routing matrix (Wave Link style) ----------
-    // Rows = channels (sources), columns = the four buses. Each cell is routed (fader + mute)
-    // or empty (+). Engine rules shown as-is: VOD follows the Stream fader and is a DMCA
-    // include/exclude toggle; only the microphone may feed Voice Chat (Voice_Out).
-    const MX_COLS = [
+    // Rows = channels (sources), columns = mixes (buses). A cell is routed (mute + fader + x)
+    // or empty (+). Rules shown as-is: VOD follows the Stream fader and is a DMCA include /
+    // exclude toggle; Voice Chat takes microphones and hardware inputs only (never app audio).
+    // Custom mixes ("+ Add Mix") are their own PipeWire bus, StudioMic_Mix_<id>.
+    const MX_BUILTIN = [
       { key: 'monitor', name: 'My Mix', sub: 'Monitor_Mix · headphones', icon: 'headphones', color: '#34c759' },
       { key: 'stream', name: 'Stream', sub: 'Stream_Mix · OBS Track 1', icon: 'sensors', color: '#c084fc' },
       { key: 'vod', name: 'Recording · VOD', sub: 'VOD_Mix · Track 2 (DMCA safe)', icon: 'movie', color: '#fbbf24' },
       { key: 'voice', name: 'Voice Chat', sub: 'Voice_Out · Discord', icon: 'forum', color: '#60a5fa' },
     ];
+    function mxCols() {
+      return MX_BUILTIN.concat((smCfg().custom_mixes || []).map(m => ({
+        key: 'x_' + m.id, mix: m.id, name: m.name, sub: `StudioMic_Mix_${m.id}`, icon: m.icon || 'alt_route', color: m.color || '#22d3ee', custom: true,
+      })));
+    }
+    function mxColByKey(key) { return mxCols().find(c => c.key === key); }
     function mxNum(v, d) { return typeof v === 'number' && isFinite(v) ? v : d; }
+    function mxVoiceEligible(ch) { return ch.kind === 'mic' || ch.kind === 'mic2' || ch.kind === 'hardware'; }
     // Cell model for (channel, column): what the engine will actually do.
-    function mxCell(ch, col) {
+    function mxCell(ch, colKey) {
       const m = ch.mix || {};
       const isMic = ch.kind === 'mic';
-      switch (col) {
-        case 'monitor': return { routed: m.monitor_routed !== false, muted: !!m.monitor_muted, gain: mxNum(m.monitor_gain_db, 0), editable: true };
-        case 'stream': return { routed: m.stream_routed !== false, muted: !!m.stream_muted, gain: mxNum(m.stream_gain_db, 0), editable: true };
+      const master = (isMic || ch.kind === 'mic2') && !!m.stream_muted; // a mic's master mute
+      if (colKey.startsWith('x_')) {
+        const cell = (m.sends || {})[colKey.slice(2)];
+        return cell ? { routed: true, muted: !!cell.muted || master, masterMuted: master, gain: mxNum(cell.gain_db, 0), editable: true, removable: true }
+                    : { routed: false };
+      }
+      switch (colKey) {
+        case 'monitor': return { routed: m.monitor_routed !== false, muted: !!m.monitor_muted, gain: mxNum(m.monitor_gain_db, 0), editable: true, removable: true };
+        case 'stream': return { routed: m.stream_routed !== false, muted: !!m.stream_muted, gain: mxNum(m.stream_gain_db, 0), editable: true, removable: true };
         case 'vod': return { routed: true, muted: m.vod === false || !!m.stream_muted, excluded: m.vod === false, gain: mxNum(m.stream_gain_db, 0), editable: false };
-        case 'voice': return isMic
-          ? { routed: true, muted: !!m.voice_muted || !!m.stream_muted, masterMuted: !!m.stream_muted, gain: mxNum(m.voice_gain_db, 0), editable: true }
-          : { locked: true };
+        case 'voice':
+          if (!mxVoiceEligible(ch)) return { locked: true };
+          return { routed: isMic || !!m.voice_routed, muted: !!m.voice_muted || master, masterMuted: master, gain: mxNum(m.voice_gain_db, 0), editable: true, removable: !isMic };
       }
       return { locked: true };
     }
-    // Level that channel sends into that bus right now (for the meter in the fader track).
-    function mxLevel(ch, col) {
+    // Level that channel sends into that mix right now (for the meter in the fader track).
+    function mxLevel(ch, colKey) {
       const L = window.channelPeakLevels || {};
       const m = ch.mix || {};
       const pre = L[ch.id] ?? -80;
-      const c = mxCell(ch, col);
+      const c = mxCell(ch, colKey);
       if (c.locked || !c.routed || c.muted || pre <= -80) return -80;
-      if (col === 'stream') return L['out:' + ch.id] ?? -80;
-      if (col === 'monitor') return (anySolo() && !m.solo) ? -80 : pre + c.gain;
-      if (col === 'vod') return pre + c.gain - (m.autoduck ? (L.duck || 0) : 0);
-      return pre + c.gain; // voice (mic only)
+      if (colKey === 'stream') return L['out:' + ch.id] ?? -80;
+      if (colKey === 'monitor') return (anySolo() && !m.solo) ? -80 : pre + c.gain;
+      if (colKey === 'vod') return pre + c.gain - (m.autoduck ? (L.duck || 0) : 0);
+      return pre + c.gain; // voice, custom mixes
     }
     function mxCellHtml(ch, col) {
       const c = mxCell(ch, col.key);
       const st = `--mx-c:${col.color}`;
       if (c.locked) {
-        return `<div class="mx-locked" title="Only the microphone feeds Voice Chat (Voice_Out), so Discord never hears your game or music"><span class="material-symbols-outlined text-[14px]">lock</span>Mic only</div>`;
+        return `<div class="mx-locked" title="Voice Chat takes microphones and hardware inputs only, so Discord never hears your game or music"><span class="material-symbols-outlined text-[14px]">lock</span>Mics &amp; inputs only</div>`;
       }
       if (!c.routed) {
-        return `<div class="mx-empty" style="${st}" onclick="mxRoute('${ch.id}','${col.key}',true)" title="Add ${esc(ch.name)} to ${col.name}"><div class="mx-plus"><span class="material-symbols-outlined text-[18px]">add</span></div></div>`;
+        return `<div class="mx-empty" style="${st}" onclick="mxRoute('${ch.id}','${col.key}',true)" title="Add ${esc(ch.name)} to ${esc(col.name)}"><div class="mx-plus"><span class="material-symbols-outlined text-[18px]">add</span></div></div>`;
       }
       const isVod = col.key === 'vod';
       const icon = c.muted ? 'volume_off' : (col.key === 'voice' ? 'mic' : col.icon);
       const muteTitle = isVod
         ? (c.excluded ? 'Excluded from the VOD track (DMCA safe). Click to include.' : (c.muted ? 'Muted: Stream Mute also mutes the VOD track' : 'In the VOD track. Click to exclude (DMCA safe).'))
-        : (c.masterMuted ? 'Microphone muted (master mute also silences Voice Chat)' : (c.muted ? 'Muted. Click to unmute.' : 'Click to mute'));
-      const canUnroute = col.key === 'monitor' || col.key === 'stream';
+        : (c.masterMuted ? 'Microphone muted (its master mute silences every mix)' : (c.muted ? 'Muted. Click to unmute.' : 'Click to mute'));
       const read = isVod ? `${fmtGain(c.gain)} · follows Stream` : fmtGain(c.gain);
+      const remove = c.removable
+        ? `<button class="mx-x" onclick="event.stopPropagation(); mxRoute('${ch.id}','${col.key}',false)" title="Remove ${esc(ch.name)} from ${esc(col.name)}"><span class="material-symbols-outlined">close</span></button>`
+        : '';
       return `<div class="mx-cell ${c.muted ? 'muted' : ''}" style="${st}" data-mx-cell="${ch.id}:${col.key}"
-          ${canUnroute ? `oncontextmenu="event.preventDefault(); mxRoute('${ch.id}','${col.key}',false)"` : ''}
-          title="${canUnroute ? 'Drag: volume · Double-click: 0 dB · Right-click: remove from this mix' : (isVod ? 'VOD uses the Stream fader' : 'Drag: volume · Double-click: 0 dB')}">
+          ${c.removable ? `oncontextmenu="event.preventDefault(); mxRoute('${ch.id}','${col.key}',false)"` : ''}
+          title="${c.removable ? 'Drag: volume · Double-click: 0 dB · x or right-click: remove from this mix' : (isVod ? 'VOD uses the Stream fader' : 'Drag: volume · Double-click: 0 dB')}">
+        ${remove}
         <button class="mx-mute" onclick="mxMute('${ch.id}','${col.key}')" title="${muteTitle}"><span class="material-symbols-outlined">${icon}</span></button>
         <div class="mx-fad">
           <input class="mx-slider" type="range" min="-60" max="12" step="0.5" value="${c.gain}" data-mx="${ch.id}:${col.key}"
@@ -5806,9 +5857,10 @@
       const badge = isMic ? 'DSP' : isMic2 ? 'MIC 2' : ch.kind === 'hardware' ? 'HW' : smIsComms(ch) ? 'CHAT' : 'APPS';
       let sub = '';
       if (isMic || isMic2 || ch.kind === 'hardware') {
-        const name = isMic ? smCfg().active_hw_mic : isMic2 ? (smCfg().dual_mic || {}).hw_mic : ch.hw_source;
-        const dev = (window.uniqueHardwareDevices || []).find(d => d.name === name);
-        sub = `<span class="truncate">${esc(dev ? dev.description : (name || 'No input selected'))}</span>`;
+        // Hardware input picker right in the row (mic, Mic 2, capture cards / line-ins).
+        const sel = isMic ? smCfg().active_hw_mic : isMic2 ? (smCfg().dual_mic || {}).hw_mic : ch.hw_source;
+        const handler = isMic ? `switchHardwareInput(this.value)` : isMic2 ? `switchHardwareInput2(this.value)` : `setChannelHw('${ch.id}', this.value)`;
+        sub = `<select class="mx-sel hw-select" data-ch="${ch.id}" onchange="${handler}" title="Hardware input">${deviceOptions(sel, true)}</select>`;
       } else {
         const liveBins = liveAppsFor(ch.id).map(x => (x.binary || x.app_name || '').toLowerCase());
         const apps = ch.apps || [];
@@ -5822,38 +5874,92 @@
         <div class="sub">${sub}</div></div>
         ${!isMic && !isMic2 ? `<button class="sm-chip" onclick="removeChannelById('${ch.id}')" title="Remove channel"><span class="material-symbols-outlined">close</span></button>` : ''}</div>`;
     }
+    function mxOutputDevices() { return window.outputDevices || window.__INITIAL_OUTPUT_DEVICES__ || []; }
+    // Output device picker for a mix column (My Mix: headphones; others: optional extra output).
+    function mxOutputSelect(col) {
+      const c = smCfg();
+      const cur = col.key === 'monitor' ? (c.monitor_output || '')
+        : col.custom ? (((c.custom_mixes || []).find(m => m.id === col.mix) || {}).output_device || '')
+        : ((c.mix_output_devices || {})[col.key] || '');
+      const first = col.key === 'monitor' ? 'Default output (follows system)' : 'No output · capture in OBS / apps';
+      let html = `<option value="">${first}</option>`;
+      const devs = mxOutputDevices();
+      if (cur && !devs.some(d => d.name === cur)) html += `<option value="${esc(cur)}">Missing: ${esc(cur)}</option>`;
+      devs.forEach(d => { html += `<option value="${esc(d.name)}" ${d.name === cur ? 'selected' : ''}>${esc(d.description)}${d.is_default ? ' [Default]' : ''}</option>`; });
+      return `<select class="mx-sel" onchange="mxSetOutput('${col.key}', this.value)" title="Physical output for ${esc(col.name)}">${html}</select>`;
+    }
+    function mxHeadHtml(col) {
+      const c = smCfg();
+      let extra = '';
+      if (col.key === 'monitor') {
+        // Master headphone controls: mute, gain (double-click 0 dB), synced with volume keys.
+        const g = mxNum(c.monitor_gain_db, 0);
+        extra = `<div class="mx-master">
+          <button id="mx-master-mute" class="mx-mute ${c.monitor_muted ? 'on' : ''}" onclick="toggleMonitorMaster()" title="Master headphone mute"><span class="material-symbols-outlined">${c.monitor_muted ? 'headset_off' : 'headphones'}</span></button>
+          <input id="mx-master-gain" class="mx-slider" type="range" min="-60" max="12" step="0.5" value="${g}" title="Master headphone volume (double-click: 0 dB)"
+            oninput="mxMasterGain(this)" ondblclick="this.value=0; mxMasterGain(this)">
+          <span id="mx-master-read" class="mx-read">${fmtGain(g)}</span></div>`;
+      }
+      const del = col.custom ? `<button class="mx-x" style="position:static" onclick="mxRemoveMix('${col.mix}')" title="Delete mix ${esc(col.name)}"><span class="material-symbols-outlined">close</span></button>` : '';
+      return `<th style="--mx-c:${col.color}"><div class="mx-col"><span class="material-symbols-outlined text-[18px]" style="color:${col.color}">${col.icon}</span><div class="min-w-0 flex-1"><b>${esc(col.name)}</b><small>${esc(col.sub)}</small></div>${del}</div>
+        ${extra}${mxOutputSelect(col)}<div class="mx-bar"></div></th>`;
+    }
     function matrixHtml() {
-      const head = MX_COLS.map(col => `<th style="--mx-c:${col.color}"><div class="mx-col"><span class="material-symbols-outlined text-[18px]" style="color:${col.color}">${col.icon}</span><div><b>${col.name}</b><small>${col.sub}</small></div></div><div class="mx-bar"></div></th>`).join('');
-      const rows = smChannels().map(ch => `<tr data-channel-id="${ch.id}"><td>${mxSourceHtml(ch)}</td>${MX_COLS.map(col => `<td>${mxCellHtml(ch, col)}</td>`).join('')}<td></td></tr>`).join('');
-      return `<div class="mx-wrap"><table class="mx"><thead><tr><th>Audio Channels</th>${head}
-          <th class="mx-add" onclick="openAddChannelModal()" title="Add a channel (the four output mixes are fixed)"><div class="mx-addbtn"><span class="material-symbols-outlined text-[20px]">add</span></div><div class="text-[9px] font-bold font-mono mt-0.5 text-[var(--md-sys-color-on-surface-variant)]">ADD</div></th></tr></thead>
-        <tbody>${rows}</tbody></table>
-        <div class="mx-foot"><span>Click: mute · Drag: volume · Double-click: 0 dB · Right-click: remove from a mix · +: add back</span><span>VOD follows each channel's Stream fader · only the mic feeds Voice Chat</span></div></div>`;
+      const cols = mxCols();
+      const rows = smChannels().map(ch => `<tr data-channel-id="${ch.id}"><td>${mxSourceHtml(ch)}</td>${cols.map(col => `<td>${mxCellHtml(ch, col)}</td>`).join('')}<td></td></tr>`).join('');
+      const addRow = `<tr><td colspan="${cols.length + 2}"><button class="sm-btn" onclick="openAddChannelModal()"><span class="material-symbols-outlined">add</span>Add Channel</button></td></tr>`;
+      return `<div class="mx-wrap"><table class="mx"><thead><tr><th>Audio Channels</th>${cols.map(mxHeadHtml).join('')}
+          <th class="mx-add" onclick="openAddMixModal()" title="Add a mix: a new output bus (Guest mix, speakers, a second recording track...)"><div class="mx-addbtn"><span class="material-symbols-outlined text-[20px]">add</span></div><div class="text-[9px] font-bold font-mono mt-0.5 text-[var(--md-sys-color-on-surface-variant)]">ADD MIX</div></th></tr></thead>
+        <tbody>${rows}${addRow}</tbody></table>
+        <div class="mx-foot"><span>Click: mute · Drag: volume · Double-click: 0 dB · x: remove from a mix · +: add</span><span>VOD follows each channel's Stream fader · Voice Chat takes mics &amp; hardware inputs only</span></div></div>`;
     }
     function mxMute(id, col) {
       const m = smMix(id);
       if (col === 'vod') { toggleMix(id, 'vod'); return; }
+      const master = (id === 'mic' || id === 'mic2') && m.stream_muted;
+      if (col === 'stream' || (master && (col === 'voice' || col.startsWith('x_')))) { toggleMix(id, 'stream_mute'); return; }
+      if (col === 'monitor') { toggleMix(id, 'monitor_mute'); return; }
       if (col === 'voice') {
-        if (m.stream_muted) { toggleMix(id, 'stream_mute'); return; } // master mic mute: unmute everything
         m.voice_muted = !m.voice_muted;
         post(`mix:${id}:voice_mute:${m.voice_muted ? 'on' : 'off'}`);
-        renderMixerChannelsGrid();
-        return;
+      } else if (col.startsWith('x_')) {
+        const mix = col.slice(2);
+        const cell = ((m.sends = m.sends || {})[mix] = m.sends[mix] || { gain_db: 0, muted: false });
+        cell.muted = !cell.muted;
+        post(`mix:${id}:send_mute.${mix}:${cell.muted ? 'on' : 'off'}`);
       }
-      toggleMix(id, col === 'stream' ? 'stream_mute' : 'monitor_mute');
+      renderMixerChannelsGrid();
     }
     function mxRoute(id, col, on) {
       const m = smMix(id);
-      m[col + '_routed'] = on;
-      post(`mix:${id}:${col}_route:${on ? 'on' : 'off'}`);
+      if (col === 'voice') {
+        m.voice_routed = on;
+        post(`mix:${id}:voice_route:${on ? 'on' : 'off'}`);
+      } else if (col.startsWith('x_')) {
+        const mix = col.slice(2);
+        m.sends = m.sends || {};
+        if (on) m.sends[mix] = m.sends[mix] || { gain_db: 0, muted: false }; else delete m.sends[mix];
+        post(`mix:${id}:send_route.${mix}:${on ? 'on' : 'off'}`);
+      } else {
+        m[col + '_routed'] = on;
+        post(`mix:${id}:${col}_route:${on ? 'on' : 'off'}`);
+      }
       renderMixerChannelsGrid();
     }
     function mxGain(id, col, el) {
       const v = parseFloat(el.value);
       const m = smMix(id);
-      const field = { stream: 'stream_gain_db', monitor: 'monitor_gain_db', voice: 'voice_gain_db' }[col];
-      if (!field) return;
-      m[field] = v;
+      let msg;
+      if (col.startsWith('x_')) {
+        const mix = col.slice(2);
+        ((m.sends = m.sends || {})[mix] = m.sends[mix] || { gain_db: 0, muted: false }).gain_db = v;
+        msg = `mix:${id}:send_gain.${mix}:=${v}`;
+      } else {
+        const field = { stream: 'stream_gain_db', monitor: 'monitor_gain_db', voice: 'voice_gain_db' }[col];
+        if (!field) return;
+        m[field] = v;
+        msg = `mix:${id}:${col}_gain:=${v}`;
+      }
       const r = document.querySelector(`[data-mx-read="${id}:${col}"]`);
       if (r) r.textContent = fmtGain(v);
       if (col === 'stream') {
@@ -5861,7 +5967,53 @@
         const vs = document.querySelector(`.mx-slider[data-mx="${id}:vod"]`); if (vs) vs.value = v;
         const vr = document.querySelector(`[data-mx-read="${id}:vod"]`); if (vr) vr.textContent = `${fmtGain(v)} · follows Stream`;
       }
-      throttled(`gain:${id}:${col}`, 30, () => post(`mix:${id}:${col}_gain:=${v}`));
+      throttled(`gain:${id}:${col}`, 30, () => post(msg));
+    }
+    function mxMasterGain(el) {
+      onMonitorMasterGain(el.value);
+      const r = document.getElementById('mx-master-read');
+      if (r) r.textContent = fmtGain(parseFloat(el.value));
+    }
+    function mxSetOutput(key, dev) {
+      const c = smCfg();
+      if (key === 'monitor') { setMonitorOutput(dev); return; }
+      if (key.startsWith('x_')) {
+        const m = (c.custom_mixes || []).find(x => x.id === key.slice(2));
+        if (m) m.output_device = dev || null;
+        post(`mix_output:${key.slice(2)}:${dev}`);
+      } else {
+        c.mix_output_devices = c.mix_output_devices || {};
+        if (dev) c.mix_output_devices[key] = dev; else delete c.mix_output_devices[key];
+        post(`mix_output:${key}:${dev}`);
+      }
+    }
+    // ---------- "+ Add Mix" ----------
+    const MX_MIX_COLORS = ['#22d3ee', '#34d399', '#a78bfa', '#fbbf24', '#fb7185'];
+    function openAddMixModal() {
+      const md = document.getElementById('add-mix-modal');
+      if (!md) return;
+      document.getElementById('add-mix-name').value = 'Guest Mix';
+      const sw = document.getElementById('add-mix-colors');
+      sw.innerHTML = MX_MIX_COLORS.map((c, i) => `<button type="button" class="mx-swatch ${i === 0 ? 'on' : ''}" data-color="${c}" style="background:${c}" onclick="document.querySelectorAll('.mx-swatch').forEach(b => b.classList.toggle('on', b === this))" title="${c}"></button>`).join('');
+      const out = document.getElementById('add-mix-output');
+      out.innerHTML = `<option value="">No output · capture in OBS / apps</option>` + mxOutputDevices().map(d => `<option value="${esc(d.name)}">${esc(d.description)}</option>`).join('');
+      md.classList.remove('hidden');
+      document.getElementById('add-mix-name').focus();
+    }
+    function closeAddMixModal() { document.getElementById('add-mix-modal')?.classList.add('hidden'); }
+    function commitAddMix() {
+      const name = document.getElementById('add-mix-name').value.trim();
+      if (!name) return;
+      const color = (document.querySelector('.mx-swatch.on') || {}).dataset?.color || MX_MIX_COLORS[0];
+      const output = document.getElementById('add-mix-output').value;
+      post('mix_add:' + JSON.stringify({ name, color, output }));
+      closeAddMixModal();
+      window.showNotice(`Creating mix "${name}" (a new PipeWire bus)...`);
+    }
+    function mxRemoveMix(id) {
+      const m = (smCfg().custom_mixes || []).find(x => x.id === id);
+      if (!m || !confirm(`Delete the mix "${m.name}"? Its bus StudioMic_Mix_${id} disappears from OBS and other apps.`)) return;
+      post('mix_remove:' + id);
     }
 
     function onGain(id, bus, el) {
@@ -5984,6 +6136,13 @@
       if (mb) mb.classList.toggle('on', !!c.monitor_muted);
       const os = document.getElementById('monitor-output-selector');
       if (os) os.value = c.monitor_output || '';
+      // Matrix "My Mix" header copy of the master controls.
+      const ms = document.getElementById('mx-master-gain');
+      if (ms && document.activeElement !== ms) ms.value = c.monitor_gain_db || 0;
+      const mr = document.getElementById('mx-master-read');
+      if (mr) mr.textContent = fmtGain(c.monitor_gain_db || 0);
+      const mm = document.getElementById('mx-master-mute');
+      if (mm) { mm.classList.toggle('on', !!c.monitor_muted); mm.firstElementChild.textContent = c.monitor_muted ? 'headset_off' : 'headphones'; }
     }
     function onMonitorMasterGain(v) {
       v = parseFloat(v);
@@ -6011,6 +6170,7 @@
       window.outputDevices.forEach(d => { html += `<option value="${esc(d.name)}">${esc(d.description)}${d.is_default ? ' [Default]' : ''}</option>`; });
       sel.innerHTML = html;
       sel.value = cur;
+      if (smCfg().view_mode === 'matrix') renderMixerChannelsGrid(); // refresh the per-mix output pickers
     };
 
     // ---------- devices (never auto-switch a missing saved device) ----------

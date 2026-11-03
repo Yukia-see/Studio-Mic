@@ -25,6 +25,8 @@ pub enum Job {
     Mic2,
     Relink,
     RestoreAutopad,
+    /// Custom mixes / send stages / output devices changed.
+    Mixes,
 }
 
 #[derive(Debug, Clone)]
@@ -201,9 +203,17 @@ impl Controller {
                     ));
                 }
                 Job::Monitor => e.apply_monitor_master(),
-                Job::Channels => e.sync_channels(),
-                Job::Mic2 => e.sync_mic2(false),
-                Job::Relink => e.relink_all(),
+                // Channel and Mic 2 changes alter the send stages' source lists too.
+                Job::Channels => {
+                    e.sync_channels();
+                    e.sync_sends();
+                }
+                Job::Mic2 => {
+                    e.sync_mic2(false);
+                    e.sync_sends();
+                }
+                // Relinks also follow channel-kind changes (hardware inputs may feed Voice Chat).
+                Job::Relink | Job::Mixes => e.sync_sends(),
                 Job::RestoreAutopad => e.restore_autopad(),
             }
         }
@@ -276,8 +286,32 @@ impl Controller {
     pub fn set_mix(&self, ch: &str, param: &str, value: &str) -> Reply {
         let r = self.mutate(|s| {
             let id = s.resolve_channel(ch).ok_or_else(|| format!("unknown channel '{}'", ch))?;
+            let voice_ok = id == "mic" || s.voice_eligible(&id);
+            let mix_ids: Vec<String> = s.custom_mixes.iter().map(|m| m.id.clone()).collect();
             let m = s.mix_mut(&id).ok_or_else(|| format!("unknown channel '{}'", ch))?;
             let b = || parse_bool(value).ok_or_else(|| format!("expected on/off, got '{}'", value));
+            // Sends into custom mixes: send_route.<mix> / send_mute.<mix> / send_gain.<mix>
+            if let Some((what, mix)) = param.split_once('.') {
+                if !mix_ids.iter().any(|x| x == mix) {
+                    return Err(format!("unknown mix '{}'", mix));
+                }
+                match what {
+                    "send_route" => {
+                        if b()? {
+                            m.sends.entry(mix.to_string()).or_default();
+                        } else {
+                            m.sends.remove(mix);
+                        }
+                    }
+                    "send_mute" => m.sends.entry(mix.to_string()).or_default().muted = b()?,
+                    "send_gain" => {
+                        let cell = m.sends.entry(mix.to_string()).or_default();
+                        cell.gain_db = parse_gain_spec(value, cell.gain_db).ok_or("bad gain")?;
+                    }
+                    _ => return Err(format!("unknown mix parameter '{}'", param)),
+                }
+                return Ok(format!("{} {} = {}", id, param, value));
+            }
             match param {
                 "stream_gain" => m.stream_gain_db = parse_gain_spec(value, m.stream_gain_db).ok_or("bad gain")?,
                 "monitor_gain" => m.monitor_gain_db = parse_gain_spec(value, m.monitor_gain_db).ok_or("bad gain")?,
@@ -289,9 +323,13 @@ impl Controller {
                 // Routing-matrix cells
                 "stream_route" => m.stream_routed = b()?,
                 "monitor_route" => m.monitor_routed = b()?,
-                "voice_mute" if id == "mic" => m.voice_muted = b()?,
-                "voice_gain" if id == "mic" => m.voice_gain_db = parse_gain_spec(value, m.voice_gain_db).ok_or("bad gain")?,
-                "voice_mute" | "voice_gain" => return Err("only the microphone feeds Voice Chat".into()),
+                // Voice Chat: the main mic always feeds it; Mic 2 and hardware inputs on request.
+                "voice_route" if voice_ok && id != "mic" => m.voice_routed = b()?,
+                "voice_mute" if voice_ok => m.voice_muted = b()?,
+                "voice_gain" if voice_ok => m.voice_gain_db = parse_gain_spec(value, m.voice_gain_db).ok_or("bad gain")?,
+                "voice_route" | "voice_mute" | "voice_gain" => {
+                    return Err("only microphones and hardware inputs can feed Voice Chat (apps never reach Discord)".into())
+                }
                 "delay_stream" => m.delay_stream_ms = value.trim_end_matches("ms").parse::<f32>().map_err(|e| e.to_string())?,
                 "delay_monitor" => m.delay_monitor_ms = value.trim_end_matches("ms").parse::<f32>().map_err(|e| e.to_string())?,
                 _ => return Err(format!("unknown mix parameter '{}'", param)),
@@ -453,6 +491,77 @@ impl Controller {
         let on = self.state.lock().unwrap().mic.clipguard;
         let r = self.set_mic_option("clipguard", !on);
         self.sync_ui();
+        r
+    }
+
+    /// "+ Add Mix": a new destination bus (`StudioMic_Mix_<id>`).
+    pub fn create_mix(&self, name: &str, color: Option<String>, output: Option<String>) -> Reply {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("mix name required".into());
+        }
+        let r = self.mutate(|s| {
+            let base = sanitize_channel_id(name);
+            let mut id = base.clone();
+            let mut n = 2;
+            while ["monitor", "stream", "vod", "voice"].contains(&id.as_str()) || s.custom_mixes.iter().any(|m| m.id == id) {
+                id = format!("{}_{}", base, n);
+                n += 1;
+            }
+            s.custom_mixes.push(config::CustomMixConfig {
+                id: id.clone(),
+                name: name.to_string(),
+                icon: "alt_route".into(),
+                color: color.filter(|c| c.starts_with('#') && c.len() <= 9).unwrap_or_else(|| "#22d3ee".into()),
+                output_device: output.filter(|o| !o.is_empty()),
+            });
+            Ok(id)
+        });
+        if r.is_ok() {
+            self.enqueue(Job::Mixes);
+            self.sync_ui();
+        }
+        r
+    }
+
+    pub fn remove_mix(&self, id: &str) -> Reply {
+        let r = self.mutate(|s| {
+            let before = s.custom_mixes.len();
+            s.custom_mixes.retain(|m| m.id != id);
+            if s.custom_mixes.len() == before {
+                return Err(format!("unknown mix '{}'", id));
+            }
+            Ok(format!("Removed mix {}", id)) // normalize() drops the channels' sends into it
+        });
+        if r.is_ok() {
+            self.enqueue(Job::Mixes);
+            self.sync_ui();
+        }
+        r
+    }
+
+    /// Physical output of a mix: "monitor" (My Mix), "stream" / "vod" / "voice", or a custom id.
+    pub fn set_mix_output(&self, key: &str, node: &str) -> Reply {
+        if key == "monitor" {
+            return self.set_monitor_output(node);
+        }
+        let node = node.trim();
+        let r = self.mutate(|s| {
+            let dev = (!node.is_empty() && node != "none").then(|| node.to_string());
+            if ["stream", "vod", "voice"].contains(&key) {
+                match dev {
+                    Some(d) => s.mix_output_devices.insert(key.to_string(), d),
+                    None => s.mix_output_devices.remove(key),
+                };
+            } else {
+                let m = s.custom_mixes.iter_mut().find(|m| m.id == key).ok_or_else(|| format!("unknown mix '{}'", key))?;
+                m.output_device = dev;
+            }
+            Ok(format!("{} output: {}", key, if node.is_empty() { "none" } else { node }))
+        });
+        if r.is_ok() {
+            self.enqueue(Job::Mixes);
+        }
         r
     }
 
@@ -698,6 +807,7 @@ impl Controller {
             Ok(format!("{} apps: {:?}", id, c.apps))
         });
         self.reroute_now();
+        self.enqueue(Job::Relink); // a hardware channel may have become an app channel
         r
     }
 
@@ -873,6 +983,8 @@ impl Controller {
                 "monitor_routed": m.monitor_routed,
                 "voice_gain_db": m.voice_gain_db,
                 "voice_muted": m.voice_muted,
+                "voice_routed": m.voice_routed,
+                "sends": m.sends,
             })
         };
         let mut v = serde_json::json!({
@@ -918,6 +1030,8 @@ impl Controller {
             })).collect::<Vec<_>>(),
             "mic2": { "enabled": s.dual_mic.enabled, "input": s.dual_mic.hw_mic, "mix": mix(&s.dual_mic.mix) },
             "active_apps_mode": s.active_apps_mode,
+            "custom_mixes": s.custom_mixes,
+            "mix_output_devices": s.mix_output_devices,
             "profiles": StudioMicConfig::list_profiles(),
         });
         if runtime {
@@ -1148,6 +1262,23 @@ impl Controller {
                 }
             }
             "channel_remove" => self.remove_channel(rest),
+            // --- Custom mixes (routing matrix) ---
+            "mix_add" => {
+                #[derive(serde::Deserialize)]
+                struct AddMix {
+                    name: String,
+                    #[serde(default)]
+                    color: Option<String>,
+                    #[serde(default)]
+                    output: Option<String>,
+                }
+                match serde_json::from_str::<AddMix>(rest) {
+                    Ok(a) => self.create_mix(&a.name, a.color, a.output),
+                    Err(_) => self.create_mix(rest, None, None),
+                }
+            }
+            "mix_remove" => self.remove_mix(rest),
+            "mix_output" => self.set_mix_output(arg(0), rest.split_once(':').map(|x| x.1).unwrap_or("")),
             "channel_rename" => self.rename_channel(arg(0), &rest[arg(0).len().min(rest.len())..].trim_start_matches(':')),
             "channel_hw" => self.set_channel_hw(arg(0), &rest[arg(0).len().min(rest.len())..].trim_start_matches(':')),
             "channel_apps" => {

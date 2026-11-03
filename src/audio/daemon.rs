@@ -68,6 +68,27 @@ struct Procs {
     ch_names: HashMap<String, String>,
     mic2_sig: Option<Vec<FilterType>>,
     gen_counter: u32,
+    /// Send stage key ("send:voice", "send:<mix id>") -> signature of its source list.
+    send_sigs: HashMap<String, String>,
+}
+
+/// A send stage: per-source gains into Voice Chat or into a custom mix.
+#[derive(Clone, PartialEq)]
+enum SendTarget {
+    Voice,
+    Custom { id: String, name: String },
+}
+
+impl SendTarget {
+    fn key(&self) -> String {
+        match self {
+            SendTarget::Voice => "voice".into(),
+            SendTarget::Custom { id, .. } => id.clone(),
+        }
+    }
+    fn proc_key(&self) -> String {
+        format!("send:{}", self.key())
+    }
 }
 
 #[derive(Default)]
@@ -333,6 +354,7 @@ impl Engine {
                 ch_names: HashMap::new(),
                 mic2_sig: None,
                 gen_counter: 0,
+                send_sigs: HashMap::new(),
             }),
             cache: Mutex::new(ParamCache::default()),
             meters: Mutex::new(HashMap::new()),
@@ -466,6 +488,20 @@ impl Engine {
             .map(|(k, class, desc, _)| (fc::bus_node(k), *class, desc.to_string()))
             .collect();
         wanted.push((LEGACY_MIC_ALIAS.to_string(), "Audio/Source/Virtual", "Studio Mic (Legacy Alias)".to_string()));
+        let custom = self.state.lock().unwrap().custom_mixes.clone();
+        for m in &custom {
+            wanted.push((fc::bus_node(&fc::mix_bus_key(&m.id)), "Audio/Source/Virtual", format!("Studio Mic · {}", m.name.replace('"', "'"))));
+        }
+        // Lingering buses of mixes that were deleted (`StudioMic_Mix_<id>`; the _Sum/_Lim stage
+        // nodes belong to the mix's own process and go away with it).
+        for n in &nodes {
+            if let Some(id) = n.name.strip_prefix("StudioMic_Mix_") {
+                if !id.ends_with("_Sum") && !id.ends_with("_Lim") && !custom.iter().any(|m| m.id == id) {
+                    pw::destroy_node(n.id);
+                    println!("Removed bus of deleted mix {}", n.name);
+                }
+            }
+        }
         for (name, class, desc) in wanted {
             let matching: Vec<&pw::NodeInfo> = nodes.iter().filter(|n| n.name == name).collect();
             if matching.is_empty() {
@@ -513,6 +549,8 @@ impl Engine {
             procs.mic2_sig = Some(fc::eq_signature(&s.dual_mic.eq_bands));
         }
 
+        self.spawn_sends_locked(&mut procs, &s);
+
         let expected = self.expected_nodes(&procs, &s);
         drop(procs);
         let mut found = pw::wait_for_nodes(&expected, Duration::from_secs(6));
@@ -549,7 +587,166 @@ impl Engine {
             v.push(MIC2_IN.into());
             v.push(MIC2_OUT.into());
         }
+        for t in Self::send_targets(s) {
+            if procs.map.contains_key(&t.proc_key()) {
+                v.push(fc::send_in(&t.key()));
+                v.push(fc::send_out(&t.key()));
+                if let SendTarget::Custom { id, .. } = &t {
+                    v.push(fc::bus_sum(&fc::mix_bus_key(id)));
+                    v.push(fc::bus_lim(&fc::mix_bus_key(id)));
+                }
+            }
+        }
         v
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Sends (custom mixes, extra Voice Chat sources)
+    // -----------------------------------------------------------------------------------------
+
+    /// Every send stage the current state needs.
+    fn send_targets(s: &StudioMicConfig) -> Vec<SendTarget> {
+        let mut v = Vec::new();
+        if !Self::send_sources(s, &SendTarget::Voice).is_empty() {
+            v.push(SendTarget::Voice);
+        }
+        for m in &s.custom_mixes {
+            v.push(SendTarget::Custom { id: m.id.clone(), name: m.name.clone() });
+        }
+        v
+    }
+
+    /// Sources of a send stage, in port order. Voice Chat extras: Mic 2 and hardware inputs
+    /// (the main mic has its own direct path; app channels never reach Discord). Custom mixes:
+    /// every source.
+    fn send_sources(s: &StudioMicConfig, t: &SendTarget) -> Vec<String> {
+        let mut v = Vec::new();
+        if matches!(t, SendTarget::Custom { .. }) {
+            v.push("mic".to_string());
+        }
+        if s.dual_mic.enabled {
+            v.push("mic2".to_string());
+        }
+        for ch in &s.virtual_channels {
+            if matches!(t, SendTarget::Custom { .. }) || ch.kind == "hardware" {
+                v.push(ch.id.clone());
+            }
+        }
+        v
+    }
+
+    /// Linear gain of `src` into a send target (0 = not routed / muted).
+    fn send_gain(s: &StudioMicConfig, t: &SendTarget, src: &str) -> f32 {
+        let Some(m) = s.mix(src) else { return 0.0 };
+        // The mic's master mute (Stream Mute) silences it in every broadcast mix.
+        if (src == "mic" || src == "mic2") && m.stream_muted {
+            return 0.0;
+        }
+        match t {
+            SendTarget::Voice => {
+                if m.voice_routed && !m.voice_muted { db_to_lin(m.voice_gain_db) } else { 0.0 }
+            }
+            SendTarget::Custom { id, .. } => match m.sends.get(id) {
+                Some(c) if !c.muted => db_to_lin(c.gain_db),
+                _ => 0.0,
+            },
+        }
+    }
+
+    fn send_gains(s: &StudioMicConfig, t: &SendTarget) -> Vec<(String, f32)> {
+        Self::send_sources(s, t).into_iter().map(|src| {
+            let g = Self::send_gain(s, t, &src);
+            (src, g)
+        }).collect()
+    }
+
+    /// Output port(s) a send source is tapped from (left, right). Mono taps feed both sides.
+    fn send_source_ports(procs: &Procs, src: &str) -> (String, String) {
+        match src {
+            "mic" => {
+                let p = format!("{}:output_AUX8", fc::post_out(procs.post_gen));
+                (p.clone(), p)
+            }
+            "mic2" => {
+                let p = format!("{}:output_AUX6", MIC2_OUT);
+                (p.clone(), p)
+            }
+            id => (format!("{}:monitor_FL", fc::channel_sink(id)), format!("{}:monitor_FR", fc::channel_sink(id))),
+        }
+    }
+
+    /// Spawns / restarts / removes send stages to match state (caller holds `ops` and `procs`).
+    /// A stage only restarts when its source list changes (a channel or Mic 2 added/removed);
+    /// routing changes are live gains.
+    fn spawn_sends_locked(&self, procs: &mut Procs, s: &StudioMicConfig) -> Vec<String> {
+        let targets = Self::send_targets(s);
+        let lsp = self.plugins().lsp.is_some();
+        let mut started = Vec::new();
+        let running: Vec<String> = procs.map.keys().filter(|k| k.starts_with("send:")).cloned().collect();
+        for k in running {
+            if !targets.iter().any(|t| t.proc_key() == k) {
+                let key = k.trim_start_matches("send:").to_string();
+                let mut names = vec![fc::send_in(&key), fc::send_out(&key)];
+                if key != "voice" {
+                    names.push(fc::bus_sum(&fc::mix_bus_key(&key)));
+                    names.push(fc::bus_lim(&fc::mix_bus_key(&key)));
+                }
+                Self::detach_nodes(&names);
+                Self::kill_proc(procs, &k);
+                procs.send_sigs.remove(&k);
+                for n in &names {
+                    self.forget_node(n);
+                }
+                println!("Removed send stage {}", k);
+            }
+        }
+        for t in targets {
+            let gains = Self::send_gains(s, &t);
+            let sig = format!(
+                "{}|{}|{}",
+                gains.iter().map(|(src, _)| src.as_str()).collect::<Vec<_>>().join(","),
+                lsp,
+                match &t { SendTarget::Custom { name, .. } => name.as_str(), SendTarget::Voice => "" }
+            );
+            let key = t.proc_key();
+            if procs.map.contains_key(&key) && procs.send_sigs.get(&key) == Some(&sig) {
+                continue;
+            }
+            let conf = match &t {
+                SendTarget::Voice => fc::voice_send_conf(&gains),
+                SendTarget::Custom { id, name } => fc::custom_mix_conf(&self.plugins(), id, name, &gains),
+            };
+            if Self::spawn_conf(procs, &key, &format!("send-{}", t.key()), &conf).is_ok() {
+                procs.send_sigs.insert(key, sig);
+                for n in [fc::send_in(&t.key()), fc::send_out(&t.key())] {
+                    self.forget_node(&n);
+                    started.push(n);
+                }
+                if let SendTarget::Custom { id, .. } = &t {
+                    started.push(fc::bus_sum(&fc::mix_bus_key(id)));
+                    started.push(fc::bus_lim(&fc::mix_bus_key(id)));
+                }
+            }
+        }
+        started
+    }
+
+    /// Brings send stages, custom buses and their links in line with state.
+    pub fn sync_sends(&self) {
+        let _g = self.ops.lock().unwrap();
+        let s = self.snapshot();
+        let started = {
+            let mut p = self.procs.lock().unwrap();
+            self.spawn_sends_locked(&mut p, &s)
+        };
+        if !started.is_empty() {
+            let found = pw::wait_for_nodes(&started, Duration::from_secs(3));
+            self.cache.lock().unwrap().ids.extend(found);
+        }
+        drop(_g);
+        self.ensure_buses();
+        self.relink_all();
+        self.apply_mixer(false);
     }
 
     fn effective_denoiser(&self, s: &StudioMicConfig) -> String {
@@ -625,16 +822,68 @@ impl Engine {
         v.push((p(&fc::bus_lim("Voice_Out"), "output_FR"), p(LEGACY_MIC_ALIAS, "input_FR")));
         // Monitor mix -> headphones
         if let Some(out) = self.monitor_target(s) {
-            let ports = pw::ports_of(&out, false);
-            let pick = |want: &[&str]| ports.iter().find(|x| want.iter().any(|w| x.ends_with(w))).cloned();
-            let l = pick(&["_FL", "_AUX0", "_MONO"]).or_else(|| ports.first().cloned());
-            let r = pick(&["_FR", "_AUX1", "_MONO"]).or_else(|| ports.get(1).cloned()).or(l.clone());
-            if let (Some(l), Some(r)) = (l, r) {
-                v.push((p(&fc::bus_node("Monitor_Mix"), "monitor_FL"), p(&out, &l)));
-                v.push((p(&fc::bus_node("Monitor_Mix"), "monitor_FR"), p(&out, &r)));
+            v.extend(Self::output_device_links(&fc::bus_node("Monitor_Mix"), "monitor", &out));
+        }
+        // Sends: sources -> send stage -> target (PipeWire sums every output into the target).
+        for t in Self::send_targets(s) {
+            if !procs.map.contains_key(&t.proc_key()) {
+                continue;
+            }
+            let key = t.key();
+            let target = match &t {
+                SendTarget::Voice => fc::bus_sum("Voice_Out"),
+                SendTarget::Custom { id, .. } => fc::bus_sum(&fc::mix_bus_key(id)),
+            };
+            for (i, src) in Self::send_sources(s, &t).iter().enumerate() {
+                let (in_l, in_r, out_l, out_r) = fc::send_ports(i);
+                let (src_l, src_r) = Self::send_source_ports(procs, src);
+                v.push((src_l, p(&fc::send_in(&key), &in_l)));
+                v.push((src_r, p(&fc::send_in(&key), &in_r)));
+                v.push((p(&fc::send_out(&key), &out_l), p(&target, "input_FL")));
+                v.push((p(&fc::send_out(&key), &out_r), p(&target, "input_FR")));
+            }
+            if let SendTarget::Custom { id, .. } = &t {
+                let k = fc::mix_bus_key(id);
+                v.push((p(&fc::bus_lim(&k), "output_FL"), p(&fc::bus_node(&k), "input_FL")));
+                v.push((p(&fc::bus_lim(&k), "output_FR"), p(&fc::bus_node(&k), "input_FR")));
             }
         }
+        // Optional physical outputs of the other mixes (e.g. a Speaker mix).
+        for (bus, dev) in Self::mix_outputs(s) {
+            v.extend(Self::output_device_links(&bus, "capture", &dev));
+        }
         v
+    }
+
+    /// (bus node, physical sink) for every mix other than My Mix that has an output device.
+    fn mix_outputs(s: &StudioMicConfig) -> Vec<(String, String)> {
+        let mut v: Vec<(String, String)> = [("stream", "Stream_Mix"), ("vod", "VOD_Mix"), ("voice", "Voice_Out")]
+            .iter()
+            .filter_map(|(k, bus)| s.mix_output_devices.get(*k).map(|d| (fc::bus_node(bus), d.clone())))
+            .collect();
+        for m in &s.custom_mixes {
+            if let Some(d) = &m.output_device {
+                v.push((fc::bus_node(&fc::mix_bus_key(&m.id)), d.clone()));
+            }
+        }
+        // Feedback guard: a mix never plays into one of our own nodes.
+        v.retain(|(_, d)| !d.starts_with("StudioMic_") && !d.starts_with("studiomic"));
+        v
+    }
+
+    /// Stereo links from a bus (`<prefix>_FL/_FR` ports) to a playback device.
+    fn output_device_links(bus: &str, prefix: &str, out: &str) -> Vec<(String, String)> {
+        let ports = pw::ports_of(out, false);
+        let pick = |want: &[&str]| ports.iter().find(|x| want.iter().any(|w| x.ends_with(w))).cloned();
+        let l = pick(&["_FL", "_AUX0", "_MONO"]).or_else(|| ports.first().cloned());
+        let r = pick(&["_FR", "_AUX1", "_MONO"]).or_else(|| ports.get(1).cloned()).or(l.clone());
+        match (l, r) {
+            (Some(l), Some(r)) => vec![
+                (format!("{}:{}_FL", bus, prefix), format!("{}:{}", out, l)),
+                (format!("{}:{}_FR", bus, prefix), format!("{}:{}", out, r)),
+            ],
+            _ => Vec::new(),
+        }
     }
 
     /// Raw monitor = hardware capture ports linked straight into the Monitor_Mix bus (mono-center
@@ -708,6 +957,22 @@ impl Engine {
         let keep_mon: Vec<(String, String)> =
             desired.iter().filter(|(o, _)| o.starts_with(&format!("{}:", mon))).cloned().collect();
         pw::unlink_outputs_of(&mon, &keep_mon);
+        // Other mixes: drop only links into physical outputs that are no longer chosen. Never
+        // touch app links (OBS, Discord, recorders): their ports aren't Audio/Sink devices.
+        let sinks: std::collections::HashSet<String> = pw::nodes()
+            .into_iter()
+            .filter(|n| n.class == "Audio/Sink" && !n.name.starts_with("StudioMic_"))
+            .map(|n| n.name)
+            .collect();
+        let mut buses: Vec<String> = ["Stream_Mix", "VOD_Mix", "Voice_Out"].iter().map(|b| fc::bus_node(b)).collect();
+        buses.extend(s.custom_mixes.iter().map(|m| fc::bus_node(&fc::mix_bus_key(&m.id))));
+        for (o, i) in pw::links() {
+            let from_bus = buses.iter().any(|b| o.starts_with(&format!("{}:", b)));
+            let to_device = i.split_once(':').is_some_and(|(node, _)| sinks.contains(node));
+            if from_bus && to_device && !desired.contains(&(o.clone(), i.clone())) {
+                pw::unlink(&o, &i);
+            }
+        }
         // Hard firewall: only the mic limiter may feed Voice_Out / the legacy alias.
         for node in [fc::bus_node("Voice_Out"), LEGACY_MIC_ALIAS.to_string(), fc::bus_sum("Voice_Out")] {
             pw::unlink_inputs_of(&node, &keep_into(&node));
@@ -908,6 +1173,9 @@ impl Engine {
             let (st, vd, mo) = fc::route_gains(&s.dual_mic.mix, 0.0, solo);
             self.send(MIC2_IN, &fc::channel_controls(st, vd, mo, &s.dual_mic.mix), ramp);
         }
+        for t in Self::send_targets(&s) {
+            self.send(&fc::send_in(&t.key()), &fc::send_controls(&Self::send_gains(&s, &t)), ramp);
+        }
     }
 
     /// Master Monitor Gain = the Monitor_Mix node volume (LINEAR, not wpctl's cubic scale).
@@ -931,7 +1199,9 @@ impl Engine {
         let need_swap = fc::fit_to_slots(&s.eq_bands, &self.procs.lock().unwrap().post_sig).is_none();
         if need_swap {
             let engine = self.procs.lock().unwrap().dn_engine.clone();
-            self.swap_mic_chain(&engine, false);
+            if self.swap_mic_chain(&engine, false) {
+                self.relink_all(); // custom mixes tap the mic chain: follow the new generation now
+            }
         } else {
             self.apply_eq_params();
         }
@@ -958,7 +1228,12 @@ impl Engine {
             self.apply_denoiser_params();
             return Ok(wanted);
         }
-        if self.swap_mic_chain(&wanted, true) { Ok(wanted) } else { Err("new noise remover did not start; previous chain kept".into()) }
+        if self.swap_mic_chain(&wanted, true) {
+            self.relink_all(); // custom mixes tap the mic chain: follow the new generation now
+            Ok(wanted)
+        } else {
+            Err("new noise remover did not start; previous chain kept".into())
+        }
     }
 
     /// Builds a new mic chain generation next to the running one, verifies it (3 s), links it with
@@ -1671,6 +1946,7 @@ impl Engine {
             "buses" => Some(fc::bus_sum("Voice_Out")),
             "post" => Some(fc::post_in(procs.post_gen)),
             "mic2" => Some(MIC2_IN.to_string()),
+            k if k.starts_with("send:") => Some(fc::send_in(k.trim_start_matches("send:"))),
             k => k.strip_prefix("ch:").map(fc::channel_sink),
         }
     }
@@ -1739,10 +2015,19 @@ impl Engine {
                     drop(p);
                     self.sync_channels();
                 }
-                if crashed.iter().any(|k| !k.starts_with("ch:")) {
+                if crashed.iter().any(|k| k.starts_with("send:")) {
+                    let mut p = self.procs.lock().unwrap();
+                    for k in crashed.iter().filter(|k| k.starts_with("send:")) {
+                        p.map.remove(k);
+                        p.send_sigs.remove(k);
+                    }
+                    drop(p);
+                    self.sync_sends();
+                }
+                if crashed.iter().any(|k| !k.starts_with("ch:") && !k.starts_with("send:")) {
                     let _g = self.ops.lock().unwrap();
                     let mut p = self.procs.lock().unwrap();
-                    for k in crashed.iter().filter(|k| !k.starts_with("ch:")) {
+                    for k in crashed.iter().filter(|k| !k.starts_with("ch:") && !k.starts_with("send:")) {
                         p.map.remove(k);
                     }
                     let s = self.snapshot();

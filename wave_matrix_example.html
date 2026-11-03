@@ -169,51 +169,78 @@
               </th>
 
               <!-- Column 1: My Mix (Headphones) -->
-              <th class="p-3 w-[210px] min-w-[190px] border-l border-[#22222a] relative">
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-emerald-400 text-[18px]">headphones</span>
-                  <div>
-                    <div class="text-xs font-bold text-white leading-tight">My Mix</div>
-                    <div class="text-[10px] text-[#71717a] font-mono">Headphone Monitor</div>
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+                <div class="flex items-center justify-between gap-1 mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-emerald-400 text-[18px]">headphones</span>
+                    <div>
+                      <div class="text-xs font-bold text-white leading-tight">My Mix</div>
+                      <div class="text-[10px] text-[#71717a] font-mono">Headphones</div>
+                    </div>
                   </div>
+                  <!-- Master Monitor Mute button -->
+                  <button class="w-6 h-6 rounded-lg bg-[#20202a] hover:bg-[#2c2c3a] text-emerald-400 flex items-center justify-center" title="Mute Master Headphone Feed">
+                    <span class="material-symbols-outlined text-[14px]">headphones</span>
+                  </button>
                 </div>
-                <!-- Lime Underline (Elgato Accent) -->
+                <!-- Per-Mix Hardware Output Selector -->
+                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-emerald-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for My Mix">
+                  <option selected>🎧 SteelSeries Arctis Nova (DAC)</option>
+                  <option>🔊 Desktop Speakers (Realtek)</option>
+                </select>
+                <!-- Lime Underline -->
                 <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-emerald-400"></div>
               </th>
 
               <!-- Column 2: Stream Mix -->
-              <th class="p-3 w-[210px] min-w-[190px] border-l border-[#22222a] relative">
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-purple-400 text-[18px]">sensors</span>
-                  <div>
-                    <div class="text-xs font-bold text-white leading-tight">Stream</div>
-                    <div class="text-[10px] text-[#71717a] font-mono">OBS Track 1</div>
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+                <div class="flex items-center justify-between gap-1 mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-purple-400 text-[18px]">sensors</span>
+                    <div>
+                      <div class="text-xs font-bold text-white leading-tight">Stream</div>
+                      <div class="text-[10px] text-[#71717a] font-mono">OBS Track 1</div>
+                    </div>
                   </div>
                 </div>
+                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-purple-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for Stream Mix">
+                  <option selected>📡 StudioMic_Stream_Mix (OBS)</option>
+                  <option>🔊 Hardware Monitor Mirror</option>
+                </select>
                 <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-purple-400"></div>
               </th>
 
               <!-- Column 3: Recording · VOD (DMCA Safe) -->
-              <th class="p-3 w-[210px] min-w-[190px] border-l border-[#22222a] relative">
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-amber-400 text-[18px]">movie</span>
-                  <div>
-                    <div class="text-xs font-bold text-white leading-tight">Recording · VOD</div>
-                    <div class="text-[10px] text-[#71717a] font-mono">Track 2 (DMCA Safe)</div>
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+                <div class="flex items-center justify-between gap-1 mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-400 text-[18px]">movie</span>
+                    <div>
+                      <div class="text-xs font-bold text-white leading-tight">Recording · VOD</div>
+                      <div class="text-[10px] text-[#71717a] font-mono">Track 2 (DMCA Safe)</div>
+                    </div>
                   </div>
                 </div>
+                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-amber-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for VOD Mix">
+                  <option selected>🎬 StudioMic_VOD_Mix (OBS Track 2)</option>
+                </select>
                 <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-amber-400"></div>
               </th>
 
               <!-- Column 4: Voice Chat (Discord) -->
-              <th class="p-3 w-[210px] min-w-[190px] border-l border-[#22222a] relative">
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-blue-400 text-[18px]">forum</span>
-                  <div>
-                    <div class="text-xs font-bold text-white leading-tight">Voice Chat</div>
-                    <div class="text-[10px] text-[#71717a] font-mono">Discord / Games</div>
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+                <div class="flex items-center justify-between gap-1 mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-400 text-[18px]">forum</span>
+                    <div>
+                      <div class="text-xs font-bold text-white leading-tight">Voice Chat</div>
+                      <div class="text-[10px] text-[#71717a] font-mono">Discord / Games</div>
+                    </div>
                   </div>
                 </div>
+                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-blue-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for Voice Chat">
+                  <option selected>👥 StudioMic_Voice_Out (Discord)</option>
+                </select>
                 <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-400"></div>
               </th>
 
@@ -548,11 +575,14 @@
       const sliderClass = colorType === 'chat' ? 'chat' : colorType === 'stream' ? 'stream' : '';
       
       td.innerHTML = `
-        <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-cyan-500/50 shadow-md shadow-cyan-500/10 transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
+        <div class="matrix-cell relative group/cell flex items-center gap-2 bg-[#1b1b24] px-2.5 py-2 rounded-2xl border border-cyan-500/50 shadow-md shadow-cyan-500/10 transition-all" title="Left-click mute · Drag volume · Click 'x' to remove">
           <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] ${colorClass} flex items-center justify-center hover:opacity-80 transition-all shrink-0">
             <span class="material-symbols-outlined text-[16px]">${icon}</span>
           </button>
           <input type="range" min="0" max="100" value="70" oninput="updateFader(this)" class="matrix-slider ${sliderClass} w-full">
+          <button onclick="deactivateCell(event, this.closest('.matrix-cell'))" class="w-4 h-4 rounded-full bg-[#2a2a38] hover:bg-rose-500 hover:text-white text-[#8e8e99] flex items-center justify-center transition-all opacity-40 hover:opacity-100 shrink-0" title="Remove from this mix">
+            <span class="material-symbols-outlined text-[10px]">close</span>
+          </button>
         </div>
       `;
       // brief highlight effect

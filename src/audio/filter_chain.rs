@@ -262,37 +262,110 @@ pub fn route_gains(mix: &ChannelMix, duck_db: f32, solo_active: bool) -> (f32, f
 pub fn bus_master_conf(p: &Plugins) -> String {
     let mut s = String::from(header());
     for (key, _class, desc, ceiling) in BUSES.iter() {
-        let (nodes, links, inputs, outputs) = match &p.lsp {
-            Some(lsp) => (
-                vec![format!(
-                    "{{ type = ladspa name = lim plugin = \"{}\" label = \"http://lsp-plug.in/plugins/ladspa/limiter_stereo\" control = {{ \"Threshold (G)\" = {:.6} \"Lookahead (ms)\" = 2.0 \"Attack time (ms)\" = 1.0 \"Release time (ms)\" = 20.0 \"Gain boost\" = 0 \"Automatic level regulation\" = 0 }} }}",
-                    lsp, lin(*ceiling)
-                )],
-                vec![],
-                vec!["lim:Input L".to_string(), "lim:Input R".to_string()],
-                vec!["lim:Output L".to_string(), "lim:Output R".to_string()],
-            ),
-            // No LSP: a builtin hard clamp at the ceiling, so the bus still never exceeds it.
-            None => (
-                vec![
-                    format!("{{ type = builtin name = l label = clamp control = {{ \"Min\" = {:.6} \"Max\" = {:.6} }} }}", -lin(*ceiling), lin(*ceiling)),
-                    format!("{{ type = builtin name = r label = clamp control = {{ \"Min\" = {:.6} \"Max\" = {:.6} }} }}", -lin(*ceiling), lin(*ceiling)),
-                ],
-                vec![],
-                vec!["l:In".to_string(), "r:In".to_string()],
-                vec!["l:Out".to_string(), "r:Out".to_string()],
-            ),
-        };
-        s.push_str(&filter_chain_module(
-            &format!("{} safety limiter ({:+.1} dB)", desc, ceiling),
-            &nodes,
-            &links,
-            &inputs,
-            &outputs,
-            &stream_props(&bus_sum(key), &format!("{} (mix input)", desc), "FL FR", ""),
-            &stream_props(&bus_lim(key), &format!("{} (limited)", desc), "FL FR", ""),
-        ));
+        s.push_str(&bus_limiter_module(p, key, desc, *ceiling));
     }
+    s.push_str("]\n");
+    s
+}
+
+/// One bus master: `StudioMic_<key>_Sum` -> safety limiter -> `StudioMic_<key>_Lim`.
+fn bus_limiter_module(p: &Plugins, key: &str, desc: &str, ceiling: f32) -> String {
+    let (nodes, inputs, outputs) = match &p.lsp {
+        Some(lsp) => (
+            vec![format!(
+                "{{ type = ladspa name = lim plugin = \"{}\" label = \"http://lsp-plug.in/plugins/ladspa/limiter_stereo\" control = {{ \"Threshold (G)\" = {:.6} \"Lookahead (ms)\" = 2.0 \"Attack time (ms)\" = 1.0 \"Release time (ms)\" = 20.0 \"Gain boost\" = 0 \"Automatic level regulation\" = 0 }} }}",
+                lsp, lin(ceiling)
+            )],
+            vec!["lim:Input L".to_string(), "lim:Input R".to_string()],
+            vec!["lim:Output L".to_string(), "lim:Output R".to_string()],
+        ),
+        // No LSP: a builtin hard clamp at the ceiling, so the bus still never exceeds it.
+        None => (
+            vec![
+                format!("{{ type = builtin name = l label = clamp control = {{ \"Min\" = {:.6} \"Max\" = {:.6} }} }}", -lin(ceiling), lin(ceiling)),
+                format!("{{ type = builtin name = r label = clamp control = {{ \"Min\" = {:.6} \"Max\" = {:.6} }} }}", -lin(ceiling), lin(ceiling)),
+            ],
+            vec!["l:In".to_string(), "r:In".to_string()],
+            vec!["l:Out".to_string(), "r:Out".to_string()],
+        ),
+    };
+    filter_chain_module(
+        &format!("{} safety limiter ({:+.1} dB)", desc, ceiling),
+        &nodes,
+        &[],
+        &inputs,
+        &outputs,
+        &stream_props(&bus_sum(key), &format!("{} (mix input)", desc), "FL FR", ""),
+        &stream_props(&bus_lim(key), &format!("{} (limited)", desc), "FL FR", ""),
+    )
+}
+
+// ---------------------------------------------------------------------------------------------
+// 1b. Sends: per-source live gain stages for custom mixes and the extra Voice Chat sources
+// ---------------------------------------------------------------------------------------------
+//
+// A send stage has one stereo gain pair per source. Its outputs are all linked into the SAME
+// target input ports, so PipeWire sums them; no in-graph mixer (builtin mixers stop at 8 inputs).
+// Routing a source in/out of a mix is just its gain (live), never a restart. Sources tap signal
+// that already exists: a channel sink's monitor ports (raw stereo), or the mic / Mic 2 meter taps.
+
+/// Bus key of a custom mix: `StudioMic_Mix_<id>`, `StudioMic_Mix_<id>_Sum`, `..._Lim`.
+pub fn mix_bus_key(id: &str) -> String { format!("Mix_{}", id) }
+/// Send stage nodes for a target ("voice" or a custom mix id).
+pub fn send_in(target: &str) -> String { format!("StudioMic_Send_{}_In", target) }
+pub fn send_out(target: &str) -> String { format!("StudioMic_Send_{}_Out", target) }
+/// Input / output port pair of source number `i` on a send stage.
+pub fn send_ports(i: usize) -> (String, String, String, String) {
+    (format!("input_AUX{}", 2 * i), format!("input_AUX{}", 2 * i + 1), format!("output_AUX{}", 2 * i), format!("output_AUX{}", 2 * i + 1))
+}
+
+/// Live controls of a send stage: `g_<source>_l/r:Gain 1`.
+pub fn send_controls(gains: &[(String, f32)]) -> Vec<(String, f32)> {
+    gains
+        .iter()
+        .flat_map(|(src, g)| [(format!("g_{}_l:Gain 1", src), *g), (format!("g_{}_r:Gain 1", src), *g)])
+        .collect()
+}
+
+fn send_module(target: &str, desc: &str, gains: &[(String, f32)]) -> String {
+    let c = send_controls(gains);
+    let mut nodes = Vec::new();
+    let mut inputs = Vec::new();
+    let mut outputs = Vec::new();
+    for (src, _) in gains {
+        for side in ["l", "r"] {
+            let n = format!("g_{}_{}", src, side);
+            nodes.push(mixer(&n, &controls_str(&c, &n)));
+            inputs.push(format!("{}:In 1", n));
+            outputs.push(format!("{}:Out", n));
+        }
+    }
+    let n = aux_positions(2 * gains.len());
+    filter_chain_module(
+        desc,
+        &nodes,
+        &[],
+        &inputs,
+        &outputs,
+        &stream_props(&send_in(target), &format!("{} (sources)", desc), &n, ""),
+        &stream_props(&send_out(target), &format!("{} (sends)", desc), &n, ""),
+    )
+}
+
+/// Mic 2 / hardware inputs -> Voice Chat. Feeds `StudioMic_Voice_Out_Sum` (the existing limiter).
+pub fn voice_send_conf(gains: &[(String, f32)]) -> String {
+    let mut s = String::from(header());
+    s.push_str(&send_module("voice", "Studio Mic · Voice Chat extra sources", gains));
+    s.push_str("]\n");
+    s
+}
+
+/// A user-created mix: sends -> `StudioMic_Mix_<id>_Sum` -> limiter (-1 dB) -> lingering bus.
+pub fn custom_mix_conf(p: &Plugins, id: &str, name: &str, gains: &[(String, f32)]) -> String {
+    let desc = format!("Studio Mic · {}", spa_string_safe(name));
+    let mut s = String::from(header());
+    s.push_str(&send_module(id, &desc, gains));
+    s.push_str(&bus_limiter_module(p, &mix_bus_key(id), &desc, -1.0));
     s.push_str("]\n");
     s
 }
@@ -771,6 +844,21 @@ mod tests {
         let conf = bus_master_conf(&Plugins { lsp: Some("/x/lsp.so".into()), ..Default::default() });
         assert_eq!(conf.matches("\"Gain boost\" = 0").count(), 4);
         assert_eq!(conf.matches("\"Automatic level regulation\" = 0").count(), 4);
+    }
+
+    #[test]
+    fn custom_mix_conf_has_sends_and_limiter() {
+        let p = Plugins { lsp: Some("/x/lsp.so".into()), ..Default::default() };
+        let gains = vec![("mic".to_string(), 1.0), ("music".to_string(), 0.0)];
+        let conf = custom_mix_conf(&p, "guest", "Guest \"Mix\"", &gains);
+        for needle in ["StudioMic_Send_guest_In", "StudioMic_Send_guest_Out", "StudioMic_Mix_guest_Sum", "StudioMic_Mix_guest_Lim",
+                       "name = g_music_r label = mixer", "\"g_mic_l:In 1\"", "\"g_music_r:Out\"", "AUX3", "\"Gain boost\" = 0", "Guest 'Mix'"] {
+            assert!(conf.contains(needle), "missing {}", needle);
+        }
+        assert!(conf.contains("\"Gain 1\" = 0.000000"), "unrouted source starts silent");
+        let v = voice_send_conf(&[("mic2".to_string(), 0.5)]);
+        assert!(v.contains("StudioMic_Send_voice_In") && !v.contains("_Lim"), "voice extras feed the existing Voice_Out limiter");
+        assert_eq!(send_ports(1).3, "output_AUX3");
     }
 
     #[test]

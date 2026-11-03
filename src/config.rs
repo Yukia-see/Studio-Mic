@@ -57,7 +57,40 @@ pub struct ChannelMix {
     pub voice_gain_db: f32,
     #[serde(default)]
     pub voice_muted: bool,
+    /// Voice Chat cell for Mic 2 and hardware-input channels (the main mic always feeds it;
+    /// app channels never do).
+    #[serde(default)]
+    pub voice_routed: bool,
+    /// Sends into user-created mixes: mix id -> cell. Present = routed into that mix.
+    #[serde(default)]
+    pub sends: std::collections::BTreeMap<String, SendCell>,
 }
+
+/// One routing-matrix cell of a custom mix.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct SendCell {
+    #[serde(default)]
+    pub gain_db: f32,
+    #[serde(default)]
+    pub muted: bool,
+}
+
+/// A user-created destination mix (its own lingering PipeWire bus, `StudioMic_Mix_<id>`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CustomMixConfig {
+    pub id: String,
+    pub name: String,
+    #[serde(default = "default_mix_icon")]
+    pub icon: String,
+    #[serde(default = "default_mix_color")]
+    pub color: String,
+    /// Physical output this mix also plays to (node.name); None = capture-only (OBS, apps).
+    #[serde(default)]
+    pub output_device: Option<String>,
+}
+
+fn default_mix_icon() -> String { "alt_route".into() }
+fn default_mix_color() -> String { "#22d3ee".into() }
 
 impl Default for ChannelMix {
     fn default() -> Self {
@@ -75,6 +108,8 @@ impl Default for ChannelMix {
             monitor_routed: true,
             voice_gain_db: 0.0,
             voice_muted: false,
+            voice_routed: false,
+            sends: Default::default(),
         }
     }
 }
@@ -513,6 +548,12 @@ pub struct StudioMicConfig {
     pub virtual_channels: Vec<VirtualChannelConfig>,
     #[serde(default)]
     pub dual_mic: DualMicConfig,
+    /// User-created destination mixes (routing matrix "+ Add Mix").
+    #[serde(default)]
+    pub custom_mixes: Vec<CustomMixConfig>,
+    /// Physical output per built-in mix ("stream", "vod", "voice"); My Mix uses `monitor_output`.
+    #[serde(default)]
+    pub mix_output_devices: std::collections::BTreeMap<String, String>,
 
     // 5. Application routing
     #[serde(default = "default_apps_mode")]
@@ -582,6 +623,8 @@ impl Default for StudioMicConfig {
             calibration: CalibrationConfig::default(),
             virtual_channels: default_channels(),
             dual_mic: DualMicConfig::default(),
+            custom_mixes: Vec::new(),
+            mix_output_devices: Default::default(),
             active_apps_mode: default_apps_mode(),
             assigned_channel_routes: default_assigned_routes(),
             sidetone_default: false,
@@ -776,6 +819,27 @@ impl StudioMicConfig {
                 ch.mix.autoduck = false;
             }
         }
+        let mut seen_mix = std::collections::HashSet::new();
+        self.custom_mixes.retain_mut(|m| {
+            m.id = sanitize_channel_id(&m.id);
+            if m.name.trim().is_empty() {
+                m.name = m.id.clone();
+            }
+            seen_mix.insert(m.id.clone())
+        });
+        let mix_ids: std::collections::HashSet<String> = self.custom_mixes.iter().map(|m| m.id.clone()).collect();
+        for m in self.virtual_channels.iter_mut().map(|c| &mut c.mix).chain([&mut self.mic.mix, &mut self.dual_mic.mix]) {
+            m.sends.retain(|id, _| mix_ids.contains(id));
+            for cell in m.sends.values_mut() {
+                cell.gain_db = clamp_gain(cell.gain_db);
+            }
+        }
+        self.mix_output_devices.retain(|k, v| ["stream", "vod", "voice"].contains(&k.as_str()) && !v.is_empty() && !v.starts_with("StudioMic_"));
+        for m in &mut self.custom_mixes {
+            if m.output_device.as_deref().is_some_and(|d| d.is_empty() || d.starts_with("StudioMic_")) {
+                m.output_device = None;
+            }
+        }
         clamp_mix(&mut self.mic.mix);
         clamp_mix(&mut self.dual_mic.mix);
         // The mic is never ducked.
@@ -835,6 +899,11 @@ impl StudioMicConfig {
             self.window_width = default_window_w();
             self.window_height = default_window_h();
         }
+    }
+
+    /// True for sources allowed into Voice Chat besides the main mic: Mic 2 and hardware inputs.
+    pub fn voice_eligible(&self, id: &str) -> bool {
+        id == "mic2" || self.channel(id).is_some_and(|c| c.kind == "hardware")
     }
 
     pub fn channel(&self, id: &str) -> Option<&VirtualChannelConfig> {
@@ -1099,6 +1168,24 @@ mod tests {
         let json = serde_json::to_string(&s).unwrap();
         assert!(serde_json::from_str::<StudioMicConfig>(&json).is_ok(), "state must reload");
         assert_eq!(s.calibration.preamp_gain_db, CalibrationConfig::default().preamp_gain_db);
+    }
+
+    #[test]
+    fn custom_mixes_and_sends_are_normalized() {
+        let mut s = StudioMicConfig::default();
+        s.custom_mixes.push(CustomMixConfig { id: "Guest Mix!".into(), name: "Guest Mix".into(), icon: "alt_route".into(), color: "#fff".into(), output_device: Some("StudioMic_Monitor_Mix".into()) });
+        s.mic.mix.sends.insert("guest_mix".into(), SendCell { gain_db: 40.0, muted: false });
+        s.mic.mix.sends.insert("deleted".into(), SendCell::default());
+        s.mix_output_devices.insert("stream".into(), "alsa_output.x".into());
+        s.mix_output_devices.insert("bogus".into(), "alsa_output.x".into());
+        s.normalize();
+        assert_eq!(s.custom_mixes[0].id, "guest_mix");
+        assert_eq!(s.custom_mixes[0].output_device, None, "a mix never plays into our own nodes");
+        assert_eq!(s.mic.mix.sends.len(), 1, "sends into deleted mixes are dropped");
+        assert_eq!(s.mic.mix.sends["guest_mix"].gain_db, 12.0);
+        assert_eq!(s.mix_output_devices.len(), 1);
+        assert!(s.voice_eligible("mic2") && !s.voice_eligible("game"));
+        assert!(s.virtual_channels.iter().filter(|c| c.kind == "hardware").all(|c| s.voice_eligible(&c.id)));
     }
 
     #[test]

@@ -106,24 +106,46 @@ In `mic-studio-mockup.html`, expand the view toggle on Tab 1 to include:
 - `[ 🎛️ Cards ]` (Current Normal view mode with waveforms)
 - `[ ⚡ Compact ]` (Simple minimalist sliders)
 
-### 3.2 2D Matrix Grid Structure
+### 3.2 2D Matrix Grid Structure & Monitoring Controls
 Implement `renderMixerMatrix()` in the v1 runtime script of `mic-studio-mockup.html`:
 - **Columns (Destinations)**:
-  1. `Audio Channels` (Source name, DSP badge, app chips)
+  1. `Audio Channels` (Source name, DSP badge, app chips, hardware input dropdowns)
   2. `🎧 My Mix` (`Monitor_Mix` / Headphones) &rarr; binds to `ch.mix.monitor_gain_db` and `ch.mix.monitor_muted`
   3. `📡 Stream` (`Stream_Mix` / OBS Track 1) &rarr; binds to `ch.mix.stream_gain_db` and `ch.mix.stream_muted`
   4. `🎬 Recording · VOD` (`VOD_Mix` / OBS Track 2 DMCA) &rarr; binds to `ch.mix.vod`
-  5. `👥 Voice Chat` (`Voice_Out` / Discord) &rarr; microphone feeds exclusively; background channels unrouted
-  6. **`+ ADD` Header Button**: Positioned directly beside `Voice Chat`, allows adding custom destination mix columns or virtual channels.
+  5. `👥 Voice Chat` (`Voice_Out` / Discord) &rarr; allows `Mic 1`, `Mic 2` (Second Microphone), and hardware input devices
+  6. **`+ Add Mix` Header Button**: Positioned directly beside `Voice Chat`, opens `openAddMixModal()` to create new destination output mixes/buses.
 
 - **Cross-Point Cell Interaction Design**:
   - **Active (Routed) State**:
     - **Mute Button**: Click toggles mute. In `Recording · VOD` (or when muted), displays a **glowing red badge** with `volume_off` and red-tinted cell background (signature Elgato DMCA protection styling).
     - **Fader Slider**: Horizontal slider with glowing real-time audio meter integrated into the slider track.
-    - **Right-Click to Remove**: Right-clicking an active cell deactivates that routing connection, restoring it to the blank `+` state.
+    - **Small `x` Remove Button**: A visible small `x` in the upper corner of each active cell to disconnect that channel from that mix with one click (right-click also supported).
   - **Inactive (Unrouted) State**:
     - Cell is **clean and blank with a centered `+` button**.
-    - **Left-Click to Activate**: Clicking the `+` activates that input for that mix, revealing the active fader and mute button.
+    - **Left-Click to Activate**: Clicking the `+` activates that input for that mix, revealing the active fader, mute button, and small `x`.
+
+- **Comprehensive Monitoring Controls**:
+  - **Master Monitor Controls (My Mix Header/Footer)**:
+    - Master Monitor Mute button: One-click master headphone mute toggle (`headphones` / `headset_off`), syncing with `s.monitor_muted`.
+    - Master Monitor Gain fader: Controls master headphone volume (`s.monitor_gain_db`), with 0.0 dB snap and dB readout.
+    - Output Device Selector: Dropdown to choose the physical DAC/headphones for `My Mix`.
+    - Real-time 2-way sync with OS multimedia keys via `pactl subscribe`.
+  - **Per-Channel Monitor Controls**:
+    - Every active channel under `My Mix` features its own channel monitor fader (`ch.mix.monitor_gain_db`) and mute button (`ch.mix.monitor_muted`).
+
+- **Universal `+ Add Channel` Access**:
+  - Add explicit `+ Add Channel` buttons at the bottom of the matrix channels list and on Tab 1's top controls to allow adding channels from any view.
+
+- **Voice Chat Second Microphone & Input Device Support**:
+  - In `src/audio/daemon.rs:desired_links`, route `MIC2_OUT` and any hardware input channel into `fc::bus_sum("Voice_Out")` when activated.
+  - In `mic-studio-mockup.html`, allow selecting a Hardware Input Device for the Voice Chat channel, and allow clicking `+` on `Mic 2` to route it into Voice Chat.
+
+- **Per-Mix Independent Hardware Output Device Routing**:
+  - Allow each mix (built-in or custom) to target a specific hardware audio output device (e.g., Headphones for games/voice on Mix 1, Desktop Speakers for music on Mix 2) rather than only sharing the default device.
+  - In `src/config.rs`: Persist `output_device: Option<String>` per custom mix, and `mix_output_devices: BTreeMap<String, Option<String>>`.
+  - In `src/audio/daemon.rs:desired_links`: If a mix has an assigned physical `output_device`, establish PipeWire stereo pairs directly between that mix bus's output ports and the target device's playback ports.
+  - In `mic-studio-mockup.html`: Display an Output Device selector dropdown in each mix column header, populated with all detected output sinks.
 
 ---
 
