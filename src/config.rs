@@ -765,7 +765,6 @@ impl StudioMicConfig {
         cfg.noise_clean.limiter_ceiling_db = -0.5;
         cfg.denoiser.engine = if cfg.noise_clean.deep_filter_enabled { "deepfilter".into() } else { "off".into() };
         cfg.denoiser.df_attenuation_db = cfg.noise_clean.deep_filter_attenuation_db;
-        cfg.denoiser.df_min_threshold_db = cfg.noise_clean.deep_filter_threshold_db;
 
         // Old channels had only id/name/icon: derive kind, apps and mixer defaults.
         let routes = cfg.assigned_channel_routes.clone();
@@ -828,6 +827,16 @@ impl StudioMicConfig {
         if !DENOISERS.contains(&self.denoiser.engine.as_str()) {
             self.denoiser.engine = "off".into();
         }
+        // Fine-tune values without a control any more are locked to their defaults, so an old
+        // setting can't linger where the user can no longer change it: DeepFilterNet's
+        // thresholds, RNNoise's retroactive grace, and the compressor's attack (10 ms) /
+        // release (80 ms) broadcast vocal timing.
+        let (dd, nd) = (DenoiserConfig::default(), NoiseCleanConfig::default());
+        self.denoiser.df_min_threshold_db = dd.df_min_threshold_db;
+        self.denoiser.df_max_erb_threshold_db = dd.df_max_erb_threshold_db;
+        self.denoiser.rn_retro_grace_ms = dd.rn_retro_grace_ms;
+        self.noise_clean.compressor_attack_ms = nd.compressor_attack_ms;
+        self.noise_clean.compressor_release_ms = nd.compressor_release_ms;
         if !["tab-mixer", "tab-eq", "tab-noise", "tab-calib"].contains(&self.last_tab.as_str()) {
             self.last_tab = default_last_tab();
         }
@@ -1341,6 +1350,21 @@ mod tests {
         s.ui_size = "large".into();
         s.normalize();
         assert_eq!(s.ui_size, "large");
+    }
+
+    #[test]
+    fn hidden_fine_tune_values_are_locked_to_defaults() {
+        let mut s = StudioMicConfig::default();
+        s.noise_clean.compressor_attack_ms = 45.0;
+        s.noise_clean.compressor_release_ms = 600.0;
+        s.denoiser.df_min_threshold_db = 20.0;
+        s.denoiser.df_max_erb_threshold_db = -5.0;
+        s.denoiser.rn_retro_grace_ms = 150.0;
+        s.noise_clean.deesser_amount_db = -9.0;
+        s.normalize();
+        assert_eq!((s.noise_clean.compressor_attack_ms, s.noise_clean.compressor_release_ms), (10.0, 80.0));
+        assert_eq!((s.denoiser.df_min_threshold_db, s.denoiser.df_max_erb_threshold_db, s.denoiser.rn_retro_grace_ms), (-15.0, 30.0, 0.0));
+        assert_eq!(s.noise_clean.deesser_amount_db, -9.0, "the de-esser amount is kept (calibration sets it)");
     }
 
     #[test]

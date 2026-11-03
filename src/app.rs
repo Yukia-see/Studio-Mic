@@ -609,11 +609,8 @@ impl Controller {
             let d = &mut s.denoiser;
             match name {
                 "df_attenuation_db" => d.df_attenuation_db = value,
-                "df_min_threshold_db" => d.df_min_threshold_db = value,
-                "df_max_erb_threshold_db" => d.df_max_erb_threshold_db = value,
                 "rn_vad_threshold" => d.rn_vad_threshold = value,
                 "rn_vad_grace_ms" => d.rn_vad_grace_ms = value,
-                "rn_retro_grace_ms" => d.rn_retro_grace_ms = value,
                 "speex_suppress_db" => d.speex_suppress_db = value,
                 _ => return Err(format!("unknown denoiser parameter '{}'", name)),
             }

@@ -840,40 +840,6 @@
             </button>
           </div>
 
-          <!-- Quick Tone Macro Knobs -->
-          <div class="bg-[var(--md-sys-color-surface-container-low)] p-5 rounded-[28px] border border-[var(--md-sys-color-outline-variant)] space-y-4">
-            <h4 class="text-xs font-bold text-[var(--md-sys-color-on-surface)]">Macro Quick Tone Adjusters</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              <div class="space-y-2">
-                <div class="flex justify-between text-xs">
-                  <span class="font-medium text-[var(--md-sys-color-on-surface)]">Vocal Warmth / Chest Body</span>
-                  <span id="val-warmth" class="font-bold text-[var(--md-sys-color-primary)]">+2.0 dB</span>
-                </div>
-                <input id="slider-warmth" type="range" min="-6" max="6" step="0.5" value="2" class="w-full m3-slider" oninput="updateMacro('warmth', this.value)">
-                <span class="text-[11px] text-[var(--md-sys-color-on-surface-variant)]">150Hz - 250Hz low-end tilt</span>
-              </div>
-
-              <div class="space-y-2">
-                <div class="flex justify-between text-xs">
-                  <span class="font-medium text-[var(--md-sys-color-on-surface)]">Speech Clarity / Presence</span>
-                  <span id="val-clarity" class="font-bold text-[var(--md-sys-color-primary)]">+3.5 dB</span>
-                </div>
-                <input id="slider-clarity" type="range" min="-6" max="6" step="0.5" value="3.5" class="w-full m3-slider" oninput="updateMacro('clarity', this.value)">
-                <span class="text-[11px] text-[var(--md-sys-color-on-surface-variant)]">2.5kHz - 4.5kHz consonant intelligibility</span>
-              </div>
-
-              <div class="space-y-2">
-                <div class="flex justify-between text-xs">
-                  <span class="font-medium text-[var(--md-sys-color-on-surface)]">Air Sheen / Polish</span>
-                  <span id="val-air" class="font-bold text-[var(--md-sys-color-primary)]">+1.5 dB</span>
-                </div>
-                <input id="slider-air" type="range" min="-6" max="6" step="0.5" value="1.5" class="w-full m3-slider" oninput="updateMacro('air', this.value)">
-                <span class="text-[11px] text-[var(--md-sys-color-on-surface-variant)]">10kHz - 16kHz studio sparkle</span>
-              </div>
-
-            </div>
-          </div>
         </div>
 
         <!-- SUB-VIEW B: 10-BAND FULL MANUAL PARAMETRIC MODE -->
@@ -1145,18 +1111,12 @@
               </div>
               <div class="flex justify-between text-[10px] text-cyan-200"><span>Attenuation Limit (dB)</span><span id="dn-df-atten-lbl" class="font-mono font-bold">80 dB</span></div>
               <input type="range" id="dn-df-atten" min="0" max="100" step="1" value="80" class="w-full m3-slider" oninput="onDenoiserParam('df_attenuation_db', this)">
-              <div class="flex justify-between text-[10px] text-cyan-200"><span>Min processing threshold (dB)</span><span id="dn-df-min-lbl" class="font-mono font-bold">-15 dB</span></div>
-              <input type="range" id="dn-df-min" min="-15" max="35" step="1" value="-15" class="w-full m3-slider" oninput="onDenoiserParam('df_min_threshold_db', this)">
-              <div class="flex justify-between text-[10px] text-cyan-200"><span>Max ERB processing threshold (dB)</span><span id="dn-df-erb-lbl" class="font-mono font-bold">30 dB</span></div>
-              <input type="range" id="dn-df-erb" min="-15" max="35" step="1" value="30" class="w-full m3-slider" oninput="onDenoiserParam('df_max_erb_threshold_db', this)">
             </div>
             <div id="dn-group-rnnoise" class="dn-group hidden space-y-2">
               <div class="flex justify-between text-[10px] text-cyan-200"><span>VAD Threshold (%)</span><span id="dn-rn-vad-lbl" class="font-mono font-bold">50 %</span></div>
               <input type="range" id="dn-rn-vad" min="0" max="99" step="1" value="50" class="w-full m3-slider" oninput="onDenoiserParam('rn_vad_threshold', this)">
               <div class="flex justify-between text-[10px] text-cyan-200"><span>VAD Grace Period (ms)</span><span id="dn-rn-grace-lbl" class="font-mono font-bold">200 ms</span></div>
               <input type="range" id="dn-rn-grace" min="0" max="1000" step="10" value="200" class="w-full m3-slider" oninput="onDenoiserParam('rn_vad_grace_ms', this)">
-              <div class="flex justify-between text-[10px] text-cyan-200"><span>Retroactive VAD Grace (ms)</span><span id="dn-rn-retro-lbl" class="font-mono font-bold">0 ms</span></div>
-              <input type="range" id="dn-rn-retro" min="0" max="200" step="10" value="0" class="w-full m3-slider" oninput="onDenoiserParam('rn_retro_grace_ms', this)">
             </div>
             <div id="dn-group-speex" class="dn-group hidden space-y-2">
               <div class="flex justify-between text-[10px] text-cyan-200"><span>Noise Suppression (dB)</span><span id="dn-sx-lbl" class="font-mono font-bold">-30 dB</span></div>
@@ -1246,11 +1206,8 @@
                 <input type="range" id="nc-deess-freq" min="4000" max="7500" step="100" value="5800" class="flex-1 m3-slider" oninput="ncLabel(); applyNoiseClean();">
                 <span id="nc-deess-freq-lbl" class="font-mono text-xs font-bold w-14 text-right text-amber-300">5.8 kHz</span>
               </div>
-              <div class="flex items-center justify-between text-xs pt-1">
-                <span class="text-[10px] text-amber-200">Reduction Amount</span>
-                <span id="nc-deess-amt-lbl" class="font-mono text-xs font-bold text-amber-300">-4.5 dB</span>
-              </div>
-              <input type="range" id="nc-deess-amt" min="-15" max="0" step="0.5" value="-4.5" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
+              <!-- Reduction amount has no slider (the threshold sets when it acts); Tab 4 calibration still sets it. -->
+              <input type="hidden" id="nc-deess-amt" value="-4.5">
               <div class="flex items-center justify-between text-xs pt-1">
                 <span class="text-[10px] text-amber-200">Threshold</span>
                 <span id="nc-deess-thresh-lbl" class="font-mono text-xs font-bold text-amber-300">-30 dB</span>
@@ -1304,16 +1261,7 @@
                 <span id="nc-comp-makeup-lbl" class="font-mono text-xs font-bold text-emerald-300">+3.5 dB</span>
               </div>
               <input type="range" id="nc-comp-makeup" min="0" max="10" step="0.5" value="3.5" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
-              <div class="flex items-center justify-between text-xs pt-1">
-                <span class="text-[10px] text-emerald-200">Attack</span>
-                <span id="nc-comp-attack-lbl" class="font-mono text-xs font-bold text-emerald-300">10 ms</span>
-              </div>
-              <input type="range" id="nc-comp-attack" min="0.5" max="100" step="0.5" value="10" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
-              <div class="flex items-center justify-between text-xs pt-1">
-                <span class="text-[10px] text-emerald-200">Release</span>
-                <span id="nc-comp-release-lbl" class="font-mono text-xs font-bold text-emerald-300">80 ms</span>
-              </div>
-              <input type="range" id="nc-comp-release" min="20" max="1000" step="10" value="80" class="w-full m3-slider" oninput="ncLabel(); applyNoiseClean();">
+              <p class="text-[10px] text-emerald-200/80 pt-1">Attack 10 ms · Release 80 ms (fixed broadcast vocal timing)</p>
             </div>
           </div>
 
@@ -1437,23 +1385,13 @@
             </div>
           </div>
 
-          <!-- Gain Reduction & Trimmer Control -->
-          <div class="p-4 rounded-[24px] bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <div>
-                <span class="font-bold text-[var(--md-sys-color-on-surface)]">Fine-Tune Trim:</span>
-                <p class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Adjust if room is noisy or voice is louder</p>
-              </div>
-              <span id="calib-trim-label" class="font-mono text-sm font-bold text-amber-400">0.0 dB</span>
+          <!-- Fine-tune trim: the top bar's Mic trim slider is the one control for it -->
+          <div class="p-4 rounded-[24px] bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div>
+              <span class="font-bold text-[var(--md-sys-color-on-surface)]">Fine-Tune Trim</span>
+              <p class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Calibration set your gain. To adjust it, use the Mic trim slider in the top bar.</p>
             </div>
-            
-            <input type="range" min="-12" max="6" step="0.5" value="0" class="w-full m3-slider" id="calib-trim-slider" oninput="adjustCalibTrim(this.value)">
-            
-            <div class="flex justify-between text-[10px] text-[var(--md-sys-color-on-surface-variant)] font-mono">
-              <span>-12.0 dB</span>
-              <span class="font-bold text-[var(--md-sys-color-success)]" id="effective-gain-text">Effective Gain: +3.0 dB</span>
-              <span>+6.0 dB</span>
-            </div>
+            <span class="font-mono text-sm font-bold text-[var(--md-sys-color-success)]" id="effective-gain-text">Effective Gain: +0.0 dB</span>
           </div>
 
           <!-- Save and Apply Buttons -->
@@ -2703,27 +2641,6 @@
       }
       renderManualBandsTable();
       renderMainEQCanvas();
-    }
-
-    function updateMacro(type, val) {
-      const numVal = parseFloat(val);
-      document.getElementById('val-' + type).textContent = (numVal > 0 ? '+' : '') + numVal.toFixed(1) + ' dB';
-      const bands = getActiveBands();
-
-      if (type === 'warmth') {
-        const b = bands.find(x => x.freq >= 120 && x.freq <= 250);
-        if (b) b.gain = numVal;
-      } else if (type === 'clarity') {
-        const b = bands.find(x => x.freq >= 2000 && x.freq <= 4500);
-        if (b) b.gain = numVal;
-      } else if (type === 'air') {
-        const b = bands.find(x => x.freq >= 9000);
-        if (b) b.gain = numVal;
-      }
-
-      renderMainEQCanvas();
-      renderManualBandsTable();
-      pushEQToPipeWire();
     }
 
     // Dynamic 10-Band EQ Management: Add, Remove, and Delete Bands
@@ -5197,6 +5114,11 @@
       const effText = document.getElementById('effective-gain-text');
       if (effText) effText.textContent = `Effective Gain: ${eff >= 0 ? '+' : ''}${eff.toFixed(1)} dB`;
       if (window.ipc) window.ipc.postMessage('calib_trim:' + eff.toFixed(1));
+      // Keep the top bar's Mic trim (the one trim control) in step.
+      if (window.__SAVED_CONFIG__ && typeof renderStrip === 'function') {
+        (window.__SAVED_CONFIG__.calibration = window.__SAVED_CONFIG__.calibration || {}).preamp_gain_db = eff;
+        renderStrip();
+      }
     }
 
     function saveCalibratedProfile() {
@@ -5788,9 +5710,7 @@
         const g = mxNum(c.monitor_gain_db, 0);
         extra = `<div class="mx-master">
           <button id="mx-master-mute" class="mx-mute ${c.monitor_muted ? 'on' : ''}" onclick="toggleMonitorMaster()" title="Master headphone mute"><span class="material-symbols-outlined">${c.monitor_muted ? 'headset_off' : 'headphones'}</span></button>
-          <input id="mx-master-gain" class="mx-slider" type="range" min="-60" max="12" step="0.5" value="${g}" title="Master headphone volume (double-click: 0 dB)"
-            oninput="mxMasterGain(this)" ondblclick="this.value=0; mxMasterGain(this)">
-          <span id="mx-master-read" class="mx-read">${fmtGain(g)}</span></div>`;
+          <span class="mx-read" title="Headphone volume: the Headphones fader in the top bar">${fmtGain(g)}</span></div>`;
       }
       const del = col.custom ? `<button class="mx-x" style="position:static" onclick="mxRemoveMix('${col.mix}')" title="Delete mix ${esc(col.name)}"><span class="material-symbols-outlined">close</span></button>` : '';
       return `<th style="--mx-c:${col.color}"><div class="mx-col"><span class="material-symbols-outlined text-[18px]" style="color:${col.color}">${col.icon}</span><div class="min-w-0 flex-1"><b>${esc(col.name)}</b><small>${esc(col.sub)}</small></div>${del}</div>
@@ -5866,15 +5786,6 @@
         const vr = document.querySelector(`[data-mx-read="${id}:vod"]`); if (vr) vr.textContent = `${fmtGain(v)} · follows Stream`;
       }
       throttled(`gain:${id}:${col}`, 30, () => post(msg));
-    }
-    function mxMasterGain(el) {
-      onMonitorMasterGain(el.value);
-      const r = document.getElementById('mx-master-read');
-      if (r) r.textContent = fmtGain(parseFloat(el.value));
-      const ss = document.getElementById('sm-mon-gain');
-      if (ss) ss.value = el.value;
-      const sr = document.getElementById('sm-mon-read');
-      if (sr) sr.textContent = fmtGain(parseFloat(el.value));
     }
     function mxSetOutput(key, dev) {
       const c = smCfg();
@@ -6086,6 +5997,8 @@
       if (r) r.textContent = `${v > 0 ? '+' : ''}${v.toFixed(1)} dB`;
       // Keep Tab 4's "effective gain" (base + its own trim) in step with this slider.
       try { baseAfterGain = v - (currentCalibTrim || 0); } catch (e) { }
+      const eff = document.getElementById('effective-gain-text');
+      if (eff) eff.textContent = `Effective Gain: ${v >= 0 ? '+' : ''}${v.toFixed(1)} dB`;
       throttled('calib_trim', 30, () => post('calib_trim:' + v.toFixed(1)));
     }
     function onStripMonitor(el) {
@@ -6093,9 +6006,7 @@
       onMonitorMasterGain(v);
       const r = document.getElementById('sm-mon-read');
       if (r) r.textContent = fmtGain(v);
-      const ms = document.getElementById('mx-master-gain');
-      if (ms) ms.value = v;
-      const mr = document.getElementById('mx-master-read');
+      const mr = document.querySelector('.mx-master .mx-read');
       if (mr) mr.textContent = fmtGain(v);
     }
     updateCompressorUI = function () {
@@ -6134,10 +6045,8 @@
     // ---------- master monitor ----------
     function renderMonitorMaster() {
       const c = smCfg();
-      // Matrix "My Mix" header copy of the master controls (the strip has the other).
-      const ms = document.getElementById('mx-master-gain');
-      if (ms && document.activeElement !== ms) ms.value = c.monitor_gain_db || 0;
-      const mr = document.getElementById('mx-master-read');
+      // Matrix "My Mix" header: mute + volume readout (the fader is in the top bar).
+      const mr = document.querySelector('.mx-master .mx-read');
       if (mr) mr.textContent = fmtGain(c.monitor_gain_db || 0);
       const mm = document.getElementById('mx-master-mute');
       if (mm) { mm.classList.toggle('on', !!c.monitor_muted); mm.firstElementChild.textContent = c.monitor_muted ? 'headset_off' : 'headphones'; }
@@ -6443,8 +6352,8 @@
       sel.value = d.engine || 'off';
       document.querySelectorAll('.dn-group').forEach(g => g.classList.toggle('hidden', g.id !== 'dn-group-' + sel.value));
       const set = (id, v, unit) => { const el = document.getElementById(id); if (el && v !== undefined) { el.value = v; const l = document.getElementById(id + '-lbl'); if (l) l.textContent = `${v} ${unit}`; } };
-      set('dn-df-atten', d.df_attenuation_db, 'dB'); set('dn-df-min', d.df_min_threshold_db, 'dB'); set('dn-df-erb', d.df_max_erb_threshold_db, 'dB');
-      set('dn-rn-vad', d.rn_vad_threshold, '%'); set('dn-rn-grace', d.rn_vad_grace_ms, 'ms'); set('dn-rn-retro', d.rn_retro_grace_ms, 'ms');
+      set('dn-df-atten', d.df_attenuation_db, 'dB');
+      set('dn-rn-vad', d.rn_vad_threshold, '%'); set('dn-rn-grace', d.rn_vad_grace_ms, 'ms');
       set('dn-sx', d.speex_suppress_db, 'dB');
       const st = document.getElementById('dn-status');
       if (st) st.textContent = (d.engine || 'off') === 'off' ? 'OFF' : 'ACTIVE';
@@ -6517,8 +6426,6 @@
       const g = id => document.getElementById(id);
       if (g('nc-gate-close-lbl') && g('nc-gate')) g('nc-gate-close-lbl').textContent = (parseFloat(g('nc-gate').value) - 7) + ' dB';
       if (g('nc-deess-thresh-lbl') && g('nc-deess-thresh')) g('nc-deess-thresh-lbl').textContent = g('nc-deess-thresh').value + ' dB';
-      if (g('nc-comp-attack-lbl') && g('nc-comp-attack')) g('nc-comp-attack-lbl').textContent = g('nc-comp-attack').value + ' ms';
-      if (g('nc-comp-release-lbl') && g('nc-comp-release')) g('nc-comp-release-lbl').textContent = g('nc-comp-release').value + ' ms';
     };
     const _smNcSetUI = ncSetUI;
     ncSetUI = function (nc) {
@@ -6526,8 +6433,6 @@
       const g = id => document.getElementById(id);
       if (nc) {
         if (g('nc-deess-thresh') && nc.deesser_threshold_db !== undefined) g('nc-deess-thresh').value = nc.deesser_threshold_db;
-        if (g('nc-comp-attack') && nc.compressor_attack_ms !== undefined) g('nc-comp-attack').value = nc.compressor_attack_ms;
-        if (g('nc-comp-release') && nc.compressor_release_ms !== undefined) g('nc-comp-release').value = nc.compressor_release_ms;
         if (g('nc-limiter-on')) g('nc-limiter-on').checked = (smCfg().mic || {}).clipguard !== false;
       }
       ncLabel();
@@ -6545,7 +6450,7 @@
         deesser_amount_db: num('nc-deess-amt', -4.5), deesser_threshold_db: num('nc-deess-thresh', -30),
         compressor_enabled: chk('nc-comp-on', true), compressor_threshold_db: num('nc-comp-thresh', -20),
         compressor_ratio: num('nc-comp-ratio', 3.5), compressor_makeup_db: num('nc-comp-makeup', 3.5),
-        compressor_attack_ms: num('nc-comp-attack', 10), compressor_release_ms: num('nc-comp-release', 80),
+        compressor_attack_ms: 10, compressor_release_ms: 80, // fixed (no controls)
         // No ceiling control in the UI: keep the saved value (CLI/profiles may set it).
         limiter_enabled: chk('nc-limiter-on', true), limiter_ceiling_db: ((smCfg().noise_clean || {}).limiter_ceiling_db ?? -0.5),
       });
