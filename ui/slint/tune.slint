@@ -1,0 +1,438 @@
+// Tab 3: Manual Fine-Tune. The seven processing stages of the mic chain, each with its switch and
+// sliders. Every change is live (pw-cli set-param on the running chain); only switching the
+// noise-remover engine swaps the chain. Rust side: src/ui_slint/tune.rs.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Icon, Label, Fader, Btn, Select, Switch } from "common.slint";
+
+export global Tune {
+    in property <bool> rumble-on;
+    in property <float> rumble-freq;
+    in property <bool> hiss-on;
+    in property <float> hiss-freq;
+    in property <int> engine;           // 0 DeepFilterNet, 1 RNNoise, 2 Speex, 3 off
+    in property <string> engine-status;
+    in property <float> df-atten;
+    in property <float> rn-vad;
+    in property <float> rn-grace;
+    in property <float> sx-suppress;
+    in property <bool> gate-on;
+    in property <float> gate-thr;
+    in property <float> gate-level;     // mic input, 0..1 on the -60..0 dB scale
+    in property <bool> gate-measuring;
+    in property <bool> deess-on;
+    in property <float> deess-freq;
+    in property <float> deess-thr;
+    in property <bool> comp-on;
+    in property <float> comp-ratio;
+    in property <float> comp-thr;
+    in property <float> comp-makeup;
+    in property <bool> limiter-on;
+
+    callback toggle(string);
+    callback set(string, float);
+    callback set-engine(int);
+    callback dn-param(string, float);
+    callback gate-autoset();
+    callback reset();
+}
+
+global TuneFmt {
+    pure public function hz(f: float) -> string {
+        return f >= 1000 ? (f / 1000).to-fixed(1) + " kHz" : round(f) + " Hz";
+    }
+    pure public function db(v: float, d: int) -> string {
+        return (v > 0 ? "+" : "") + v.to-fixed(d) + " dB";
+    }
+}
+
+// Label + live readout above a fader.
+component Knob inherits VerticalLayout {
+    in property <string> label;
+    in property <string> readout;
+    in property <float> minimum;
+    in property <float> maximum;
+    in property <float> step: 1;
+    in property <float> model-value;
+    in property <bool> enabled: true;
+    in property <color> accent: Theme.primary;
+    out property <float> value: f.value;
+    callback moved(float);
+    spacing: 2 * Theme.u;
+    HorizontalLayout {
+        Label {
+            text: root.label;
+            size: 10.5;
+            color: Theme.on-surface-variant;
+            horizontal-stretch: 1;
+        }
+        Label {
+            text: root.readout;
+            size: 10.5;
+            mono: true;
+            font-weight: 700;
+            color: root.enabled ? Theme.on-surface : Theme.on-surface-variant;
+            overflow: clip;
+        }
+    }
+    f := Fader {
+        minimum: root.minimum;
+        maximum: root.maximum;
+        step: root.step;
+        model-value: root.model-value;
+        enabled: root.enabled;
+        accent: root.accent;
+        moved(v) => { root.moved(v); }
+    }
+}
+
+component Stage inherits Rectangle {
+    in property <string> glyph;
+    in property <string> title;
+    in property <string> body;
+    in property <bool> switchable: true;
+    in property <bool> on: true;
+    callback toggled;
+    border-radius: 18 * Theme.u;
+    background: Theme.surface-mid;
+    border-width: 1px;
+    border-color: on ? Theme.outline : Theme.outline.with-alpha(0.5);
+    VerticalLayout {
+        padding: 12 * Theme.u;
+        spacing: 8 * Theme.u;
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Rectangle {
+                width: 30 * Theme.u;
+                height: self.width;
+                border-radius: 9 * Theme.u;
+                background: root.on ? Theme.primary.with-alpha(0.15) : Theme.surface-highest;
+                Icon {
+                    glyph: root.glyph;
+                    size: 18;
+                    color: root.on ? Theme.primary : Theme.on-surface-variant;
+                }
+            }
+            Label {
+                text: root.title;
+                size: 13;
+                font-weight: 700;
+                horizontal-stretch: 1;
+            }
+            if root.switchable: Switch {
+                y: (parent.height - self.height) / 2;
+                on: root.on;
+                label: root.title;
+                toggled => { root.toggled(); }
+            }
+        }
+        Label {
+            text: root.body;
+            size: 10.5;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+        }
+        @children
+    }
+}
+
+component RumbleStage inherits Stage {
+    glyph: "\u{e1b8}"; // graphic_eq
+    title: "1. Low Rumble Filter";
+    body: "Cuts desk bumps, boom-arm handling and air-conditioning rumble below your voice.";
+    on: Tune.rumble-on;
+    toggled => { Tune.toggle("rumble"); }
+    Knob {
+        label: "Cutoff";
+        readout: TuneFmt.hz(self.value);
+        minimum: 40;
+        maximum: 200;
+        step: 5;
+        model-value: Tune.rumble-freq;
+        enabled: Tune.rumble-on;
+        moved(v) => { Tune.set("rumble_freq", v); }
+    }
+}
+
+component HissStage inherits Stage {
+    glyph: "\u{ef4f}"; // filter_alt
+    title: "2. Hiss Filter";
+    body: "Rolls off preamp hiss and USB buzz above the range that makes speech clear.";
+    on: Tune.hiss-on;
+    toggled => { Tune.toggle("hiss"); }
+    Knob {
+        label: "Cutoff";
+        readout: TuneFmt.hz(self.value);
+        minimum: 8000;
+        maximum: 20000;
+        step: 500;
+        model-value: Tune.hiss-freq;
+        enabled: Tune.hiss-on;
+        moved(v) => { Tune.set("hiss_freq", v); }
+    }
+}
+
+component NoiseStage inherits Stage {
+    glyph: "\u{ea4a}"; // psychology
+    title: "3. Noise Remover";
+    body: "Only the selected engine runs. Switching swaps the chain with a short crossfade, so Discord and OBS never disconnect.";
+    switchable: false;
+    on: Tune.engine != 3;
+    HorizontalLayout {
+        spacing: 8 * Theme.u;
+        Select {
+            horizontal-stretch: 1;
+            height: 30 * Theme.u;
+            options: ["DeepFilterNet · best quality, heavier", "RNNoise · light, low latency", "Speex", "Off"];
+            current: Tune.engine;
+            tooltip: "Noise remover engine";
+            selected(i) => { Tune.set-engine(i); }
+        }
+        if Tune.engine-status != "": Label {
+            text: Tune.engine-status;
+            size: 9.5;
+            mono: true;
+            font-weight: 800;
+            color: Theme.ok;
+        }
+    }
+    if Tune.engine == 0: Label {
+        text: "Adds about 30 ms of voice latency and uses the most CPU. If you hear dropouts or delay, use RNNoise.";
+        size: 10;
+        color: Theme.hot;
+        wrap: word-wrap;
+    }
+    if Tune.engine == 0: Knob {
+        label: "Attenuation limit";
+        readout: round(self.value) + " dB";
+        minimum: 0;
+        maximum: 100;
+        model-value: Tune.df-atten;
+        moved(v) => { Tune.dn-param("df_attenuation_db", v); }
+    }
+    if Tune.engine == 1: Knob {
+        label: "Voice detection threshold";
+        readout: round(self.value) + " %";
+        minimum: 0;
+        maximum: 99;
+        model-value: Tune.rn-vad;
+        moved(v) => { Tune.dn-param("rn_vad_threshold", v); }
+    }
+    if Tune.engine == 1: Knob {
+        label: "Voice detection grace";
+        readout: round(self.value) + " ms";
+        minimum: 0;
+        maximum: 1000;
+        step: 10;
+        model-value: Tune.rn-grace;
+        moved(v) => { Tune.dn-param("rn_vad_grace_ms", v); }
+    }
+    if Tune.engine == 2: Knob {
+        label: "Suppression";
+        readout: round(self.value) + " dB";
+        minimum: -60;
+        maximum: -1;
+        model-value: Tune.sx-suppress;
+        moved(v) => { Tune.dn-param("speex_suppress_db", v); }
+    }
+}
+
+component GateStage inherits Stage {
+    glyph: "\u{effe}"; // door_sliding
+    title: "4. Smart Gate";
+    body: "Opens at the threshold and closes 7 dB lower after 250 ms, so keyboards don't make it chatter and word endings survive. It only listens to 150 Hz - 3.5 kHz.";
+    on: Tune.gate-on;
+    toggled => { Tune.toggle("gate"); }
+    // Live mic level with the open (solid) and close (faint) points.
+    Rectangle {
+        height: 10 * Theme.u;
+        border-radius: self.height / 2;
+        background: Theme.surface-highest;
+        clip: true;
+        Rectangle {
+            x: 0;
+            width: parent.width * clamp(Tune.gate-level, 0, 1);
+            background: Tune.gate-level >= (gk.value + 60) / 60 ? Theme.ok : Theme.on-surface-variant.with-alpha(0.5);
+            animate width { duration: 70ms; }
+        }
+        Rectangle {
+            x: parent.width * clamp((gk.value + 60) / 60, 0, 1);
+            width: 2px;
+            background: Theme.primary;
+        }
+        Rectangle {
+            x: parent.width * clamp((gk.value - 7 + 60) / 60, 0, 1);
+            width: 1px;
+            background: Theme.primary.with-alpha(0.5);
+        }
+    }
+    gk := Knob {
+        label: "Opens at (closes 7 dB lower)";
+        readout: round(self.value) + " / " + round(self.value - 7) + " dB";
+        minimum: -70;
+        maximum: -15;
+        model-value: Tune.gate-thr;
+        enabled: Tune.gate-on;
+        moved(v) => { Tune.set("gate_threshold_db", v); }
+    }
+    HorizontalLayout {
+        alignment: start;
+        Btn {
+            text: Tune.gate-measuring ? "Type now, without speaking..." : "Auto-Set (3 s keyboard test)";
+            glyph: "\u{e312}"; // keyboard
+            enabled: !Tune.gate-measuring;
+            clicked => { Tune.gate-autoset(); }
+        }
+    }
+}
+
+component DeessStage inherits Stage {
+    glyph: "\u{e91f}"; // record_voice_over
+    title: "5. De-Esser";
+    body: "Tames sharp S, Z, T and CH sounds only when they cross the threshold.";
+    on: Tune.deess-on;
+    toggled => { Tune.toggle("deess"); }
+    Knob {
+        label: "Frequency";
+        readout: TuneFmt.hz(self.value);
+        minimum: 4000;
+        maximum: 7500;
+        step: 100;
+        model-value: Tune.deess-freq;
+        enabled: Tune.deess-on;
+        moved(v) => { Tune.set("deesser_freq", v); }
+    }
+    Knob {
+        label: "Threshold";
+        readout: round(self.value) + " dB";
+        minimum: -60;
+        maximum: 0;
+        model-value: Tune.deess-thr;
+        enabled: Tune.deess-on;
+        moved(v) => { Tune.set("deesser_threshold_db", v); }
+    }
+}
+
+component CompStage inherits Stage {
+    glyph: "\u{e94d}"; // compress
+    title: "6. Compressor";
+    body: "Evens out whispers and shouts, then adds makeup gain. Attack 10 ms, release 80 ms.";
+    on: Tune.comp-on;
+    toggled => { Tune.toggle("comp"); }
+    Knob {
+        label: "Ratio";
+        readout: self.value.to-fixed(1) + ":1";
+        minimum: 1.5;
+        maximum: 6;
+        step: 0.5;
+        model-value: Tune.comp-ratio;
+        enabled: Tune.comp-on;
+        accent: Theme.mon-accent;
+        moved(v) => { Tune.set("compressor_ratio", v); }
+    }
+    Knob {
+        label: "Threshold";
+        readout: TuneFmt.db(self.value, 0);
+        minimum: -35;
+        maximum: -10;
+        model-value: Tune.comp-thr;
+        enabled: Tune.comp-on;
+        accent: Theme.mon-accent;
+        moved(v) => { Tune.set("compressor_threshold_db", v); }
+    }
+    Knob {
+        label: "Makeup gain";
+        readout: TuneFmt.db(self.value, 1);
+        minimum: 0;
+        maximum: 10;
+        step: 0.5;
+        model-value: Tune.comp-makeup;
+        enabled: Tune.comp-on;
+        accent: Theme.mon-accent;
+        moved(v) => { Tune.set("compressor_makeup_db", v); }
+    }
+}
+
+component LimiterStage inherits Stage {
+    glyph: "\u{e25a}"; // vertical_align_top
+    title: "7. Clipguard";
+    body: "Brickwall limiter at -0.5 dB. If the raw input clips, the hardware level steps down (up to -6 dB) and is made up digitally; switching Clipguard off restores it.";
+    on: Tune.limiter-on;
+    toggled => { Tune.toggle("limiter"); }
+}
+
+export component TuneView inherits Rectangle {
+    property <bool> two: self.width > 860 * Theme.u;
+    border-radius: 22 * Theme.u;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    clip: true;
+    ScrollView {
+        x: 10 * Theme.u;
+        y: 10 * Theme.u;
+        width: parent.width - 20 * Theme.u;
+        height: parent.height - 20 * Theme.u;
+        content-width: self.visible-width;
+        content-height: body.preferred-height + 10 * Theme.u;
+        body := VerticalLayout {
+            width: parent.width - 12px;
+            spacing: 10 * Theme.u;
+            alignment: start;
+            HorizontalLayout {
+                spacing: 10 * Theme.u;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: center;
+                    Label {
+                        text: "Manual Fine-Tune";
+                        size: 15;
+                        font-weight: 700;
+                    }
+                    Label {
+                        text: "Every slider changes the running chain in place: nothing restarts or disconnects while you adjust.";
+                        size: 10.5;
+                        color: Theme.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                }
+                Btn {
+                    text: "Reset";
+                    glyph: "\u{f053}"; // restart_alt
+                    y: (parent.height - self.height) / 2;
+                    clicked => { Tune.reset(); }
+                }
+            }
+            if root.two: HorizontalLayout {
+                spacing: 10 * Theme.u;
+                VerticalLayout {
+                    spacing: 10 * Theme.u;
+                    alignment: start;
+                    horizontal-stretch: 1;
+                    RumbleStage { }
+                    HissStage { }
+                    NoiseStage { }
+                    GateStage { }
+                }
+                VerticalLayout {
+                    spacing: 10 * Theme.u;
+                    alignment: start;
+                    horizontal-stretch: 1;
+                    DeessStage { }
+                    CompStage { }
+                    LimiterStage { }
+                }
+            }
+            if !root.two: VerticalLayout {
+                spacing: 10 * Theme.u;
+                RumbleStage { }
+                HissStage { }
+                NoiseStage { }
+                GateStage { }
+                DeessStage { }
+                CompStage { }
+                LimiterStage { }
+            }
+        }
+    }
+}

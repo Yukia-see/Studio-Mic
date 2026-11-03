@@ -10,6 +10,7 @@ slint::include_modules!();
 
 mod eq;
 mod matrix;
+mod tune;
 
 use crate::app::{Controller, UiPush};
 use crate::audio::daemon::Engine;
@@ -101,6 +102,7 @@ pub fn run(
         throttles: RefCell::new(HashMap::new()),
         mx: Default::default(),
         eq: Default::default(),
+        tune: Default::default(),
         visible: Cell::new(false),
         mic_missing: Cell::new(false),
         notice_timer: slint::Timer::default(),
@@ -116,6 +118,7 @@ pub fn run(
     wire_callbacks(&ctx);
     matrix::wire(&ctx);
     eq::wire(&ctx);
+    tune::wire(&ctx);
     ctx.refresh_state();
 
     win.window().set_size(slint::LogicalSize::new(cfg.window_width as f32, cfg.window_height as f32));
@@ -186,6 +189,7 @@ struct Ctx {
     throttles: RefCell<HashMap<String, Rc<Throttle>>>,
     mx: matrix::MatrixState,
     eq: eq::EqState,
+    tune: tune::TuneState,
     visible: Cell<bool>,
     mic_missing: Cell<bool>,
     notice_timer: slint::Timer,
@@ -409,6 +413,7 @@ impl Ctx {
         }
         self.refresh_matrix(&s);
         self.refresh_eq(&s);
+        self.refresh_tune(&s);
         drop(s);
         self.refresh_levels();
     }
@@ -447,6 +452,7 @@ impl Ctx {
             }
         }
         self.refresh_matrix_meters(&s);
+        self.refresh_tune_level();
     }
 
     fn peak(&self, key: &str) -> f32 {
@@ -795,6 +801,30 @@ mod snapshot {
         win.global::<Nav>().set_tab(1);
         shot(&window, &dir, "eq-1400x900", 1400, 900, 1.0);
         shot(&window, &dir, "eq-775x860@1.6", 1240, 1376, 1.6);
+        let t = win.global::<Tune>();
+        let nc = crate::config::NoiseCleanConfig::default();
+        t.set_rumble_on(true);
+        t.set_rumble_freq(nc.rumble_freq);
+        t.set_hiss_on(false);
+        t.set_hiss_freq(nc.hiss_freq);
+        t.set_engine(1);
+        t.set_engine_status("ACTIVE".into());
+        t.set_rn_vad(50.0);
+        t.set_rn_grace(200.0);
+        t.set_gate_on(true);
+        t.set_gate_thr(-40.0);
+        t.set_gate_level(0.45);
+        t.set_deess_on(true);
+        t.set_deess_freq(5800.0);
+        t.set_deess_thr(-30.0);
+        t.set_comp_on(true);
+        t.set_comp_ratio(3.5);
+        t.set_comp_thr(-20.0);
+        t.set_comp_makeup(3.5);
+        t.set_limiter_on(true);
+        win.global::<Nav>().set_tab(2);
+        shot(&window, &dir, "tune-1400x900", 1400, 900, 1.0);
+        shot(&window, &dir, "tune-775x860@1.6", 1240, 1376, 1.6);
         win.global::<Nav>().set_tab(0);
         win.global::<Matrix>().set_empty(true);
         shot(&window, &dir, "main-1400x900-empty", 1400, 900, 1.0);

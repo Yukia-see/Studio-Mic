@@ -525,3 +525,32 @@ export component Select inherits Rectangle {
         }
     }
 }
+
+// On/off switch.
+export component Switch inherits Rectangle {
+    in property <bool> on;
+    in property <string> label;
+    callback toggled;
+    width: 36 * Theme.u;
+    height: 20 * Theme.u;
+    border-radius: self.height / 2;
+    background: on ? Theme.primary : Theme.surface-highest;
+    border-width: on ? 0 : 1px;
+    border-color: Theme.outline;
+    accessible-role: switch;
+    accessible-checked: on;
+    accessible-label: label;
+    Rectangle {
+        x: root.on ? parent.width - self.width - 3 * Theme.u : 3 * Theme.u;
+        y: (parent.height - self.height) / 2;
+        width: root.height - 6 * Theme.u;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: root.on ? Theme.on-primary : Theme.on-surface-variant;
+        animate x { duration: 120ms; }
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}

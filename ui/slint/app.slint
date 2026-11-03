@@ -10,10 +10,12 @@
 import { Theme, Level, PillData, BadgeData, Icon, Label, Fader, Meter, StatusDot, MuteButton, Chip, Pill, ToolButton, Fmt } from "common.slint";
 import { MatrixView, SimpleView, Matrix, Overlays } from "matrix.slint";
 import { EqView, Eq } from "eq.slint";
+import { TuneView, Tune } from "tune.slint";
 
 export { Theme, Level, PillData, BadgeData } from "common.slint";
 export { Matrix } from "matrix.slint";
 export { Eq } from "eq.slint";
+export { Tune } from "tune.slint";
 
 // Pills flow into as many columns as fit (Slint has no flex-wrap, so this places them on a grid).
 component PillGrid inherits Rectangle {
@@ -494,7 +496,8 @@ export component MainWindow inherits Window {
         if root.tab == 0 && !Nav.simple: MatrixView { vertical-stretch: 1; }
         if root.tab == 0 && Nav.simple: SimpleView { vertical-stretch: 1; }
         if root.tab == 1: EqView { vertical-stretch: 1; }
-        if root.tab > 1: Rectangle {
+        if root.tab == 2: TuneView { vertical-stretch: 1; }
+        if root.tab > 2: Rectangle {
             vertical-stretch: 1;
             border-radius: 22 * Theme.u;
             background: Theme.surface-low;
@@ -512,7 +515,7 @@ export component MainWindow inherits Window {
                     wrap: word-wrap;
                 }
                 Label {
-                    text: "Until then, start Studio Mic with --ui-backend web for Fine-Tune and Test & Optimize.";
+                    text: "Until then, start Studio Mic with --ui-backend web for Test & Optimize.";
                     size: 12;
                     color: Theme.on-surface-variant;
                     horizontal-alignment: center;

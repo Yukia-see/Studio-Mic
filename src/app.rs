@@ -224,6 +224,8 @@ impl Controller {
                         serde_json::to_string(&active).unwrap(),
                         serde_json::to_string(&msg).unwrap()
                     ));
+                    self.push(UiPush::Notice(msg));
+                    self.push(UiPush::State);
                 }
                 Job::Monitor => e.apply_monitor_master(),
                 // Channel and Mic 2 changes alter the send stages' source lists too.
@@ -290,10 +292,13 @@ impl Controller {
                 self.push(UiPush::Plugins(json));
             }
             EngineEvent::Notice(msg) => self.notice(msg),
-            EngineEvent::GateMeasured(None) => self.js(
-                "window.onGateAutoSetFailed && window.onGateAutoSetFailed('No signal from the microphone: check that it is plugged in and selected. The gate was not changed.')"
-                    .into(),
-            ),
+            EngineEvent::GateMeasured(None) => {
+                self.js(
+                    "window.onGateAutoSetFailed && window.onGateAutoSetFailed('No signal from the microphone: check that it is plugged in and selected. The gate was not changed.')"
+                        .into(),
+                );
+                self.push(UiPush::Notice("No signal from the microphone: check that it is plugged in and selected. The gate was not changed.".into()));
+            }
             EngineEvent::GateMeasured(Some(peak_db)) => {
                 // +4 dB above the loudest keystroke; with 7 dB hysteresis the clicks stay shut out.
                 let thr = (peak_db + 4.0).clamp(-70.0, -15.0);
@@ -304,6 +309,13 @@ impl Controller {
                 });
                 self.enqueue(Job::Dsp);
                 self.js(format!("window.onGateAutoSet && window.onGateAutoSet({:.1}, {:.1})", peak_db, thr.round()));
+                self.push(UiPush::Notice(format!(
+                    "Typing peaked at {:.1} dB → gate opens at {:.0} dB, closes at {:.0} dB",
+                    peak_db,
+                    thr.round(),
+                    thr.round() - crate::audio::filter_chain::GATE_HYSTERESIS_DB
+                )));
+                self.push(UiPush::State);
             }
             EngineEvent::MicMissing(missing) => {
                 self.js(format!("window.setMicMissing && window.setMicMissing({})", missing));
