@@ -14,8 +14,11 @@ const MAX_BANDS: usize = 10;
 const GAIN_RANGE: f32 = 18.0;
 const EDIT_HOLD: Duration = Duration::from_millis(600);
 
+/// (type, frequency Hz, gain dB, Q).
+type BandSpec = (FilterType, f32, f32, f32);
+
 /// Style presets (same curves as the HTML UI's community presets).
-const STYLES: [(&str, &[(FilterType, f32, f32, f32)]); 3] = {
+const STYLES: [(&str, &[BandSpec]); 3] = {
     use FilterType::*;
     [
         ("Warm Radio Host Depth", &[

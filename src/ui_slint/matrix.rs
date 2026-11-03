@@ -780,7 +780,7 @@ impl Ctx {
             .take(100)
             .map(|a| {
                 let key = app_key(&a.binary, &a.app_name, &a.name);
-                let elsewhere = s.virtual_channels.iter().find(|c| c.id != id && c.apps.iter().any(|x| *x == key));
+                let elsewhere = s.virtual_channels.iter().find(|c| c.id != id && c.apps.contains(&key));
                 AppItem {
                     here: here(&key),
                     label: a.name.as_str().into(),
@@ -863,10 +863,8 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
     m.on_rename(cb!(|c, i, name| {
         let v = name.trim().to_string();
         let row = c.mx.rows.row_data(i as usize);
-        if let Some(row) = row {
-            if !v.is_empty() && v != row.name.as_str() {
-                c.post(format!("channel_rename:{}:{}", row.id, v));
-            }
+        if let Some(row) = row.filter(|r| !v.is_empty() && v != r.name.as_str()) {
+            c.post(format!("channel_rename:{}:{}", row.id, v));
         }
     }));
     m.on_remove_channel(cb!(|c, i| {
@@ -900,10 +898,12 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
         let v = name.trim().to_string();
         let key = c.mx.col_keys.borrow().get(j as usize).cloned();
         let old = c.mx.cols.row_data(j as usize).map(|x| x.name.to_string());
-        if let (Some(id), Some(old)) = (key.as_deref().map(|k| k.strip_prefix("x_").unwrap_or(k)), old) {
-            if !v.is_empty() && v != old {
-                c.post(format!("mix_rename:{id}:{v}"));
+        let id = key.as_deref().map(|k| k.strip_prefix("x_").unwrap_or(k));
+        if let (Some(id), Some(old)) = (id, old) {
+            if v.is_empty() || v == old {
+                return;
             }
+            c.post(format!("mix_rename:{id}:{v}"));
         }
     }));
     m.on_unhide(cb!(|c, i| {
