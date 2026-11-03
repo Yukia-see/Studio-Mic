@@ -22,7 +22,7 @@ use slint::{ComponentHandle, Model, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, LazyLock};
 use std::time::{Duration, Instant};
 
@@ -65,6 +65,8 @@ pub fn run(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // UI messages run on their own thread, in order (several query PipeWire for 50-300 ms).
     let (tx, rx) = mpsc::channel::<String>();
+    // Messages handled so far; quitting waits until it catches up with what was sent.
+    let handled = Arc::new(AtomicU64::new(0));
     {
         // Device and app lists for the matrix pickers (the webview gets them baked into the page).
         let c = controller.clone();
@@ -74,11 +76,14 @@ pub fn run(
             c.push_installed_apps();
         })?;
         let c = controller.clone();
+        let done = handled.clone();
         std::thread::Builder::new().name("ui-messages".into()).spawn(move || {
             while let Ok(first) = rx.recv() {
                 c.handle_ui(&first);
+                done.fetch_add(1, Ordering::SeqCst);
                 while let Ok(more) = rx.try_recv() {
                     c.handle_ui(&more);
+                    done.fetch_add(1, Ordering::SeqCst);
                 }
                 push(UiPush::State);
             }
@@ -92,6 +97,8 @@ pub fn run(
         controller,
         engine,
         tx,
+        sent: Arc::new(AtomicU64::new(0)),
+        handled,
         tray,
         shutdown: RefCell::new(Some(shutdown)),
         pills: Rc::new(VecModel::default()),
@@ -165,6 +172,7 @@ pub fn run(
     }
 
     slint::run_event_loop_until_quit()?;
+    ctx.flush_messages();
     ctx.run_shutdown();
     CTX.with(|c| c.borrow_mut().take());
     Ok(())
@@ -187,6 +195,8 @@ struct Ctx {
     controller: Arc<Controller>,
     engine: Arc<Engine>,
     tx: mpsc::Sender<String>,
+    sent: Arc<AtomicU64>,
+    handled: Arc<AtomicU64>,
     tray: Option<TrayHandle>,
     shutdown: RefCell<Option<Box<dyn FnMut()>>>,
     pills: Rc<VecModel<PillData>>,
@@ -214,7 +224,24 @@ const SIZES: [&str; 3] = ["small", "medium", "large"];
 
 impl Ctx {
     fn post(&self, msg: impl Into<String>) {
-        let _ = self.tx.send(msg.into());
+        if self.tx.send(msg.into()).is_ok() {
+            self.sent.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    /// Before quitting: sends what the throttles still hold back (the end of a fader drag) and
+    /// waits until the backend has applied every message, so the final state flush saves it.
+    fn flush_messages(&self) {
+        for t in self.throttles.borrow().values() {
+            t.timer.stop();
+            if let Some(m) = t.pending.borrow_mut().take() {
+                self.post(m);
+            }
+        }
+        let until = Instant::now() + Duration::from_secs(2);
+        while self.handled.load(Ordering::SeqCst) < self.sent.load(Ordering::SeqCst) && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(5));
+        }
     }
 
     fn throttled(&self, key: impl Into<String>, msg: String) {
@@ -234,12 +261,14 @@ impl Ctx {
         }
         *t.pending.borrow_mut() = Some(msg);
         if !t.timer.running() {
-            let tx = self.tx.clone();
+            let (tx, sent) = (self.tx.clone(), self.sent.clone());
             let t2 = t.clone();
             t.timer.start(slint::TimerMode::SingleShot, THROTTLE.saturating_sub(since), move || {
                 if let Some(m) = t2.pending.borrow_mut().take() {
                     t2.last.set(Instant::now());
-                    let _ = tx.send(m);
+                    if tx.send(m).is_ok() {
+                        sent.fetch_add(1, Ordering::SeqCst);
+                    }
                 }
             });
         }
@@ -259,6 +288,7 @@ impl Ctx {
             UiPush::Quit => {
                 println!("Quitting Studio Mic...");
                 let _ = self.win.hide();
+                self.flush_messages();
                 self.run_shutdown();
                 let _ = slint::quit_event_loop();
             }
