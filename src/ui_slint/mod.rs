@@ -8,6 +8,7 @@
 
 slint::include_modules!();
 
+mod eq;
 mod matrix;
 
 use crate::app::{Controller, UiPush};
@@ -99,6 +100,7 @@ pub fn run(
         widget_saved: Cell::new(None),
         throttles: RefCell::new(HashMap::new()),
         mx: Default::default(),
+        eq: Default::default(),
         visible: Cell::new(false),
         mic_missing: Cell::new(false),
         notice_timer: slint::Timer::default(),
@@ -110,8 +112,10 @@ pub fn run(
     strip.set_pills(ctx.pills.clone().into());
     strip.set_badges(ctx.badges.clone().into());
     ctx.init_matrix();
+    ctx.init_eq();
     wire_callbacks(&ctx);
     matrix::wire(&ctx);
+    eq::wire(&ctx);
     ctx.refresh_state();
 
     win.window().set_size(slint::LogicalSize::new(cfg.window_width as f32, cfg.window_height as f32));
@@ -181,6 +185,7 @@ struct Ctx {
     widget_saved: Cell<Option<slint::LogicalSize>>,
     throttles: RefCell<HashMap<String, Rc<Throttle>>>,
     mx: matrix::MatrixState,
+    eq: eq::EqState,
     visible: Cell<bool>,
     mic_missing: Cell<bool>,
     notice_timer: slint::Timer,
@@ -403,6 +408,7 @@ impl Ctx {
             self.badges.set_vec(badges);
         }
         self.refresh_matrix(&s);
+        self.refresh_eq(&s);
         drop(s);
         self.refresh_levels();
     }
@@ -785,6 +791,11 @@ mod snapshot {
         win.global::<Nav>().set_simple(false);
         shot(&window, &dir, "matrix-collapsed-775x860@1.6", 1240, 1376, 1.6);
         win.global::<Nav>().set_collapsed(false);
+        eq::show_sample(&win);
+        win.global::<Nav>().set_tab(1);
+        shot(&window, &dir, "eq-1400x900", 1400, 900, 1.0);
+        shot(&window, &dir, "eq-775x860@1.6", 1240, 1376, 1.6);
+        win.global::<Nav>().set_tab(0);
         win.global::<Matrix>().set_empty(true);
         shot(&window, &dir, "main-1400x900-empty", 1400, 900, 1.0);
         win.global::<Matrix>().set_empty(false);

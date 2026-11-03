@@ -1,0 +1,511 @@
+// Tab 2: EQ. A response curve with draggable band points (drag: frequency + gain, scroll: Q),
+// a band list, the "Recommended EQ for <mic>" profiles and three style presets. Rust side:
+// src/ui_slint/eq.rs (curve math, sorting, the eq: / eq_mic2: messages).
+
+import { Theme, Icon, Label, Fader, IconBtn, Btn, Select } from "common.slint";
+
+export struct EqBandData {
+    kind: int,          // index into Eq.types
+    freq: float,
+    gain: float,
+    q: float,
+    x: float,           // position on the graph, 0..1
+    y: float,
+    has-gain: bool,     // pass filters and notches have no gain
+}
+
+export global Eq {
+    in property <[EqBandData]> bands;
+    in property <string> curve;          // SVG path commands in graph pixels (see graph-resized)
+    in property <string> curve-fill;
+    in property <bool> mic2-enabled;
+    in property <bool> target-mic2;
+    in property <[string]> profiles;
+    in property <int> profile: -1;
+    in property <string> preset-name;
+    in property <string> profile-title;
+    in property <string> profile-summary;
+    out property <[string]> types: ["Peaking", "Low Shelf", "High Shelf", "High Pass", "Low Pass", "Notch"];
+
+    callback graph-resized(float, float);
+    callback set-target(bool);
+    callback pick-profile(int);
+    callback style(int);
+    callback band-drag(int, float, float);
+    callback band-released(int);
+    callback band-q-step(int, float);
+    callback band-type(int, int);
+    callback band-freq(int, float);      // log10(Hz)
+    callback band-gain(int, float);
+    callback band-q(int, float);
+    callback add-band();
+    callback remove-band(int);
+    callback flat();
+    callback factory();
+}
+
+global EqFmt {
+    pure public function hz(f: float) -> string {
+        return f >= 1000 ? (f / 1000).to-fixed(f >= 10000 ? 1 : 2) + " kHz" : round(f) + " Hz";
+    }
+}
+
+// Graph: log frequency 20 Hz - 20 kHz across, ±18 dB up and down.
+component EqGraph inherits Rectangle {
+    property <length> r: 9 * Theme.u;
+    // A Path keeps its aspect ratio, so Rust draws the curve at the graph's real size.
+    init => { Eq.graph-resized(self.width / 1px, self.height / 1px); }
+    changed width => { Eq.graph-resized(self.width / 1px, self.height / 1px); }
+    changed height => { Eq.graph-resized(self.width / 1px, self.height / 1px); }
+    border-radius: 18 * Theme.u;
+    background: Theme.surface;
+    border-width: 1px;
+    border-color: Theme.outline;
+    clip: true;
+    // Grid: decades and dB lines.
+    for f in [100, 1000, 10000]: Rectangle {
+        x: parent.width * log(f / 20, 10) / 3;
+        width: 1px;
+        background: Theme.outline.with-alpha(0.6);
+    }
+    for f in [50, 200, 500, 2000, 5000]: Rectangle {
+        x: parent.width * log(f / 20, 10) / 3;
+        width: 1px;
+        background: Theme.outline.with-alpha(0.25);
+    }
+    for d in [12, 6, 0, -6, -12]: Rectangle {
+        y: parent.height * (0.5 - d / 36);
+        height: 1px;
+        background: d == 0 ? Theme.outline : Theme.outline.with-alpha(0.3);
+    }
+    for d in [12, 6, 0, -6, -12]: Label {
+        x: 6 * Theme.u;
+        y: parent.height * (0.5 - d / 36) - self.height - 1px;
+        text: (d > 0 ? "+" : "") + d + " dB";
+        size: 8.5;
+        mono: true;
+        color: Theme.on-surface-variant.with-alpha(0.7);
+    }
+    for f[i] in [20, 100, 1000, 10000]: Label {
+        x: parent.width * log(f / 20, 10) / 3 + 4 * Theme.u;
+        y: parent.height - self.height - 4 * Theme.u;
+        text: ["20 Hz", "100 Hz", "1 kHz", "10 kHz"][i];
+        size: 8.5;
+        mono: true;
+        color: Theme.on-surface-variant.with-alpha(0.7);
+    }
+    Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        commands: Eq.curve-fill;
+        fill: (Eq.target-mic2 ? #22d3ee : Theme.primary).with-alpha(0.12);
+        stroke-width: 0;
+    }
+    Path {
+        width: 100%;
+        height: 100%;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        commands: Eq.curve;
+        stroke: Eq.target-mic2 ? #22d3ee : Theme.primary;
+        stroke-width: max(1.5px, 2.5 * Theme.u);
+        fill: transparent;
+    }
+    for b[i] in Eq.bands: node := Rectangle {
+        property <length> press-x;
+        property <length> press-y;
+        x: b.x * parent.width - root.r;
+        y: b.y * parent.height - root.r;
+        width: 2 * root.r;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: ta.pressed ? #ffffff : ta.has-hover ? #6dd58c : Eq.target-mic2 ? #22d3ee : Theme.primary;
+        border-width: 2px;
+        border-color: Theme.surface;
+        accessible-role: slider;
+        accessible-label: "Band " + (i + 1);
+        accessible-value: EqFmt.hz(b.freq) + ", " + b.gain.to-fixed(1) + " dB, Q " + b.q.to-fixed(2);
+        Label {
+            text: i + 1;
+            size: 8.5;
+            font-weight: 800;
+            color: Theme.on-primary;
+            horizontal-alignment: center;
+            width: parent.width;
+        }
+        ta := TouchArea {
+            mouse-cursor: move;
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down) {
+                    node.press-x = self.mouse-x;
+                    node.press-y = self.mouse-y;
+                }
+                if (e.kind == PointerEventKind.up) {
+                    Eq.band-released(i);
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    Eq.band-drag(i,
+                        (node.x + self.mouse-x - node.press-x + root.r) / root.width,
+                        (node.y + self.mouse-y - node.press-y + root.r) / root.height);
+                }
+            }
+            scroll-event(e) => {
+                Eq.band-q-step(i, e.delta-y > 0 ? 1.1 : 1 / 1.1);
+                accept
+            }
+        }
+    }
+}
+
+component BandRow inherits Rectangle {
+    in property <EqBandData> band;
+    in property <int> index;
+    height: 44 * Theme.u;
+    border-radius: 12 * Theme.u;
+    background: Theme.surface-mid;
+    HorizontalLayout {
+        padding-left: 8 * Theme.u;
+        padding-right: 4 * Theme.u;
+        spacing: 10 * Theme.u;
+        Rectangle {
+            width: 22 * Theme.u;
+            height: self.width;
+            y: (parent.height - self.height) / 2;
+            border-radius: self.width / 2;
+            background: Eq.target-mic2 ? #22d3ee : Theme.primary;
+            Label {
+                text: root.index + 1;
+                size: 9.5;
+                font-weight: 800;
+                color: Theme.on-primary;
+                horizontal-alignment: center;
+                width: parent.width;
+            }
+        }
+        Select {
+            width: 110 * Theme.u;
+            y: (parent.height - self.height) / 2;
+            options: Eq.types;
+            current: root.band.kind;
+            tooltip: "Filter type";
+            selected(k) => { Eq.band-type(root.index, k); }
+        }
+        // Frequency (log), gain, Q: label above a fader.
+        VerticalLayout {
+            horizontal-stretch: 3;
+            alignment: center;
+            Label {
+                text: EqFmt.hz(fq.value-hz);
+                size: 9.5;
+                mono: true;
+                font-weight: 700;
+            }
+            fq := Fader {
+                out property <float> value-hz: pow(10, self.value);
+                minimum: 1.30103;   // log10(20)
+                maximum: 4.30103;   // log10(20000)
+                step: 0.005;
+                model-value: log(root.band.freq, 10);
+                accent: Eq.target-mic2 ? #22d3ee : Theme.primary;
+                min-width: 50 * Theme.u;
+                moved(v) => { Eq.band-freq(root.index, v); }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 2;
+            alignment: center;
+            Label {
+                text: root.band.has-gain ? ((gn.value > 0 ? "+" : "") + gn.value.to-fixed(1) + " dB") : "no gain";
+                size: 9.5;
+                mono: true;
+                font-weight: 700;
+                color: root.band.has-gain ? Theme.on-surface : Theme.on-surface-variant;
+            }
+            gn := Fader {
+                minimum: -18;
+                maximum: 18;
+                step: 0.5;
+                model-value: root.band.gain;
+                enabled: root.band.has-gain;
+                accent: Theme.hot;
+                min-width: 50 * Theme.u;
+                moved(v) => { Eq.band-gain(root.index, v); }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 2;
+            alignment: center;
+            Label {
+                text: "Q " + qf.value.to-fixed(2);
+                size: 9.5;
+                mono: true;
+                font-weight: 700;
+            }
+            qf := Fader {
+                minimum: 0.1;
+                maximum: 10;
+                step: 0.05;
+                model-value: root.band.q;
+                accent: Theme.mon-accent;
+                min-width: 50 * Theme.u;
+                moved(v) => { Eq.band-q(root.index, v); }
+            }
+        }
+        IconBtn {
+            y: (parent.height - self.height) / 2;
+            glyph: "\u{e92e}"; // delete
+            size: 16;
+            enabled: Eq.bands.length > 1;
+            tooltip: "Remove band " + (root.index + 1);
+            clicked => { Eq.remove-band(root.index); }
+        }
+    }
+}
+
+component Segment inherits Rectangle {
+    in property <string> text;
+    in property <string> glyph;
+    in property <bool> on;
+    callback clicked;
+    height: 32 * Theme.u;
+    width: sl.preferred-width;
+    border-radius: self.height / 2;
+    background: on ? Theme.primary.with-alpha(0.18) : sta.has-hover ? Theme.surface-high : transparent;
+    accessible-role: button;
+    accessible-label: text;
+    sl := HorizontalLayout {
+        padding-left: 12 * Theme.u;
+        padding-right: 14 * Theme.u;
+        spacing: 6 * Theme.u;
+        Icon {
+            glyph: root.glyph;
+            size: 17;
+            color: root.on ? Theme.primary : Theme.on-surface-variant;
+        }
+        Label {
+            text: root.text;
+            size: 11.5;
+            font-weight: 700;
+            color: root.on ? Theme.primary : Theme.on-surface-variant;
+            overflow: clip;
+        }
+    }
+    sta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component StyleCard inherits Rectangle {
+    in property <string> glyph;
+    in property <string> title;
+    in property <string> body;
+    callback clicked;
+    border-radius: 14 * Theme.u;
+    background: sca.has-hover ? Theme.surface-highest : Theme.surface-high;
+    border-width: 1px;
+    border-color: sca.has-hover ? Theme.primary : Theme.outline;
+    min-height: scl.preferred-height;
+    accessible-role: button;
+    accessible-label: title;
+    scl := VerticalLayout {
+        padding: 10 * Theme.u;
+        spacing: 3 * Theme.u;
+        HorizontalLayout {
+            spacing: 6 * Theme.u;
+            Icon {
+                glyph: root.glyph;
+                size: 17;
+                color: Theme.primary;
+                width: 20 * Theme.u;
+            }
+            Label {
+                text: root.title;
+                size: 11.5;
+                font-weight: 700;
+            }
+        }
+        Label {
+            text: root.body;
+            size: 10;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+            overflow: clip;
+        }
+    }
+    sca := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component EqView inherits Rectangle {
+    border-radius: 22 * Theme.u;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    clip: true;
+    property <bool> wide: self.width > 980 * Theme.u;
+    VerticalLayout {
+        padding: 12 * Theme.u;
+        spacing: 10 * Theme.u;
+        // Target + profile + actions.
+        HorizontalLayout {
+            spacing: 10 * Theme.u;
+            if Eq.mic2-enabled: Rectangle {
+                width: tl.preferred-width;
+                border-radius: 18 * Theme.u;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.outline;
+                tl := HorizontalLayout {
+                    padding: 3 * Theme.u;
+                    Segment {
+                        text: "Mic 1";
+                        glyph: "\u{e31d}";
+                        on: !Eq.target-mic2;
+                        clicked => { Eq.set-target(false); }
+                    }
+                    Segment {
+                        text: "Mic 2";
+                        glyph: "\u{e31d}";
+                        on: Eq.target-mic2;
+                        clicked => { Eq.set-target(true); }
+                    }
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Label {
+                    text: Eq.preset-name != "" ? Eq.preset-name : "Custom EQ";
+                    size: 14;
+                    font-weight: 700;
+                }
+                Label {
+                    text: Eq.bands.length + (Eq.bands.length == 1 ? " band" : " bands") + " · drag a point: frequency and gain · scroll on it: width (Q)";
+                    size: 10;
+                    color: Theme.on-surface-variant;
+                }
+            }
+            Btn {
+                text: "Add Band";
+                glyph: "\u{e145}";
+                enabled: Eq.bands.length < 10;
+                y: (parent.height - self.height) / 2;
+                clicked => { Eq.add-band(); }
+            }
+            Btn {
+                text: "Flat";
+                y: (parent.height - self.height) / 2;
+                clicked => { Eq.flat(); }
+            }
+            if !Eq.target-mic2: Btn {
+                text: "Default";
+                glyph: "\u{f053}"; // restart_alt
+                y: (parent.height - self.height) / 2;
+                clicked => { Eq.factory(); }
+            }
+        }
+        EqGraph {
+            vertical-stretch: 1;
+            min-height: 150 * Theme.u;
+        }
+        HorizontalLayout {
+            spacing: 12 * Theme.u;
+            // Bands.
+            Flickable {
+                horizontal-stretch: 3;
+                min-width: 420 * Theme.u;
+                height: min(5, Eq.bands.length) * 48 * Theme.u;
+                content-height: Eq.bands.length * 48 * Theme.u;
+                for b[i] in Eq.bands: BandRow {
+                    y: i * 48 * Theme.u;
+                    width: parent.width;
+                    band: b;
+                    index: i;
+                }
+            }
+            if root.wide: VerticalLayout {
+                horizontal-stretch: 2;
+                spacing: 8 * Theme.u;
+                Label {
+                    text: "RECOMMENDED EQ FOR YOUR MIC";
+                    size: 9.5;
+                    mono: true;
+                    font-weight: 800;
+                    letter-spacing: 0.8px;
+                    color: Theme.on-surface-variant;
+                }
+                Select {
+                    height: 32 * Theme.u;
+                    options: Eq.profiles;
+                    current: Eq.profile;
+                    placeholder: "Choose your microphone...";
+                    tooltip: "Microphone model";
+                    selected(i) => { Eq.pick-profile(i); }
+                }
+                if Eq.profile-title != "": Label {
+                    text: Eq.profile-title + ": " + Eq.profile-summary;
+                    size: 10;
+                    color: Theme.on-surface-variant;
+                    wrap: word-wrap;
+                }
+                Label {
+                    text: "STYLES";
+                    size: 9.5;
+                    mono: true;
+                    font-weight: 800;
+                    letter-spacing: 0.8px;
+                    color: Theme.on-surface-variant;
+                }
+                HorizontalLayout {
+                    spacing: 6 * Theme.u;
+                    StyleCard {
+                        glyph: "\u{e31d}";
+                        title: "Warm Radio";
+                        body: "Chest warmth, smooth highs. Easy for hours of talking.";
+                        clicked => { Eq.style(0); }
+                    }
+                    StyleCard {
+                        glyph: "\u{e51e}"; // sensors
+                        title: "Streamer";
+                        body: "Tight low cut, scooped mids: sits above game and music.";
+                        clicked => { Eq.style(1); }
+                    }
+                    StyleCard {
+                        glyph: "\u{e91f}"; // record_voice_over
+                        title: "Podcast";
+                        body: "Neutral and natural voiceover tone.";
+                        clicked => { Eq.style(2); }
+                    }
+                }
+            }
+        }
+        // Narrow windows: profile picker under the bands.
+        if !root.wide: HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Select {
+                horizontal-stretch: 1;
+                height: 32 * Theme.u;
+                options: Eq.profiles;
+                current: Eq.profile;
+                placeholder: "Recommended EQ for your mic...";
+                tooltip: "Microphone model";
+                selected(i) => { Eq.pick-profile(i); }
+            }
+            Select {
+                width: 170 * Theme.u;
+                height: 32 * Theme.u;
+                options: ["Warm Radio", "Streamer", "Podcast"];
+                placeholder: "Style preset...";
+                tooltip: "Style preset";
+                selected(i) => { Eq.style(i); }
+            }
+        }
+    }
+}
