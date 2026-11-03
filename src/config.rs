@@ -590,6 +590,12 @@ pub struct StudioMicConfig {
     pub widget_height: f64,
     #[serde(default = "default_true")]
     pub always_on_top: bool,
+    /// Native UI: Mixer tab shows Simple cards (My Mix + Stream per channel) instead of the matrix.
+    #[serde(default)]
+    pub mixer_simple: bool,
+    /// Native UI: top studio strip collapsed to one row.
+    #[serde(default)]
+    pub strip_collapsed: bool,
 }
 
 fn default_theme() -> String { "material_dark".into() }
@@ -660,6 +666,8 @@ impl Default for StudioMicConfig {
             widget_width: default_widget_w(),
             widget_height: default_widget_h(),
             always_on_top: true,
+            mixer_simple: false,
+            strip_collapsed: false,
         }
     }
 }

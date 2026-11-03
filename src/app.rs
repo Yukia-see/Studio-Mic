@@ -1326,6 +1326,15 @@ impl Controller {
             "ui_size" => self.set_ui_size(rest),
             "toggle_widget_mode" => self.set_widget(if rest.is_empty() { None } else { Some(rest == "1") }),
             "always_on_top" => self.set_always_on_top(rest == "1"),
+            // Native UI layout choices (the webview ignores them).
+            "mixer_view" => self.mutate(|s| {
+                s.mixer_simple = rest == "simple";
+                Ok(String::new())
+            }),
+            "strip_collapsed" => self.mutate(|s| {
+                s.strip_collapsed = rest == "1";
+                Ok(String::new())
+            }),
             "theme" => self.set_theme(rest),
             "last_tab" => self.mutate(|s| {
                 s.last_tab = rest.to_string();

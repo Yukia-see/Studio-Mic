@@ -357,6 +357,9 @@ impl Ctx {
         strip.set_hear_myself(!s.mic.mix.monitor_muted);
         strip.set_on_top(s.always_on_top);
         strip.set_widget_mode(s.widget_mode);
+        let nav = self.win.global::<Nav>();
+        nav.set_simple(s.mixer_simple);
+        nav.set_collapsed(s.strip_collapsed);
         let size = if SIZES.contains(&s.ui_size.as_str()) { s.ui_size.as_str() } else { "medium" };
         strip.set_size_label(size[..1].to_uppercase().into());
         self.win.set_size_factor(match size {
@@ -627,6 +630,13 @@ fn wire_callbacks(ctx: &Rc<Ctx>) {
     strip.on_toggle_on_top(cb!(|c| {
         c.post(format!("always_on_top:{}", (!state(&c).always_on_top) as u8));
     }));
+    let nav = ctx.win.global::<Nav>();
+    nav.on_set_simple(cb!(|c, simple| {
+        c.post(format!("mixer_view:{}", if simple { "simple" } else { "matrix" }));
+    }));
+    nav.on_set_collapsed(cb!(|c, on| {
+        c.post(format!("strip_collapsed:{}", on as u8));
+    }));
     ctx.win.on_resized(cb!(|c, w, h| {
         c.on_resized(w, h);
     }));
@@ -768,6 +778,13 @@ mod snapshot {
         win.set_size_factor(1.2);
         shot(&window, &dir, "main-1400x700-large", 1400, 700, 1.0);
         win.set_size_factor(1.0);
+        win.global::<Nav>().set_simple(true);
+        shot(&window, &dir, "simple-775x860@1.6", 1240, 1376, 1.6);
+        win.global::<Nav>().set_collapsed(true);
+        shot(&window, &dir, "simple-collapsed-1400x900", 1400, 900, 1.0);
+        win.global::<Nav>().set_simple(false);
+        shot(&window, &dir, "matrix-collapsed-775x860@1.6", 1240, 1376, 1.6);
+        win.global::<Nav>().set_collapsed(false);
         win.global::<Matrix>().set_empty(true);
         shot(&window, &dir, "main-1400x900-empty", 1400, 900, 1.0);
         win.global::<Matrix>().set_empty(false);

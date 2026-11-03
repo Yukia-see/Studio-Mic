@@ -571,6 +571,117 @@ export component MatrixView inherits Rectangle {
     }
 }
 
+// Simple mode: one card per source with just My Mix (headphones) and Stream, the two mixes most
+// people touch. Same cells and callbacks as the matrix (columns 0 and 1 are always My Mix and
+// Stream), so muting, routing and faders behave identically.
+component SimpleCard inherits Rectangle {
+    in property <MxRowData> data;
+    in property <int> index;
+    property <int> ncols: Matrix.cols.length;
+    border-radius: 16 * Theme.u;
+    background: Theme.surface-mid;
+    border-width: 1px;
+    border-color: Theme.outline;
+    VerticalLayout {
+        padding: 10 * Theme.u;
+        spacing: 5 * Theme.u;
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            height: 32 * Theme.u;
+            Rectangle {
+                width: 32 * Theme.u;
+                border-radius: 10 * Theme.u;
+                background: Theme.surface-highest;
+                Icon {
+                    glyph: root.data.glyph;
+                    size: 19;
+                }
+            }
+            Label {
+                text: root.data.name;
+                size: 13;
+                font-weight: 700;
+                horizontal-stretch: 1;
+            }
+            if root.data.removable: IconBtn {
+                y: (parent.height - self.height) / 2;
+                glyph: "\u{e92e}"; // delete
+                size: 16;
+                tooltip: "Delete this channel";
+                clicked => { Matrix.remove-channel(root.index); }
+            }
+        }
+        for k[j] in [0, 1]: VerticalLayout {
+            spacing: 2 * Theme.u;
+            Label {
+                text: j == 0 ? "MY MIX · HEADPHONES" : "STREAM · OBS";
+                size: 8.5;
+                mono: true;
+                font-weight: 800;
+                letter-spacing: 0.8px;
+                color: Matrix.cols[k].color;
+            }
+            MxCell {
+                cell: Matrix.cells[root.index * root.ncols + k];
+                meter: Matrix.meters[root.index * root.ncols + k];
+                accent: Matrix.cols[k].color;
+                mix-name: Matrix.cols[k].name;
+                mute => { Matrix.cell-mute(root.index, k); }
+                route(on) => { Matrix.cell-route(root.index, k, on); }
+                gain(v) => { Matrix.cell-gain(root.index, k, v); }
+            }
+        }
+    }
+}
+
+export component SimpleView inherits Rectangle {
+    property <length> gap: 10 * Theme.u;
+    property <length> pad: 10 * Theme.u;
+    property <length> inner-w: self.width - 2 * pad - 14px;   // leaves room for the scrollbar
+    property <int> per-row: max(1, floor((inner-w + gap) / (270 * Theme.u + gap)));
+    property <length> card-w: (inner-w - (per-row - 1) * gap) / per-row;
+    property <length> card-h: 220 * Theme.u;
+    property <int> grid-rows: ceil(Matrix.rows.length / per-row);
+    border-radius: 22 * Theme.u;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    clip: true;
+    ScrollView {
+        x: root.pad;
+        y: root.pad;
+        width: parent.width - 2 * root.pad;
+        height: parent.height - 2 * root.pad;
+        content-width: self.visible-width;
+        content-height: root.grid-rows * (root.card-h + root.gap) + 50 * Theme.u;
+        for r[i] in Matrix.rows: SimpleCard {
+            x: mod(i, root.per-row) * (root.card-w + root.gap);
+            y: floor(i / root.per-row) * (root.card-h + root.gap);
+            width: root.card-w;
+            height: root.card-h;
+            data: r;
+            index: i;
+        }
+        HorizontalLayout {
+            y: root.grid-rows * (root.card-h + root.gap);
+            height: 36 * Theme.u;
+            spacing: 10 * Theme.u;
+            alignment: start;
+            Btn {
+                text: "Add Channel";
+                glyph: "\u{e145}";
+                primary: Matrix.empty;
+                clicked => { Matrix.open-add-channel(); }
+            }
+            Label {
+                text: "Routing to Recording, Voice Chat and custom mixes is in the Matrix view.";
+                size: 10.5;
+                color: Theme.on-surface-variant;
+            }
+        }
+    }
+}
+
 // Modal card on a dimmed backdrop. Clicking the backdrop closes it.
 component Modal inherits Rectangle {
     in property <string> title;

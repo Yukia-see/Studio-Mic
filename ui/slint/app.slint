@@ -8,7 +8,7 @@
 // backend's echo), new values from the backend are held and applied afterwards.
 
 import { Theme, Level, PillData, BadgeData, Icon, Label, Fader, Meter, StatusDot, MuteButton, Chip, Pill, ToolButton, Fmt } from "common.slint";
-import { MatrixView, Matrix, Overlays } from "matrix.slint";
+import { MatrixView, SimpleView, Matrix, Overlays } from "matrix.slint";
 
 export { Theme, Level, PillData, BadgeData } from "common.slint";
 export { Matrix } from "matrix.slint";
@@ -226,6 +226,14 @@ component Badges inherits HorizontalLayout {
     }
 }
 
+export global Nav {
+    in-out property <int> tab: 0;
+    in-out property <bool> simple;       // Mixer: Simple cards instead of the matrix
+    in-out property <bool> collapsed;    // top strip collapsed to one row
+    callback set-simple(bool);
+    callback set-collapsed(bool);
+}
+
 component Tools inherits HorizontalLayout {
     spacing: 2 * Theme.u;
     ToolButton {
@@ -238,6 +246,14 @@ component Tools inherits HorizontalLayout {
         on: Strip.on-top;
         tooltip: "Keep the widget on top";
         clicked => { Strip.toggle-on-top(); }
+    }
+    if !Strip.widget-mode: ToolButton {
+        glyph: Nav.collapsed ? "\u{e5d7}" : "\u{e5d6}"; // unfold_more / unfold_less
+        tooltip: Nav.collapsed ? "Expand the top bar" : "Collapse the top bar to one row";
+        clicked => {
+            Nav.collapsed = !Nav.collapsed;
+            Nav.set-collapsed(Nav.collapsed);
+        }
     }
     ToolButton {
         glyph: Strip.widget-mode ? "\u{f1ce}" : "\u{e911}"; // open_in_full / picture_in_picture_alt
@@ -253,37 +269,49 @@ component StudioStrip inherits Rectangle {
     border-width: 1px;
     border-color: Theme.outline;
     property <bool> wide: self.width > 760 * Theme.u;
+    // Conditional children only size their parent through a layout.
     VerticalLayout {
-        padding: 10 * Theme.u;
-        spacing: 8 * Theme.u;
-        HorizontalLayout {
+        // Collapsed: logo, both faders and the tools on one row; pills and badges hidden.
+        if Nav.collapsed: HorizontalLayout {
+            padding: 8 * Theme.u;
             spacing: 10 * Theme.u;
             Logo { y: (parent.height - self.height) / 2; }
-            Label {
-                text: "STUDIO MIC";
-                size: 11;
-                mono: true;
-                font-weight: 800;
-                letter-spacing: 1.5px;
-                horizontal-stretch: 1;
-            }
-            Tools { }
-        }
-        if root.wide: HorizontalLayout {
-            spacing: 10 * Theme.u;
             MicCard { horizontal-stretch: 1; }
             MonCard { horizontal-stretch: 1; }
+            Tools { y: (parent.height - self.height) / 2; }
         }
-        if !root.wide: VerticalLayout {
+        if !Nav.collapsed: VerticalLayout {
+            padding: 10 * Theme.u;
             spacing: 8 * Theme.u;
-            MicCard { }
-            MonCard { }
+            HorizontalLayout {
+                spacing: 10 * Theme.u;
+                Logo { y: (parent.height - self.height) / 2; }
+                Label {
+                    text: "STUDIO MIC";
+                    size: 11;
+                    mono: true;
+                    font-weight: 800;
+                    letter-spacing: 1.5px;
+                    horizontal-stretch: 1;
+                }
+                Tools { }
+            }
+            if root.wide: HorizontalLayout {
+                spacing: 10 * Theme.u;
+                MicCard { horizontal-stretch: 1; }
+                MonCard { horizontal-stretch: 1; }
+            }
+            if !root.wide: VerticalLayout {
+                spacing: 8 * Theme.u;
+                MicCard { }
+                MonCard { }
+            }
+            PillGrid {
+                pills: Strip.pills;
+                toggle(id) => { Strip.pill-toggle(id); }
+            }
+            Badges { }
         }
-        PillGrid {
-            pills: Strip.pills;
-            toggle(id) => { Strip.pill-toggle(id); }
-        }
-        Badges { }
     }
 }
 
@@ -310,10 +338,6 @@ component WidgetStrip inherits Rectangle {
         }
         Badges { }
     }
-}
-
-export global Nav {
-    in-out property <int> tab: 0;
 }
 
 // Tab bar: 1 Mixer, 2 EQ, 3 Manual Fine-Tune, 4 Test & Optimize (spec order).
@@ -356,6 +380,54 @@ component Tabs inherits HorizontalLayout {
     }
 }
 
+// Mixer view: Simple (a card per channel: My Mix + Stream) or the full routing matrix.
+component ViewToggle inherits Rectangle {
+    height: 34 * Theme.u;
+    width: vl.preferred-width;
+    border-radius: self.height / 2;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    vl := HorizontalLayout {
+        padding: 3 * Theme.u;
+        spacing: 2 * Theme.u;
+        for v[i] in [
+            { name: "Simple", glyph: "\u{e9b0}", simple: true },   // grid_view
+            { name: "Matrix", glyph: "\u{e265}", simple: false },  // table_chart
+        ]: Rectangle {
+            width: il.preferred-width;
+            border-radius: self.height / 2;
+            background: Nav.simple == v.simple ? Theme.primary.with-alpha(0.18) : vta.has-hover ? Theme.surface-high : transparent;
+            accessible-role: button;
+            accessible-label: v.name + " view";
+            il := HorizontalLayout {
+                padding-left: 10 * Theme.u;
+                padding-right: 12 * Theme.u;
+                spacing: 5 * Theme.u;
+                Icon {
+                    glyph: v.glyph;
+                    size: 16;
+                    color: Nav.simple == v.simple ? Theme.primary : Theme.on-surface-variant;
+                }
+                Label {
+                    text: v.name;
+                    size: 11;
+                    font-weight: 700;
+                    color: Nav.simple == v.simple ? Theme.primary : Theme.on-surface-variant;
+                    overflow: clip;
+                }
+            }
+            vta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    Nav.simple = v.simple;
+                    Nav.set-simple(v.simple);
+                }
+            }
+        }
+    }
+}
+
 export component MainWindow inherits Window {
     property <int> tab: Nav.tab;
     in property <float> size-factor: 1.0;      // ui_size: Small .85 / Medium 1 / Large 1.2
@@ -371,13 +443,27 @@ export component MainWindow inherits Window {
     // (pill 100 + gap 6 → 3 per row) so the scale doesn't depend on its own layout.
     property <int> pill-rows: ceil(Strip.pills.length / 3);
     property <float> widget-natural-h: 8 + 30 + 6 + 62 + 6 + 62 + 6 + pill-rows * 32 + 6 + 24 + 8 + 12;
+    // Main window: the size setting is the largest scale; a smaller window shrinks the whole
+    // interface to fit (down to 55 %) instead of clipping or scrolling sideways. Design sizes
+    // are in units at scale 1: the matrix needs its source column + ~156 per mix, Simple needs
+    // two cards side by side, and the height fits the strip, the tabs and the first three rows.
+    property <int> ncols: Matrix.cols.length;
+    property <int> nrows: Matrix.rows.length;
+    property <bool> simple: Nav.simple;
+    property <bool> collapsed: Nav.collapsed;
+    property <float> design-w: simple ? 620 : 356 + ncols * 156;
+    property <float> strip-h: collapsed ? 84 : 150 + pill-rows-wide * 32;
+    property <int> pill-rows-wide: ceil(Strip.pills.length / 7);
+    property <float> design-h: 28 + strip-h + 12 + 34 + 12 + (simple ? 300 : 150 + min(nrows, 3) * 84 + 60);
     function rescale() {
         if (Strip.widget-mode) {
             Theme.scale = clamp(min((self.width - 12px) / 400px, (self.height - 12px) / (widget-natural-h * 1px)), 0.45, 3.0);
         } else {
-            Theme.scale = size-factor;
+            Theme.scale = clamp(min(size-factor, self.width / (design-w * 1px), self.height / (design-h * 1px)), 0.55, size-factor);
         }
     }
+    changed design-w => { rescale(); }
+    changed design-h => { rescale(); }
     init => { rescale(); }
     changed width => { rescale(); resized(self.width, self.height); }
     changed height => { rescale(); resized(self.width, self.height); }
@@ -398,8 +484,13 @@ export component MainWindow inherits Window {
         padding: 14 * Theme.u;
         spacing: 12 * Theme.u;
         StudioStrip { }
-        Tabs { }
-        if root.tab == 0: MatrixView { vertical-stretch: 1; }
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Tabs { horizontal-stretch: 1; }
+            if root.tab == 0: ViewToggle { }
+        }
+        if root.tab == 0 && !Nav.simple: MatrixView { vertical-stretch: 1; }
+        if root.tab == 0 && Nav.simple: SimpleView { vertical-stretch: 1; }
         if root.tab != 0: Rectangle {
             vertical-stretch: 1;
             border-radius: 22 * Theme.u;
