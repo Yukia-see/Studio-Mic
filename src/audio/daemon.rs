@@ -1731,6 +1731,10 @@ impl Engine {
                     }
                     if has_flat_top(&buf, ch, depth.clip_rule()) {
                         engine.peaks.lock().unwrap().insert("raw_clip".into(), (1.0, Instant::now()));
+                        // Only real clipping lowers the hardware gain (see clipguard_autopad).
+                        if !engine.measuring.load(Ordering::SeqCst) {
+                            engine.clipguard_autopad();
+                        }
                     }
                 }
                 engine.on_peak(&k, block_peak_db(&buf));
@@ -1747,10 +1751,6 @@ impl Engine {
             if db > *e {
                 *e = db;
             }
-        }
-        // No hardware gain steps while the user is deliberately making noise for the gate test.
-        if key == "raw" && !self.measuring.load(Ordering::SeqCst) {
-            self.clipguard_autopad(db);
         }
     }
 
@@ -1836,12 +1836,16 @@ impl Engine {
     // Clipguard stage B: hardware auto-pad with a -6 dB floor
     // -----------------------------------------------------------------------------------------
 
-    fn clipguard_autopad(&self, raw_db: f32) {
+    /// Called when the raw mic input really clipped (flat tops, `has_flat_top`), never on level
+    /// alone: interfaces with lots of gain or their own limiter (Elgato Wave XLR) produce clean
+    /// peaks right at 0 dBFS, which used to step the gain down and announce "input clipping"
+    /// although nothing distorted. Not while the gate test measures (the user is making noise).
+    fn clipguard_autopad(&self) {
         let (enabled, hw) = {
             let s = self.state.lock().unwrap();
             (s.mic.clipguard, s.active_hw_mic.clone())
         };
-        if !enabled || raw_db < -0.1 {
+        if !enabled {
             return;
         }
         let Some(hw) = hw else { return };
