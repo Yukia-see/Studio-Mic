@@ -395,9 +395,9 @@
     .sm-btn:disabled { opacity: .45; cursor: not-allowed; }
     .sm-btn .material-symbols-outlined { font-size: 16px; }
     /* ---------- Control size (Small / Medium / Large): data-size on <html> ---------- */
-    :root { --sm-btn-py: 6px; --sm-btn-px: 12px; --sm-fs: 11px; --sm-icon: 16px; --sm-fader-h: 8px; --sm-knob: 15px; --sm-mute: 36px; --sm-cell-mute: 28px; --sm-chip-fs: 10px; }
-    :root[data-size="small"] { --sm-btn-py: 3px; --sm-btn-px: 8px; --sm-fs: 10px; --sm-icon: 14px; --sm-fader-h: 6px; --sm-knob: 12px; --sm-mute: 28px; --sm-cell-mute: 24px; --sm-chip-fs: 9px; }
-    :root[data-size="large"] { --sm-btn-py: 9px; --sm-btn-px: 16px; --sm-fs: 13px; --sm-icon: 20px; --sm-fader-h: 11px; --sm-knob: 19px; --sm-mute: 44px; --sm-cell-mute: 36px; --sm-chip-fs: 12px; }
+    :root { --sm-btn-py: 6px; --sm-btn-px: 12px; --sm-fs: 11px; --sm-icon: 16px; --sm-fader-h: 8px; --sm-knob: 15px; --sm-mute: 36px; --sm-cell-mute: 28px; --sm-chip-fs: 10px; --sm-fader-min: 230px; }
+    :root[data-size="small"] { --sm-btn-py: 3px; --sm-btn-px: 8px; --sm-fs: 10px; --sm-icon: 14px; --sm-fader-h: 6px; --sm-knob: 12px; --sm-mute: 28px; --sm-cell-mute: 24px; --sm-chip-fs: 9px; --sm-fader-min: 190px; }
+    :root[data-size="large"] { --sm-btn-py: 9px; --sm-btn-px: 16px; --sm-fs: 13px; --sm-icon: 20px; --sm-fader-h: 11px; --sm-knob: 19px; --sm-mute: 44px; --sm-cell-mute: 36px; --sm-chip-fs: 12px; --sm-fader-min: 290px; }
     .sm-btn { padding: var(--sm-btn-py) var(--sm-btn-px); font-size: var(--sm-fs); }
     .sm-btn .material-symbols-outlined { font-size: var(--sm-icon); }
     .sm-chip { font-size: var(--sm-chip-fs); padding: calc(var(--sm-btn-py) / 2 + 1px) calc(var(--sm-btn-px) * .7); }
@@ -423,13 +423,19 @@
     .sm-warn { font: 700 9px ui-monospace, monospace; color: #f59e0b; }
 
     /* Wave Link dual-track fader: mute button | (meter on top, slider below) */
-    .df-strip { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 16px; min-width: 0; flex: 1 1 250px; max-width: 420px;
+    .df-strip { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 16px; min-width: var(--sm-fader-min); flex: 1 1 var(--sm-fader-min); max-width: calc(var(--sm-fader-min) * 1.9);
       background: var(--md-sys-color-surface-container-low); border: 1px solid var(--md-sys-color-outline-variant); }
     .df-mute { position: relative; width: var(--sm-mute); height: var(--sm-mute); flex: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer;
       background: var(--md-sys-color-surface-container-highest); border: 1px solid var(--md-sys-color-outline-variant); color: var(--md-sys-color-on-surface); transition: all .15s; }
     .df-mute .material-symbols-outlined { font-size: calc(var(--sm-icon) + 2px); }
     .df-mute.muted { background: rgba(239, 68, 68, .2); border-color: #ef4444; color: #ef4444; box-shadow: 0 0 12px rgba(239, 68, 68, .35); }
-    .df-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    /* The fader column always keeps a usable width; in the mic strip the device pickers shrink
+       or wrap below it (they used to take their full width and crush the trim fader to nothing). */
+    .df-body { flex: 1 1 calc(var(--sm-fader-min) * .6); min-width: calc(var(--sm-fader-min) * .6); display: flex; flex-direction: column; gap: 3px; }
+    #sm-mic-strip { flex-wrap: wrap; max-width: calc(var(--sm-fader-min) * 2.8); }
+    #sm-mic-strip .sm-selects { flex: 1 1 150px; max-width: 230px; }
+    #sm-mic-strip .sm-sel { max-width: 100%; width: 100%; }
+    #sm-mic-strip .sm-warn { white-space: normal; }
     .df-head { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--sm-fs); font-weight: 700; }
     .df-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--md-sys-color-on-surface); min-width: 0; }
     .df-read, .df-peak { font: 700 10px ui-monospace, monospace; white-space: nowrap; color: var(--md-sys-color-primary); }
@@ -501,7 +507,7 @@
     body.widget-mode .sm-full { display: none !important; }
     body.widget-mode .sm-widget-only { display: inline-flex !important; }
     body.widget-mode .sm-strip-sep { display: none; }
-    body.widget-mode .df-strip { max-width: none; padding: 3px 8px; }
+    body.widget-mode .df-strip { max-width: none; min-width: 160px; padding: 3px 8px; }
     body.widget-mode .sm-strip-logo { justify-content: space-between; }
     body.widget-mode .sm-group { flex-wrap: wrap; }
     /* smFitWidget() sets the strip's width and scale so it always fills the window exactly. */
@@ -5566,10 +5572,35 @@
       return (window.liveAudioStreams || []).filter(s => s.channel === chId);
     }
 
+    // Slider drags. WebKit doesn't always focus a range input on click, so "focused" isn't a
+    // reliable "being dragged" test: a backend echo could rebuild the matrix mid-drag and the
+    // fader snapped back. Track the pointer instead, and defer re-renders that would replace or
+    // reset a slider until shortly after release (the 250 ms absorbs the backend's echo).
+    var smDrag = { el: null, until: 0, pending: new Set() };
+    function smDragging() { return !!smDrag && (!!smDrag.el || performance.now() < smDrag.until); }
+    function smDefer(fn) { if (!smDragging()) return false; smDrag.pending.add(fn); return true; }
+    function smFlushDeferred() {
+      if (smDragging()) { setTimeout(smFlushDeferred, 50); return; }
+      const fns = [...smDrag.pending];
+      smDrag.pending.clear();
+      fns.forEach(f => f());
+    }
+    function smDragEnd() {
+      if (!smDrag.el) return;
+      smDrag.el = null;
+      smDrag.until = performance.now() + 250;
+      setTimeout(smFlushDeferred, 260);
+    }
+    document.addEventListener('pointerdown', e => { if (e.target.matches && e.target.matches('input[type=range]')) smDrag.el = e.target; }, true);
+    document.addEventListener('pointerup', smDragEnd, true);
+    document.addEventListener('pointercancel', smDragEnd, true);
+    window.addEventListener('blur', smDragEnd);
+
     // Tab 1 is the routing matrix only (the Cards / Compact views were removed).
     function renderMixerChannelsGrid() {
       const grid = document.getElementById('mixer-channels-grid');
       if (!grid) return;
+      if (smDefer(renderMixerChannelsGrid)) return;
       // Keep the focused element if the user is typing in it.
       if (grid.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') return;
       grid.innerHTML = matrixHtml();
@@ -5962,6 +5993,7 @@
 
     // ---------- studio strip (top bar / widget) ----------
     function renderStrip() {
+      if (smDefer(renderStrip)) return;
       const c = smCfg();
       const g = id => document.getElementById(id);
       const mic = c.mic || {};

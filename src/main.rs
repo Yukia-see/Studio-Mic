@@ -167,7 +167,7 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
         .with_visible(!background)
         .build(&event_loop)?;
 
-    let html_content = include_str!("../mic-studio-mockup.html");
+    let html_content = include_str!(concat!(env!("OUT_DIR"), "/ui.html"));
     let target_tab = if args.iter().any(|a| a == "--eq") {
         "tab-eq".to_string()
     } else if args.iter().any(|a| a == "--noise") {

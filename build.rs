@@ -11,7 +11,11 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(sm_embed_speex)");
     println!("cargo::rustc-check-cfg=cfg(sm_embed_rnnoise)");
 
+    println!("cargo:rerun-if-changed=ui/tailwind.css");
+    println!("cargo:rerun-if-changed=ui/material-symbols-outlined.woff2");
+
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    bundle_ui(&out.join("ui.html"));
     // Embedded denoisers (see src/audio/plugins_bundle.rs). Both are optional: a machine without
     // speexdsp headers, or a checkout where setup-deps.sh hasn't staged RNNoise, still builds.
     if build_speex(&out.join("libspeex_ladspa.so")) {
@@ -51,4 +55,39 @@ fn stage_rnnoise(src: &Path, dest: &Path) -> bool {
         return false;
     }
     std::fs::copy(src, dest).is_ok()
+}
+
+/// Writes the UI with its two network resources inlined: the Tailwind CDN script (which compiled
+/// CSS at runtime, so the layout jumped while it loaded and broke offline) becomes the prebuilt
+/// ui/tailwind.css, and the Google Fonts link becomes the bundled Material Symbols font.
+/// The source HTML keeps both lines so it still opens in a browser.
+fn bundle_ui(dest: &Path) {
+    const TAILWIND_TAG: &str = r#"<script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>"#;
+    const ICONS_TAG: &str = r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />"#;
+    let html = std::fs::read_to_string("mic-studio-mockup.html").expect("read mic-studio-mockup.html");
+    let css = std::fs::read_to_string("ui/tailwind.css").expect("read ui/tailwind.css");
+    let font = std::fs::read("ui/material-symbols-outlined.woff2").expect("read ui/material-symbols-outlined.woff2");
+    assert!(html.contains(TAILWIND_TAG), "mic-studio-mockup.html: Tailwind CDN tag changed; update build.rs bundle_ui");
+    assert!(html.contains(ICONS_TAG), "mic-studio-mockup.html: Material Symbols link changed; update build.rs bundle_ui");
+    let font_css = format!(
+        "@font-face {{ font-family: 'Material Symbols Outlined'; font-style: normal; font-weight: 400; font-display: block; \
+         src: url(data:font/woff2;base64,{}) format('woff2'); }}",
+        base64(&font)
+    );
+    let html = html
+        .replacen(TAILWIND_TAG, &format!("<style>{css}</style>"), 1)
+        .replacen(ICONS_TAG, &format!("<style>{font_css}</style>"), 1);
+    std::fs::write(dest, html).expect("write ui.html");
+}
+
+fn base64(data: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut s = String::with_capacity(data.len().div_ceil(3) * 4);
+    for c in data.chunks(3) {
+        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        for i in 0..4 {
+            s.push(if i <= c.len() { T[(n >> (18 - 6 * i) & 63) as usize] as char } else { '=' });
+        }
+    }
+    s
 }
