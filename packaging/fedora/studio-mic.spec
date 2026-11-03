@@ -1,6 +1,6 @@
 Name:           studio-mic
 # install.sh passes app_version (from Cargo.toml) and build_number (packaging/BUILD_NUMBER).
-Version:        %{?app_version}%{!?app_version:0.2.0}
+Version:        %{?app_version}%{!?app_version:0.3.0}
 Release:        %{?build_number}%{!?build_number:1}%{?dist}
 Summary:        Broadcast microphone processing and virtual mixer for PipeWire
 License:        Apache-2.0 OR MIT
@@ -66,5 +66,9 @@ fi
 %{_datadir}/studio-mic/
 
 %changelog
+* Tue Nov 03 2026 Studio Mic Project - 0.3.0-1
+- Native window (Slint) is the default: scales cleanly (1.6x), no snap-back faders, all four tabs,
+  Simple mixer view, collapsible top bar, apps picker, settings, profiles, themes.
+- Rename and hide mixes; the classic web window stays available (--ui-backend web).
 * Mon Nov 02 2026 Studio Mic Project - 0.2.0-1
 - Two-tier persistent bus architecture, live parameter updates, state persistence, CLI socket.

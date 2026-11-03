@@ -7,7 +7,7 @@
 
 ---
 
-## Using Studio Mic (v0.2)
+## Using Studio Mic (v0.3)
 
 ```bash
 ./install.sh            # asks to fetch PipeWire/LADSPA deps, builds, installs for your user
@@ -32,6 +32,13 @@ studiomic --status      # control it from a terminal / Stream Deck (see `studiom
   (Lua config): `o.window({ title = "^Studio Mic Widget$" }, { float = true, pin = true })` (no `size`: the app
   restores the widget size you last dragged it to, and the strip scales to fit any size).
 * **Control size:** Small / Medium / Large from the top bar, or `studiomic --set-size small`.
+* **Native window (new in v0.3):** Studio Mic opens a native window (Slint) that scales cleanly on
+  HiDPI / fractional scaling. Mixer has a **Simple** view (My Mix + Stream per channel) and the
+  **Matrix**; the top bar collapses to one row; each app channel has an apps picker (playing now +
+  installed apps). Double-click any channel or mix name to rename it; a built-in mix's x only hides
+  its column. The gear opens Settings: theme, startup, Mic 2, profiles (save / load / delete). The
+  classic web window is still there for this release: turn off "Open the native window by default"
+  in Settings, or run `studiomic --ui-backend web`.
 * **Stream Deck:** the StreamController plugin in `streamcontroller-plugin/` is linked by the installer.
 * Docs: `docs/audit-report.md` (what changed), `docs/verified-apis.md`, `docs/perf.md`.
 
