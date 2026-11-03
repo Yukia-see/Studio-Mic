@@ -29,7 +29,8 @@ studiomic --status      # control it from a terminal / Stream Deck (see `studiom
 * **Mini widget:** `studiomic --toggle-widget` (or the Widget button / tray item) shrinks the window
   to a small always-on-top strip with the mic and headphone faders and quick mutes. On Hyprland the
   app floats and pins it itself; you can also add a window rule, e.g. in `~/.config/hypr/hyprland.lua`
-  (Lua config): `o.window({ title = "^Studio Mic Widget$" }, { float = true, pin = true, size = { 480, 185 } })`.
+  (Lua config): `o.window({ title = "^Studio Mic Widget$" }, { float = true, pin = true })` (no `size`: the app
+  restores the widget size you last dragged it to, and the strip scales to fit any size).
 * **Control size:** Small / Medium / Large from the top bar, or `studiomic --set-size small`.
 * **Stream Deck:** the StreamController plugin in `streamcontroller-plugin/` is linked by the installer.
 * Docs: `docs/audit-report.md` (what changed), `docs/verified-apis.md`, `docs/perf.md`.
