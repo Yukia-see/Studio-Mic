@@ -1345,6 +1345,7 @@ impl Controller {
                 self.handle_ui(&a[1..].join(" "));
                 Ok("sent".into())
             }
+            "--diagnose" => Ok(self.engine.diagnose()),
             "--status" => {
                 if a.contains(&"--json") {
                     let v = self.status_json(a.contains(&"--runtime"));

@@ -84,6 +84,7 @@ pub const CLI_COMMANDS: &[&str] = &[
     "--toggle-widget",
     "--set-size",
     "--status",
+    "--diagnose",
     "--create-channel",
     "--remove-channel",
     "--rename-channel",
@@ -235,6 +236,7 @@ starting a background instance first if none is running)
   --assign-app <Channel> <app>    --unassign-app <Channel> <app>   --add-foreground-app <Channel>
   --preview <play|loop|stop>      --record-test
   --show                          --quit
+  --diagnose                      mic, resolution, Clipguard and meter health (for bug reports)
   --ui '<message>'                send a raw UI message (scripting/tests), e.g. --ui 'noise_clean:{{...}}'
   --cleanup-pipewire              stop Studio Mic and remove its PipeWire nodes (uninstall)
 

@@ -1631,6 +1631,96 @@ impl Engine {
         m
     }
 
+    /// `studiomic --diagnose`: the mic, its detected resolution, Clipguard, the mic chain and
+    /// every meter (running, linked, last reading), as short lines for a bug report.
+    pub fn diagnose(&self) -> String {
+        let s = self.snapshot();
+        let mut out = vec![format!(
+            "Studio Mic {}{}",
+            env!("CARGO_PKG_VERSION"),
+            option_env!("STUDIOMIC_BUILD").map(|b| format!(" build {b}")).unwrap_or_default()
+        )];
+        pw::invalidate_cache();
+        let nodes = pw::nodes();
+        let links = pw::links();
+        let node = |name: &str| nodes.iter().find(|n| n.name == name);
+        let links_into = |name: &str| links.iter().filter(|(_, i)| i.split_once(':').is_some_and(|(n, _)| n == name)).count();
+        let links_from = |name: &str| links.iter().filter(|(o, _)| o.split_once(':').is_some_and(|(n, _)| n == name)).count();
+        let yes = |b: bool| if b { "yes" } else { "NO" };
+
+        match &s.active_hw_mic {
+            None => out.push("mic: none selected".into()),
+            Some(hw) => {
+                let n = node(hw);
+                out.push(format!("mic: {hw}"));
+                out.push(format!("  present: {}  marked missing: {}", yes(n.is_some()), self.mic_missing.load(Ordering::SeqCst)));
+                if let Some(n) = n {
+                    let f = &n.params["Format"][0];
+                    out.push(format!(
+                        "  PipeWire format: {} {} Hz {} ch, class {}",
+                        f["format"].as_str().unwrap_or("?"),
+                        f["rate"].as_u64().unwrap_or(0),
+                        f["channels"].as_u64().unwrap_or(0),
+                        n.class
+                    ));
+                    if let Some((v, _)) = pw::node_volume(n) {
+                        out.push(format!("  input volume: {:.1} dB", lin_to_db(v)));
+                    }
+                }
+            }
+        }
+        out.push(format!(
+            "  resolution: {}",
+            match self.mic_bits.load(Ordering::SeqCst) {
+                16 => "16-bit (strict clip check)",
+                24 => "24-bit or float",
+                _ => "detecting (needs about 1 s of sound)",
+            }
+        ));
+        out.push(format!("  clipguard: {}  auto-pad: -{:.0} dB", if s.mic.clipguard { "on" } else { "off" }, self.autopad_db()));
+
+        let generation = self.procs.lock().unwrap().post_gen;
+        let (pin, pout) = (fc::post_in(generation), fc::post_out(generation));
+        out.push(format!(
+            "mic chain g{generation}: in {} ({} links in), out {} ({} links out)",
+            yes(node(&pin).is_some()),
+            links_into(&pin),
+            yes(node(&pout).is_some()),
+            links_from(&pout)
+        ));
+        let p = self.plugins_json();
+        out.push(format!(
+            "plugins: lsp {} deepfilter {} rnnoise {} speex {}  denoiser: {}",
+            p["lsp"], p["deepfilter"], p["rnnoise"], p["speex"], s.denoiser.engine
+        ));
+
+        out.push("meters (key: running, links in, last reading):".into());
+        let peaks = self.peaks.lock().unwrap().clone();
+        let mut meters: Vec<(String, String, bool)> = {
+            let mut m = self.meters.lock().unwrap();
+            m.iter_mut().map(|(k, mp)| (k.clone(), mp.source.clone(), matches!(mp.child.try_wait(), Ok(None)))).collect()
+        };
+        meters.sort();
+        let wanted = self.desired_meters();
+        for k in wanted.keys().filter(|k| !meters.iter().any(|(m, ..)| m == *k)) {
+            out.push(format!("  {k}: NOT RUNNING"));
+        }
+        for (k, src, alive) in meters {
+            let meter_node = format!("StudioMic_Meter_{}", k.replace(':', "_"));
+            let last = peaks
+                .get(&k)
+                .map(|(db, t)| format!("{:.1} dB, {:.1} s ago", db, t.elapsed().as_secs_f32()))
+                .unwrap_or_else(|| "never".into());
+            out.push(format!("  {k}: {}, {} links, {last}  [{src}]", if alive { "running" } else { "EXITED" }, links_into(&meter_node)));
+        }
+        if let Some((_, t)) = peaks.get("raw_clip") {
+            out.push(format!("last real clipping on the mic input: {:.1} s ago", t.elapsed().as_secs_f32()));
+        } else {
+            out.push("no real clipping seen on the mic input".into());
+        }
+        out.join("\n")
+    }
+
     fn restart_meter(&self, key: &str) {
         if let Some(m) = self.meters.lock().unwrap().remove(key) {
             stop_child(m.child);
