@@ -1167,6 +1167,8 @@ impl Controller {
             rt["recording"] = serde_json::json!(self.engine.recording_is_active());
             rt["autopad_db"] = serde_json::json!(self.engine.autopad_db());
             rt["mic_peak_db"] = serde_json::json!(self.engine.peak("mic"));
+            // The mic's real resolution, detected from its samples: 16, 24 (24-bit or float), 0 = not yet.
+            rt["mic_bits"] = serde_json::json!(self.engine.mic_bits.load(std::sync::atomic::Ordering::SeqCst));
             // Pre-fader strip levels, post-fader `out:*`, hardware `raw`, and the OBS buses `bus:*`.
             rt["meters"] = serde_json::to_value(self.engine.peak_map()).unwrap_or_default();
             rt["live_streams"] = serde_json::to_value(StreamWatcher::scan_live_streams()).unwrap_or_default();

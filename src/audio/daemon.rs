@@ -127,6 +127,9 @@ pub struct Engine {
     cache: Mutex<ParamCache>,
     meters: Mutex<HashMap<String, MeterProc>>,
     peaks: Mutex<HashMap<String, (f32, Instant)>>,
+    /// The mic's real resolution as detected from its samples (`BitDepth`): 16, 24 (24-bit or
+    /// float), or 0 while unknown.
+    pub mic_bits: std::sync::atomic::AtomicU8,
     peak_hold: Mutex<HashMap<String, f32>>,
     duck_db: Mutex<f32>,
     pub ui_visible: AtomicBool,
@@ -252,19 +255,39 @@ fn block_peak_db(buf: &[u8]) -> f32 {
 /// Real clipping = the converter railed: the same non-trivial sample value repeats several times
 /// in a row on one channel (a flat top). A loud but clean peak, or a level pushed past 0 dBFS by
 /// software gain (still float, caught by the limiters), never does that.
-const FLAT_TOP_SAMPLES: usize = 6;
+///
+/// A 16-bit converter is the exception: its samples sit on a coarse grid, so near the crest of a
+/// loud, low sound (rumble, a plosive) a few neighbours round to the same value without any
+/// clipping. For those mics (and until the mic's resolution is known) a flat top must be longer
+/// and happen at least twice in the block: voice clipping does (two cycles of a voice fit in
+/// 25 ms), a 10-40 Hz crest can't.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct ClipRule {
+    min_run: usize,
+    min_runs: usize,
+}
 
-fn has_flat_top(buf: &[u8], channels: usize) -> bool {
+impl ClipRule {
+    /// 24-bit and float mics.
+    pub(crate) const FINE: ClipRule = ClipRule { min_run: 6, min_runs: 1 };
+    /// 16-bit mics, and any mic until `BitDepth` knows better.
+    pub(crate) const COARSE: ClipRule = ClipRule { min_run: 12, min_runs: 2 };
+}
+
+fn has_flat_top(buf: &[u8], channels: usize, rule: ClipRule) -> bool {
     let ch = channels.max(1);
     let samples: Vec<f32> = buf.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
     (0..ch).any(|c| {
-        let mut run = 1usize;
+        let (mut run, mut runs) = (1usize, 0usize);
         let mut prev = f32::NAN;
         for &x in samples.iter().skip(c).step_by(ch) {
             if x.abs() > 0.5 && x == prev {
                 run += 1;
-                if run >= FLAT_TOP_SAMPLES {
-                    return true;
+                if run == rule.min_run {
+                    runs += 1;
+                    if runs >= rule.min_runs {
+                        return true;
+                    }
                 }
             } else {
                 run = 1;
@@ -273,6 +296,62 @@ fn has_flat_top(buf: &[u8], channels: usize) -> bool {
         }
         false
     })
+}
+
+/// Works out the mic's real resolution from its samples, silently: a 16-bit converter's values
+/// all sit on a grid of 1/32768 steps (times whatever volume is applied after it), so the
+/// smallest change between neighbouring samples never gets below about 1.5e-5 (5e-6 even at
+/// -16 dB of volume). A 24-bit or float mic shows far smaller steps within a second of any
+/// sound, room noise included. Mics that claim 24-bit but deliver 16 are caught the same way.
+#[derive(Debug)]
+pub(crate) struct BitDepth {
+    min_step: f32,
+    blocks: u32,
+}
+
+impl Default for BitDepth {
+    fn default() -> Self {
+        BitDepth { min_step: f32::INFINITY, blocks: 0 }
+    }
+}
+
+impl BitDepth {
+    /// Blocks (~25 ms) with sound needed before deciding: about one second.
+    const BLOCKS: u32 = 40;
+
+    pub(crate) fn observe(&mut self, buf: &[u8], channels: usize) {
+        let ch = channels.max(1);
+        let samples: Vec<f32> = buf.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        if !samples.iter().any(|x| x.abs() > 1e-4) {
+            return; // digital silence or a muted input says nothing about the converter
+        }
+        for c in 0..ch {
+            let mut prev = f32::NAN;
+            for &x in samples.iter().skip(c).step_by(ch) {
+                let d = (x - prev).abs();
+                if d > 0.0 && d < self.min_step {
+                    self.min_step = d;
+                }
+                prev = x;
+            }
+        }
+        self.blocks = self.blocks.saturating_add(1);
+    }
+
+    /// 16 or 24 (24-bit or float), or None while still listening.
+    pub(crate) fn bits(&self) -> Option<u8> {
+        if self.blocks < Self::BLOCKS {
+            None
+        } else if self.min_step > 5e-6 {
+            Some(16)
+        } else {
+            Some(24)
+        }
+    }
+
+    pub(crate) fn clip_rule(&self) -> ClipRule {
+        if self.bits() == Some(24) { ClipRule::FINE } else { ClipRule::COARSE }
+    }
 }
 
 fn signal(pid: u32, sig: &str) {
@@ -363,6 +442,7 @@ impl Engine {
             cache: Mutex::new(ParamCache::default()),
             meters: Mutex::new(HashMap::new()),
             peaks: Mutex::new(HashMap::new()),
+            mic_bits: std::sync::atomic::AtomicU8::new(0),
             peak_hold: Mutex::new(HashMap::new()),
             duck_db: Mutex::new(0.0),
             ui_visible: AtomicBool::new(true),
@@ -1634,9 +1714,24 @@ impl Engine {
             let mut stdout = stdout;
             let mut buf = vec![0u8; block];
             let detect_clip = k == "raw";
+            // A new meter (mic switched, PipeWire restarted) starts detection over.
+            let mut depth = BitDepth::default();
+            if detect_clip {
+                engine.mic_bits.store(0, Ordering::SeqCst);
+            }
             while stdout.read_exact(&mut buf).is_ok() {
-                if detect_clip && has_flat_top(&buf, ch) {
-                    engine.peaks.lock().unwrap().insert("raw_clip".into(), (1.0, Instant::now()));
+                if detect_clip {
+                    let known = depth.bits();
+                    depth.observe(&buf, ch);
+                    if known.is_none() {
+                        if let Some(bits) = depth.bits() {
+                            engine.mic_bits.store(bits, Ordering::SeqCst);
+                            println!("Microphone resolution: {}", if bits == 16 { "16-bit" } else { "24-bit or float" });
+                        }
+                    }
+                    if has_flat_top(&buf, ch, depth.clip_rule()) {
+                        engine.peaks.lock().unwrap().insert("raw_clip".into(), (1.0, Instant::now()));
+                    }
                 }
                 engine.on_peak(&k, block_peak_db(&buf));
             }
@@ -2234,7 +2329,7 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use super::{block_peak_db, has_flat_top, is_our_child, meter_format_args, Engine, SendTarget};
+    use super::{block_peak_db, has_flat_top, is_our_child, meter_format_args, BitDepth, ClipRule, Engine, SendTarget};
     use crate::config::{CustomMixConfig, SendCell, StudioMicConfig};
 
     #[test]
@@ -2255,24 +2350,81 @@ mod tests {
         assert!(a.windows(2).any(|w| w[0] == "--format" && w[1] == "f32"));
     }
 
+    fn bytes(v: &[f32]) -> Vec<u8> {
+        v.iter().flat_map(|x| x.to_le_bytes()).collect()
+    }
+
+    fn sine(f: f32, amp: f32, n: usize, phase: f32) -> Vec<f32> {
+        (0..n).map(|i| amp * (2.0 * std::f32::consts::PI * f * i as f32 / 48000.0 + phase).sin()).collect()
+    }
+
+    fn q16(v: &[f32]) -> Vec<f32> {
+        v.iter().map(|x| (x * 32767.0).round() / 32767.0).collect()
+    }
+
     #[test]
     fn clip_detector_needs_flat_tops() {
-        let bytes = |v: &[f32]| v.iter().flat_map(|x| x.to_le_bytes()).collect::<Vec<u8>>();
-        let sr = 48000.0;
-        // Clean, loud sines quantised like a 16-bit USB mic: never "clipping".
-        for f in [50.0f32, 100.0, 1000.0] {
-            let clean: Vec<f32> = (0..1200).map(|i| ((0.99 * (2.0 * std::f32::consts::PI * f * i as f32 / sr).sin()) * 32767.0).round() / 32767.0).collect();
-            assert!(!has_flat_top(&bytes(&clean), 1), "{} Hz sine flagged", f);
+        for rule in [ClipRule::FINE, ClipRule::COARSE] {
+            // Clean, loud sines quantised like a 16-bit USB mic: never "clipping".
+            for f in [50.0f32, 100.0, 1000.0] {
+                assert!(!has_flat_top(&bytes(&q16(&sine(f, 0.99, 1200, 0.0))), 1, rule), "{f} Hz sine flagged");
+            }
+            // Software gain past 0 dBFS (float, not railed): not clipping either.
+            assert!(!has_flat_top(&bytes(&sine(200.0, 1.6, 1200, 0.0)), 1, rule));
+            // A railed converter: clipped (also at 16-bit and with a voice-pitch tone).
+            let railed: Vec<f32> = sine(200.0, 1.6, 1200, 0.0).iter().map(|x| x.clamp(-1.0, 1.0)).collect();
+            assert!(has_flat_top(&bytes(&railed), 1, rule));
+            let voice: Vec<f32> = q16(&sine(110.0, 1.4, 1200, 0.0).iter().map(|x| x.clamp(-1.0, 1.0)).collect::<Vec<_>>());
+            assert!(has_flat_top(&bytes(&voice), 1, rule), "clipped 16-bit voice missed");
+            // Stereo interleaved: the clipped right channel is found.
+            let st: Vec<f32> = railed.iter().flat_map(|&r| [0.1, r]).collect();
+            assert!(has_flat_top(&bytes(&st), 2, rule));
         }
-        // Software gain past 0 dBFS (float, not railed): not clipping either.
-        let hot: Vec<f32> = (0..1200).map(|i| 1.6 * (2.0 * std::f32::consts::PI * 200.0 * i as f32 / sr).sin()).collect();
-        assert!(!has_flat_top(&bytes(&hot), 1));
-        // A railed converter: clipped.
-        let railed: Vec<f32> = (0..1200).map(|i| (1.6 * (2.0 * std::f32::consts::PI * 200.0 * i as f32 / sr).sin()).clamp(-1.0, 1.0)).collect();
-        assert!(has_flat_top(&bytes(&railed), 1));
-        // Stereo interleaved: the clipped right channel is found.
-        let st: Vec<f32> = (0..1200).flat_map(|i| [0.1, (1.6 * (2.0 * std::f32::consts::PI * 200.0 * i as f32 / sr).sin()).clamp(-1.0, 1.0)]).collect();
-        assert!(has_flat_top(&bytes(&st), 2));
+    }
+
+    #[test]
+    fn sixteen_bit_rumble_is_not_clipping() {
+        // A loud 10-40 Hz crest (desk bump, plosive) on a 16-bit converter: neighbours round to
+        // the same value. The fine rule calls that clipping; the coarse rule doesn't.
+        let mut fooled_fine = false;
+        for f in [10.0f32, 20.0, 30.0, 40.0] {
+            for amp in [0.55f32, 0.7, 0.9] {
+                for phase in [0.0f32, 0.7, 1.4, 2.1] {
+                    let b = bytes(&q16(&sine(f, amp, 1200, phase)));
+                    assert!(!has_flat_top(&b, 1, ClipRule::COARSE), "{f} Hz {amp} flagged as clipping");
+                    fooled_fine |= has_flat_top(&b, 1, ClipRule::FINE);
+                }
+            }
+        }
+        assert!(fooled_fine, "the fine rule should be what 16-bit mics trip over");
+    }
+
+    #[test]
+    fn mic_resolution_is_detected_from_the_samples() {
+        // ~1.2 s of voice-like sound plus room noise, as 25 ms blocks.
+        let noise = |i: usize| ((i as f32 * 12.9898).sin() * 43758.547).fract() * 2e-4;
+        let signal: Vec<f32> = (0..48000 * 6 / 5).map(|i| 0.2 * (2.0 * std::f32::consts::PI * 180.0 * i as f32 / 48000.0).sin() + noise(i)).collect();
+        let run = |v: &[f32]| {
+            let mut d = BitDepth::default();
+            for block in v.chunks(1200) {
+                d.observe(&bytes(block), 1);
+            }
+            d
+        };
+        let d16 = run(&q16(&signal));
+        assert_eq!(d16.bits(), Some(16));
+        assert_eq!(d16.clip_rule(), ClipRule::COARSE);
+        // A 16-bit mic behind -12 dB of volume is still recognised.
+        let scaled: Vec<f32> = q16(&signal).iter().map(|x| x * 0.25).collect();
+        assert_eq!(run(&scaled).bits(), Some(16));
+        let d24 = run(&signal);
+        assert_eq!(d24.bits(), Some(24));
+        assert_eq!(d24.clip_rule(), ClipRule::FINE);
+        // Not enough sound yet (or only silence): unknown, so the careful rule applies.
+        let short = run(&signal[..12000]);
+        assert_eq!(short.bits(), None);
+        assert_eq!(short.clip_rule(), ClipRule::COARSE);
+        assert_eq!(run(&vec![0.0; 96000]).bits(), None);
     }
 
     #[test]
