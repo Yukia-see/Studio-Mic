@@ -1,7 +1,7 @@
 // Studio Mic native UI (Slint). Rust side: src/ui_slint/.
 //
 // Scaling: every size is a multiple of Theme.u. In the main window u follows the Small / Medium /
-// Large setting (ui_size); in widget mode it is fitted to the window, so the widget grows and
+// Large setting (ui_size); in widget mode one fixed layout is scaled to the window, so it grows and
 // shrinks as one piece instead of clipping or wrapping.
 //
 // Faders never snap back: while one is pressed (and 250 ms after release, which absorbs the
@@ -22,10 +22,11 @@ export { Check } from "check.slint";
 // Pills flow into as many columns as fit (Slint has no flex-wrap, so this places them on a grid).
 component PillGrid inherits Rectangle {
     in property <[PillData]> pills;
+    in property <int> fixed-cols: 0;     // > 0: always this many columns (widget)
     callback toggle(string);
     property <length> pill-w: 100 * Theme.u;
     property <length> gap: 6 * Theme.u;
-    property <int> cols: max(1, floor((self.width + gap) / (pill-w + gap)));
+    property <int> cols: fixed-cols > 0 ? fixed-cols : max(1, floor((self.width + gap) / (pill-w + gap)));
     property <length> cell-w: (self.width - (cols - 1) * gap) / cols;
     property <int> rows: ceil(pills.length / cols);
     min-width: pill-w;
@@ -321,9 +322,9 @@ component StudioStrip inherits Rectangle {
     }
 }
 
-// Widget mode: the strip alone, filling the window (see MainWindow.widget-scale).
+// Widget mode: the strip alone, filling the window. One fixed layout (fader cards side by side,
+// pills two across) that only scales, so nothing rearranges or flickers while resizing.
 component WidgetStrip inherits Rectangle {
-    property <bool> side: self.width >= 560 * Theme.u;
     border-radius: 16 * Theme.u;
     background: Theme.surface-mid;
     border-width: 1px;
@@ -337,18 +338,14 @@ component WidgetStrip inherits Rectangle {
             Rectangle { horizontal-stretch: 1; }
             Tools { }
         }
-        if root.side: HorizontalLayout {
+        HorizontalLayout {
             spacing: 6 * Theme.u;
             MicCard { horizontal-stretch: 1; }
             MonCard { horizontal-stretch: 1; }
         }
-        if !root.side: VerticalLayout {
-            spacing: 6 * Theme.u;
-            MicCard { }
-            MonCard { }
-        }
         PillGrid {
             pills: Strip.pills;
+            fixed-cols: 2;
             toggle(id) => { Strip.pill-toggle(id); }
         }
         Badges { }
@@ -454,16 +451,10 @@ export component MainWindow inherits Window {
     min-width: 160px;
     min-height: 120px;
 
-    // Widget: the card always fills the window width, at the largest scale whose content fits
-    // the height. A wider card (in units) puts more pills per row and, from 560 units, the mic
-    // and headphone cards side by side, so the height needed depends on the scale.
+    // Widget: the fixed layout is 660 units wide (two fader cards side by side with their readouts) and
+    // 100 + 62 + 32 per row of two pills high; scale it to the window, filling the width.
     property <int> npills: Strip.pills.length;
-    property <float> ww: (self.width - 12px) / 1px;
-    property <float> wh: (self.height - 12px) / 1px;
-    // Largest scale whose layout fits (Rust: ui_slint::widget_scale, a bisection, since the
-    // layout itself depends on the scale).
-    pure callback widget-fit(float, float, int) -> float;
-    property <float> widget-scale: widget-fit(ww, wh, npills);
+    property <float> widget-scale: min((self.width - 12px) / 660px, (self.height - 12px) / ((162 + ceil(npills / 2) * 32) * 1px));
     // Main window: the Small / Medium / Large setting; the layout reflows to the window and
     // anything that doesn't fit scrolls.
     function rescale() {

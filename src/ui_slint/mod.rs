@@ -126,7 +126,6 @@ pub fn run(
     check::wire(&ctx);
     ctx.refresh_state();
 
-    win.on_widget_fit(widget_scale);
     win.window().set_size(slint::LogicalSize::new(cfg.window_width as f32, cfg.window_height as f32));
     {
         let w = Rc::downgrade(&ctx);
@@ -163,39 +162,6 @@ pub fn run(
     ctx.run_shutdown();
     CTX.with(|c| c.borrow_mut().take());
     Ok(())
-}
-
-/// Widget mode: the largest scale at which the widget fits a `w` x `h` (logical px) area with
-/// `pills` quick-mute pills. The card is `w / scale` units wide; that sets the pills per row
-/// (100 + 6 units each, inside 8-unit padding) and whether the two fader cards sit side by side
-/// (from 560 units), which sets the height in units. Height × scale grows with the scale, so
-/// bisection finds the answer. Matches WidgetStrip's layout in app.slint.
-pub fn widget_scale(w: f32, h: f32, pills: i32) -> f32 {
-    if w <= 0.0 || h <= 0.0 {
-        return 1.0;
-    }
-    let units_high = |s: f32| {
-        let units_wide = w / s;
-        let per_row = ((units_wide - 16.0 + 6.0) / 106.0).floor().max(1.0);
-        let rows = (pills.max(0) as f32 / per_row).ceil();
-        let cards = if units_wide >= 560.0 { 62.0 } else { 130.0 };
-        // padding + header + gaps + badges, fader cards, pill rows
-        100.0 + cards + rows * 32.0
-    };
-    let fits = |s: f32| s * units_high(s) <= h;
-    let (mut lo, mut hi) = (0.2f32, (w / 400.0).max(0.2));
-    if fits(hi) {
-        return hi;
-    }
-    for _ in 0..30 {
-        let mid = (lo + hi) / 2.0;
-        if fits(mid) {
-            lo = mid;
-        } else {
-            hi = mid;
-        }
-    }
-    lo
 }
 
 struct Hold {
@@ -724,17 +690,6 @@ mod tests {
     }
 
     #[test]
-    fn widget_uses_the_largest_scale_that_fits() {
-        // Wide and short (the size reported): cards side by side, six pills in two rows of
-        // five, limited by the height and far bigger than the 400-unit width alone would give.
-        let s = widget_scale(1287.0, 481.0, 6);
-        assert!(s * (100.0 + 62.0 + 2.0 * 32.0) <= 481.0 + 0.01);
-        assert!(s > 2.1, "{s}");
-        // Narrow and tall: limited by the 400-unit width.
-        assert!((widget_scale(348.0, 700.0, 6) - 0.87).abs() < 0.01);
-    }
-
-    #[test]
     fn meter_scale_matches_html_ui() {
         assert_eq!(meter_fraction(-80.0), 0.0);
         assert_eq!(meter_fraction(-30.0), 0.5);
@@ -839,8 +794,7 @@ mod snapshot {
         let window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
         slint::platform::set_platform(Box::new(Offscreen(window.clone()))).unwrap();
         let win = MainWindow::new().unwrap();
-        win.on_widget_fit(widget_scale);
-        win.show().unwrap();
+            win.show().unwrap();
         sample(&win, false);
         shot(&window, &dir, "main-1400x900@1.0", 1400, 900, 1.0);
         shot(&window, &dir, "main-775x860@1.6", 1240, 1376, 1.6);
