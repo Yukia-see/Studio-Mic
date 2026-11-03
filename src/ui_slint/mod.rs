@@ -110,6 +110,7 @@ pub fn run(
         visible: Cell::new(false),
         mic_missing: Cell::new(false),
         notice_timer: slint::Timer::default(),
+        refresh_timer: slint::Timer::default(),
         tick: slint::Timer::default(),
     });
     CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
@@ -146,7 +147,10 @@ pub fn run(
         let w = Rc::downgrade(&ctx);
         ctx.tick.start(slint::TimerMode::Repeated, Duration::from_millis(50), move || {
             if let Some(c) = w.upgrade() {
-                if c.visible.get() {
+                // Peak pushes (~20 Hz) refresh the meters themselves; the tick only covers the
+                // gaps (hold release, fall-off to idle when pushes stop).
+                let fresh = c.last_peaks_at.get().is_some_and(|t| t.elapsed() < Duration::from_millis(45));
+                if c.visible.get() && !fresh {
                     c.refresh_levels();
                 }
             }
@@ -201,6 +205,7 @@ struct Ctx {
     visible: Cell<bool>,
     mic_missing: Cell<bool>,
     notice_timer: slint::Timer,
+    refresh_timer: slint::Timer,
     tick: slint::Timer,
 }
 
@@ -257,7 +262,7 @@ impl Ctx {
                 self.run_shutdown();
                 let _ = slint::quit_event_loop();
             }
-            UiPush::State => self.refresh_state(),
+            UiPush::State => self.schedule_refresh(),
             UiPush::Peaks(json) => {
                 if let Ok(map) = serde_json::from_str::<BTreeMap<String, f32>>(&json) {
                     *self.peaks.borrow_mut() = map;
@@ -290,6 +295,20 @@ impl Ctx {
                 self.refresh_state();
             }
         }
+    }
+
+    /// Coalesces State pushes: a fader drag makes the backend confirm ~30 times a second, and
+    /// one refresh per frame is enough.
+    fn schedule_refresh(self: &Rc<Self>) {
+        if self.refresh_timer.running() {
+            return;
+        }
+        let w = Rc::downgrade(self);
+        self.refresh_timer.start(slint::TimerMode::SingleShot, Duration::from_millis(16), move || {
+            if let Some(c) = w.upgrade() {
+                c.refresh_state();
+            }
+        });
     }
 
     fn run_shutdown(&self) {
@@ -377,7 +396,7 @@ impl Ctx {
         strip.set_mic_name(if self.mic_missing.get() { "Mic unplugged".into() } else { "Microphone".into() });
         strip.set_mon_muted(s.monitor_muted);
         strip.set_mon_gain(s.monitor_gain_db);
-        strip.set_hear_myself(s.mic.mix.monitor_routed && !s.mic.mix.monitor_muted);
+        strip.set_hear_myself(!s.mic.mix.monitor_muted);
         strip.set_on_top(s.always_on_top);
         strip.set_widget_mode(s.widget_mode);
         let nav = self.win.global::<Nav>();
@@ -467,8 +486,15 @@ impl Ctx {
                 self.pills.set_row_data(i, p);
             }
         }
-        self.refresh_matrix_meters(&s);
-        self.refresh_tune_level();
+        drop(s);
+        // Meters of views that aren't on screen are skipped.
+        if !strip.get_widget_mode() {
+            match self.win.global::<Nav>().get_tab() {
+                0 => self.refresh_matrix_meters(),
+                2 => self.refresh_tune_level(),
+                _ => {}
+            }
+        }
     }
 
     fn peak(&self, key: &str) -> f32 {
@@ -532,6 +558,14 @@ struct LevelState {
     db: f32,
     clip: bool,
     limit: bool,
+}
+
+/// Replaces a string-list property only when its contents changed. A new model makes every
+/// `for` over it rebuild its elements (closing popups, or dropping a fader mid-drag).
+fn set_strings(cur: slint::ModelRc<SharedString>, new: &[String], set: impl FnOnce(slint::ModelRc<SharedString>)) {
+    if cur.row_count() != new.len() || cur.iter().zip(new).any(|(a, b)| a.as_str() != b) {
+        set(Rc::new(VecModel::from(new.iter().map(SharedString::from).collect::<Vec<_>>())).into());
+    }
 }
 
 fn meter_fraction(db: f32) -> f32 {
@@ -630,19 +664,10 @@ fn wire_callbacks(ctx: &Rc<Ctx>) {
         c.throttled("monitor_gain", format!("monitor_master:gain:={}", v));
     }));
     strip.on_hear_myself_toggle(cb!(|c| {
-        // "Hear Myself" = the mic in My Mix. Turning it on always works: it puts the mic back
-        // into My Mix if it was removed there, and unmutes it.
-        let m = state(&c).mic.mix;
-        let hearing = m.monitor_routed && !m.monitor_muted;
-        c.win.global::<Strip>().set_hear_myself(!hearing);
-        if hearing {
-            c.post("mix:mic:monitor_mute:on");
-        } else {
-            if !m.monitor_routed {
-                c.post("mix:mic:monitor_route:on");
-            }
-            c.post("mix:mic:monitor_mute:off");
-        }
+        // "Hear Myself" = the mic's Monitor branch.
+        let hear = state(&c).mic.mix.monitor_muted;
+        c.win.global::<Strip>().set_hear_myself(hear);
+        c.post(format!("mix:mic:monitor_mute:{}", if hear { "off" } else { "on" }));
     }));
     strip.on_pill_toggle(cb!(|c, id| {
         let muted = state(&c).mix(&id).is_some_and(|m| m.stream_muted);

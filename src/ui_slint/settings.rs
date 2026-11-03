@@ -22,7 +22,8 @@ impl Ctx {
 
     fn refresh_profiles(&self) {
         let list = StudioMicConfig::list_profiles();
-        self.win.global::<Settings>().set_profiles(Rc::new(VecModel::from(list.iter().map(SharedString::from).collect::<Vec<_>>())).into());
+        let st = self.win.global::<Settings>();
+        set_strings(st.get_profiles(), &list, |x| st.set_profiles(x));
     }
 
     fn profile_at(&self, i: i32) -> Option<String> {

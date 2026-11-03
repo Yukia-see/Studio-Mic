@@ -20,8 +20,42 @@ const PRESETS: [(&str, &str, &str, &str, &str, &str); 7] = [
 
 const MIX_COLORS: [&str; 5] = ["#22d3ee", "#34d399", "#a78bfa", "#fbbf24", "#fb7185"];
 
+/// How one matrix cell's meter is computed from the peaks (see `meter_specs`).
+pub(super) enum MeterSpec {
+    /// Locked, not routed, muted, or cut by another channel's solo.
+    Silent,
+    /// `src` peak + `gain` (minus the duck amount on a ducked VOD send), or the `out` peak
+    /// (the Stream send, measured after the fader) when there is one.
+    Send { src: String, out: Option<String>, gain: f32, ducked: bool },
+}
+
+/// Meter specs for every cell, row-major, from the saved state (`mxLevel` in the HTML UI).
+fn meter_specs(s: &StudioMicConfig) -> Vec<MeterSpec> {
+    let rows = rows(s);
+    let cols = cols(s);
+    let any_solo = rows.iter().any(|r| r.mix.solo);
+    let mut v = Vec::with_capacity(rows.len() * cols.len());
+    for r in &rows {
+        for c in &cols {
+            let x = cell(r, &c.key);
+            v.push(if x.locked || !x.routed || x.muted || (c.key == "monitor" && any_solo && !r.mix.solo) {
+                MeterSpec::Silent
+            } else {
+                MeterSpec::Send {
+                    src: r.id.clone(),
+                    out: (c.key == "stream").then(|| format!("out:{}", r.id)),
+                    gain: x.gain,
+                    ducked: c.key == "vod" && r.mix.autoduck,
+                }
+            });
+        }
+    }
+    v
+}
+
 #[derive(Default)]
 pub(super) struct MatrixState {
+    meter_specs: RefCell<Vec<MeterSpec>>,
     cols: Rc<VecModel<MxColData>>,
     rows: Rc<VecModel<MxRowData>>,
     cells: Rc<VecModel<MxCellData>>,
@@ -437,14 +471,18 @@ impl Ctx {
             .filter(|(k, ..)| s.hidden_mixes.iter().any(|h| h == k))
             .map(|&(k, name, ..)| (k.to_string(), builtin_name(s, k, name)))
             .collect();
-        m.set_hidden_builtins(strings(&hidden.iter().map(|h| h.1.clone()).collect::<Vec<_>>()));
+        set_strings(m.get_hidden_builtins(), &hidden.iter().map(|h| h.1.clone()).collect::<Vec<_>>(), |x| m.set_hidden_builtins(x));
         *self.mx.hidden.borrow_mut() = hidden.into_iter().map(|h| h.0).collect();
 
+        *self.mx.meter_specs.borrow_mut() = meter_specs(s);
         let b = build(s, &self.mx.mics.borrow(), &self.mx.outs.borrow(), &self.mx.live.borrow());
         let (col_data, row_data, cell_data, keys, ids) = (b.cols, b.rows, b.cells, b.keys, b.ids);
         let (col_outputs, row_hw) = (b.col_outputs, b.row_hw);
         let simple: Vec<i32> = ["monitor", "stream"].iter().filter_map(|k| keys.iter().position(|x| x == k)).map(|i| i as i32).collect();
-        m.set_simple_cols(Rc::new(VecModel::from(simple)).into());
+        let cur = m.get_simple_cols();
+        if cur.row_count() != simple.len() || cur.iter().zip(&simple).any(|(a, b)| a != *b) {
+            m.set_simple_cols(Rc::new(VecModel::from(simple)).into());
+        }
         let structural = *self.mx.col_keys.borrow() != keys || *self.mx.row_ids.borrow() != ids;
         *self.mx.col_outputs.borrow_mut() = col_outputs;
         *self.mx.row_hw.borrow_mut() = row_hw;
@@ -509,37 +547,34 @@ impl Ctx {
         }
     }
 
-    /// Cell meters: what each source sends into each mix right now (`mxLevel`).
-    pub(super) fn refresh_matrix_meters(&self, s: &StudioMicConfig) {
-        let rows = rows(s);
-        let cols = cols(s);
-        if rows.len() * cols.len() != self.mx.meters.row_count() {
+    /// Cell meters: what each source sends into each mix right now (`mxLevel`). Runs at the
+    /// meter rate, so it only reads peaks through the specs `refresh_matrix` precomputed (no
+    /// state lock, no config clones).
+    pub(super) fn refresh_matrix_meters(&self) {
+        let specs = self.mx.meter_specs.borrow();
+        if specs.len() != self.mx.meters.row_count() {
             return;
         }
-        let any_solo = rows.iter().any(|r| r.mix.solo);
         let peaks = self.peaks.borrow();
         let get = |k: &str| peaks.get(k).copied().unwrap_or(-80.0);
         let duck = get("duck").max(0.0);
-        let mut i = 0;
-        for r in &rows {
-            let pre = get(&r.id);
-            for c in &cols {
-                let x = cell(r, &c.key);
-                let db = if x.locked || !x.routed || x.muted || pre <= -80.0 {
-                    -80.0
-                } else {
-                    match c.key.as_str() {
-                        "stream" => get(&format!("out:{}", r.id)),
-                        "monitor" if any_solo && !r.mix.solo => -80.0,
-                        "vod" => pre + x.gain - if r.mix.autoduck { duck } else { 0.0 },
-                        _ => pre + x.gain,
+        for (i, m) in specs.iter().enumerate() {
+            let db = match m {
+                MeterSpec::Silent => -80.0,
+                MeterSpec::Send { src, out, gain, ducked } => {
+                    let pre = get(src);
+                    if pre <= -80.0 {
+                        -80.0
+                    } else if let Some(out) = out {
+                        get(out)
+                    } else {
+                        pre + gain - if *ducked { duck } else { 0.0 }
                     }
-                };
-                let f = (meter_fraction(db) * 200.0).round() / 200.0;
-                if self.mx.meters.row_data(i) != Some(f) {
-                    self.mx.meters.set_row_data(i, f);
                 }
-                i += 1;
+            };
+            let f = (meter_fraction(db) * 200.0).round() / 200.0;
+            if self.mx.meters.row_data(i) != Some(f) {
+                self.mx.meters.set_row_data(i, f);
             }
         }
     }
@@ -696,6 +731,10 @@ impl Ctx {
 
     /// Fills the apps picker for the channel it's open for (no-op when closed).
     pub(super) fn refresh_apps(&self) {
+        // Only while the picker is open (it sorts the whole installed-apps list).
+        if !self.win.global::<Matrix>().get_apps_open() {
+            return;
+        }
         let Some(id) = self.mx.apps_for.borrow().clone() else { return };
         let s = self.controller.state.lock().unwrap().clone();
         let Some(ch) = s.channel(&id) else {
@@ -705,7 +744,7 @@ impl Ctx {
         let m = self.win.global::<Matrix>();
         m.set_apps_channel(ch.name.as_str().into());
         m.set_apps_mode(ROUTE_MODES.iter().position(|x| *x == ch.route_mode).unwrap_or(0) as i32);
-        m.set_apps_current(strings(&ch.apps));
+        set_strings(m.get_apps_current(), &ch.apps, |x| m.set_apps_current(x));
         let here = |k: &str| ch.apps.iter().any(|a| a == k);
         let channel_name = |cid: &Option<String>| match cid {
             Some(c) if c == &id => "Playing in this channel".to_string(),
@@ -758,8 +797,8 @@ impl Ctx {
         *self.mx.apps_for.borrow_mut() = Some(id);
         let m = self.win.global::<Matrix>();
         m.set_apps_filter(SharedString::new());
-        self.refresh_apps();
         m.set_apps_open(true);
+        self.refresh_apps();
         // Fresh list of what's playing.
         self.post("get_live_streams");
     }
@@ -943,6 +982,26 @@ mod tests {
         assert!(v.excluded && v.muted && v.gain == -6.0 && !v.editable);
         // Not in a custom mix until it's routed there.
         assert!(!cell(&r, "x_guest").routed);
+    }
+
+    #[test]
+    fn meter_specs_follow_solo_stream_and_duck() {
+        let mut s = StudioMicConfig::default();
+        let ch = |id: &str| serde_json::from_value::<crate::config::VirtualChannelConfig>(serde_json::json!({ "id": id, "name": id })).unwrap();
+        s.virtual_channels = vec![ch("game"), ch("music")];
+        s.virtual_channels[0].mix.solo = true;
+        s.virtual_channels[1].mix.autoduck = true;
+        s.hidden_mixes = vec!["voice".into()];
+        let specs = meter_specs(&s);
+        let ncols = cols(&s).len();
+        assert_eq!(ncols, 3); // My Mix, Stream, VOD (Voice Chat hidden)
+        assert_eq!(specs.len(), 3 * ncols); // mic, game, music
+        // Another channel's solo silences the mic's My Mix meter, not the soloed channel's.
+        assert!(matches!(specs[0], MeterSpec::Silent));
+        assert!(matches!(&specs[ncols], MeterSpec::Send { out: None, .. }));
+        // Stream meters read the after-fader send; a ducked channel's VOD send is ducked.
+        assert!(matches!(&specs[ncols + 1], MeterSpec::Send { out: Some(o), .. } if o == "out:game"));
+        assert!(matches!(&specs[2 * ncols + 2], MeterSpec::Send { ducked: true, .. }));
     }
 
     #[test]

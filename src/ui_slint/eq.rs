@@ -180,7 +180,7 @@ impl Ctx {
         eq.set_profile_summary(p.map(|p| p.profile_summary.as_str()).unwrap_or("").into());
 
         let titles: Vec<String> = s.user_presets.iter().map(|p| p.title.clone()).collect();
-        eq.set_my_presets(Rc::new(VecModel::from(titles.iter().map(SharedString::from).collect::<Vec<_>>())).into());
+        set_strings(eq.get_my_presets(), &titles, |x| eq.set_my_presets(x));
         let in_use = if mic2 { None } else { titles.iter().position(|t| s.preset_name == format!("Custom: {t}")) };
         eq.set_my_preset(in_use.map_or(-1, |i| i as i32));
 
