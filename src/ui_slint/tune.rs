@@ -79,6 +79,12 @@ impl Ctx {
         self.win.global::<Tune>().set_gate_level(meter_fraction(db));
     }
 
+    /// Applies several Fine-Tune values at once (Optimize, soundcheck) and shows them.
+    pub(super) fn tune_apply(&self, f: impl FnOnce(&mut NoiseCleanConfig)) {
+        self.tune_edit(f);
+        self.refresh_state();
+    }
+
     fn tune_edit(&self, f: impl FnOnce(&mut NoiseCleanConfig)) {
         let mut nc = {
             let p = self.tune.pending.borrow();

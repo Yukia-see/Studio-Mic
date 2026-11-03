@@ -1,0 +1,353 @@
+// Tab 4: Test & Optimize (voice test recorder, de-esser test, One-Click Optimize, automatic
+// soundcheck) and the preview bar shown on the EQ and Fine-Tune tabs. Rust side:
+// src/ui_slint/check.rs.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Icon, Label, Btn } from "common.slint";
+
+export global Check {
+    // Recorder: "" (none yet), "recording", "done", "failed", "expired".
+    in property <string> rec-state;
+    in property <float> rec-progress;
+    in property <string> rec-status: "No recording yet";
+    in property <bool> preview-available;
+    in property <bool> preview-playing;
+    in property <bool> deess-pending;
+    // One-Click Optimize (2.5 s) and soundcheck (5 s): progress 0..1 while running.
+    in property <bool> optimizing;
+    in property <float> optimize-progress;
+    in property <string> optimize-result;
+    in property <bool> checking;
+    in property <float> check-progress;
+    in property <bool> check-done;
+    in property <string> check-gate;
+    in property <string> check-deess;
+    in property <string> check-peak;
+    in property <string> check-trim;
+
+    callback record();
+    callback stop-record();
+    callback preview(string);
+    callback deess-test();
+    callback optimize();
+    callback soundcheck();
+    callback apply-soundcheck();
+}
+
+component Progress inherits Rectangle {
+    in property <float> value;
+    in property <color> accent: Theme.primary;
+    height: 6 * Theme.u;
+    border-radius: self.height / 2;
+    background: Theme.surface-highest;
+    clip: true;
+    Rectangle {
+        x: 0;
+        width: parent.width * clamp(root.value, 0, 1);
+        background: root.accent;
+        animate width { duration: 100ms; }
+    }
+}
+
+component Card inherits Rectangle {
+    in property <string> glyph;
+    in property <string> title;
+    in property <string> body;
+    border-radius: 18 * Theme.u;
+    background: Theme.surface-mid;
+    border-width: 1px;
+    border-color: Theme.outline;
+    VerticalLayout {
+        padding: 14 * Theme.u;
+        spacing: 9 * Theme.u;
+        alignment: start;
+        HorizontalLayout {
+            spacing: 8 * Theme.u;
+            Icon {
+                glyph: root.glyph;
+                size: 20;
+                color: Theme.primary;
+                width: 24 * Theme.u;
+            }
+            Label {
+                text: root.title;
+                size: 13.5;
+                font-weight: 700;
+                horizontal-stretch: 1;
+            }
+        }
+        if root.body != "": Label {
+            text: root.body;
+            size: 10.5;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+        }
+        @children
+    }
+}
+
+component Result inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> note;
+    border-radius: 12 * Theme.u;
+    background: Theme.surface-high;
+    min-height: rl.preferred-height;
+    rl := VerticalLayout {
+        padding: 9 * Theme.u;
+        spacing: 2 * Theme.u;
+        Label {
+            text: root.label;
+            size: 9.5;
+            color: Theme.on-surface-variant;
+        }
+        Label {
+            text: root.value;
+            size: 15;
+            mono: true;
+            font-weight: 800;
+            color: Theme.primary;
+        }
+        Label {
+            text: root.note;
+            size: 9;
+            color: Theme.on-surface-variant;
+            wrap: word-wrap;
+        }
+    }
+}
+
+// "Hear your settings": plays the test recording through the live chain, headphones only.
+export component PreviewBar inherits Rectangle {
+    height: 46 * Theme.u;
+    border-radius: 16 * Theme.u;
+    background: Check.preview-playing ? Theme.hot.with-alpha(0.08) : Theme.surface-low;
+    border-width: 1px;
+    border-color: Check.preview-playing ? Theme.hot.with-alpha(0.5) : Theme.outline;
+    HorizontalLayout {
+        padding-left: 12 * Theme.u;
+        padding-right: 7 * Theme.u;
+        spacing: 8 * Theme.u;
+        Icon {
+            glyph: !Check.preview-available ? "\u{e88e}" : Check.preview-playing ? "\u{e1b8}" : "\u{f01f}"; // info / graphic_eq / headphones
+            size: 19;
+            color: Check.preview-playing ? Theme.hot : Theme.primary;
+            width: 22 * Theme.u;
+        }
+        Label {
+            horizontal-stretch: 1;
+            size: 10.5;
+            text: !Check.preview-available ? "No test recording yet. Record a phrase on Test & Optimize to hear your settings in your headphones."
+                : Check.preview-playing ? "Playing through the live chain to your headphones only. Stream, VOD and Discord are muted."
+                : "Preview: hear your test recording through the current settings.";
+            color: Theme.on-surface-variant;
+            overflow: elide;
+        }
+        if Check.preview-available: Btn {
+            y: (parent.height - self.height) / 2;
+            text: "Play";
+            glyph: "\u{e037}";
+            primary: true;
+            enabled: !Check.preview-playing;
+            clicked => { Check.preview("play"); }
+        }
+        if Check.preview-available: Btn {
+            y: (parent.height - self.height) / 2;
+            text: "Loop";
+            glyph: "\u{e040}";
+            enabled: !Check.preview-playing;
+            clicked => { Check.preview("loop"); }
+        }
+        if Check.preview-available: Btn {
+            y: (parent.height - self.height) / 2;
+            text: "Stop";
+            glyph: "\u{e047}";
+            enabled: Check.preview-playing;
+            clicked => { Check.preview("stop"); }
+        }
+    }
+}
+
+component RecorderCard inherits Card {
+    glyph: "\u{e31d}"; // mic
+    title: "Voice Test Recorder";
+    body: "Records your dry microphone for up to 10 seconds. EQ and Fine-Tune can then play it through the live chain to your headphones only. Deleted after 15 minutes unused or when Studio Mic quits.";
+    Progress {
+        value: Check.rec-progress;
+        accent: Check.rec-state == "recording" ? Theme.clip : Theme.primary;
+    }
+    HorizontalLayout {
+        spacing: 8 * Theme.u;
+        Btn {
+            text: "Record (10 s)";
+            glyph: "\u{e061}"; // fiber_manual_record
+            primary: true;
+            enabled: Check.rec-state != "recording";
+            clicked => { Check.record(); }
+        }
+        Btn {
+            text: "Stop";
+            glyph: "\u{e047}";
+            enabled: Check.rec-state == "recording";
+            clicked => { Check.stop-record(); }
+        }
+        Label {
+            text: Check.rec-status;
+            size: 10.5;
+            color: Check.rec-state == "failed" ? Theme.clip : Theme.on-surface-variant;
+            horizontal-stretch: 1;
+        }
+    }
+}
+
+component DeessCard inherits Card {
+    glyph: "\u{e91f}"; // record_voice_over
+    title: "De-Esser Sibilance Test";
+    body: "Press start and read aloud:";
+    Label {
+        text: "\"She sells seashells by the seashore, and six Swiss wristwatches swiftly buzzed past the station.\"";
+        size: 12;
+        font-italic: true;
+        wrap: word-wrap;
+    }
+    HorizontalLayout {
+        alignment: start;
+        Btn {
+            text: Check.deess-pending ? "Recording... read the sentence now" : "Start De-Esser Test";
+            glyph: "\u{e037}";
+            enabled: !Check.deess-pending && Check.rec-state != "recording";
+            clicked => { Check.deess-test(); }
+        }
+    }
+}
+
+component OptimizeCard inherits Card {
+    glyph: "\u{e663}"; // auto_fix_high
+    title: "One-Click Optimize";
+    body: "Listens for 2.5 s (keep talking normally), measures your room and voice, then sets the gate, de-esser and makeup gain. Applied live, nothing restarts.";
+    if Check.optimizing: Progress { value: Check.optimize-progress; }
+    HorizontalLayout {
+        alignment: start;
+        Btn {
+            text: Check.optimizing ? "Listening..." : "One-Click Optimize";
+            glyph: "\u{e663}";
+            primary: true;
+            enabled: !Check.optimizing && !Check.checking;
+            clicked => { Check.optimize(); }
+        }
+    }
+    if Check.optimize-result != "": Label {
+        text: Check.optimize-result;
+        size: 10.5;
+        color: Theme.ok;
+        wrap: word-wrap;
+    }
+}
+
+component SoundcheckCard inherits Card {
+    glyph: "\u{e663}";
+    title: "Automatic Soundcheck";
+    body: "Read the phrase naturally for 5 seconds. Studio Mic measures your room noise and voice and sets the gate, de-esser and mic trim.";
+    Label {
+        text: "\"Testing broadcast audio on my Linux system.\"";
+        size: 12;
+        font-italic: true;
+        wrap: word-wrap;
+    }
+    if Check.checking: Progress { value: Check.check-progress; }
+    if Check.check-done: GridLayout {
+        spacing: 8 * Theme.u;
+        Result {
+            row: 0;
+            col: 0;
+            label: "Gate";
+            value: Check.check-gate;
+            note: "Above your room's noise floor";
+        }
+        Result {
+            row: 0;
+            col: 1;
+            label: "De-esser";
+            value: Check.check-deess;
+            note: "Tames harsh S sounds";
+        }
+        Result {
+            row: 1;
+            col: 0;
+            label: "Voice peak";
+            value: Check.check-peak;
+            note: "How loud you spoke";
+        }
+        Result {
+            row: 1;
+            col: 1;
+            label: "Mic trim (applied)";
+            value: Check.check-trim;
+            note: "Fine-tune it with the Mic fader in the top bar";
+        }
+    }
+    HorizontalLayout {
+        spacing: 8 * Theme.u;
+        alignment: start;
+        Btn {
+            text: Check.checking ? "Listening..." : Check.check-done ? "Recalibrate" : "Begin Soundcheck";
+            glyph: Check.check-done ? "\u{e5d5}" : "\u{e037}";
+            primary: !Check.check-done;
+            enabled: !Check.checking && !Check.optimizing;
+            clicked => { Check.soundcheck(); }
+        }
+        if Check.check-done: Btn {
+            text: "Apply Gate & De-Esser";
+            glyph: "\u{f0be}"; // check_circle
+            primary: true;
+            clicked => { Check.apply-soundcheck(); }
+        }
+    }
+}
+
+export component CheckView inherits Rectangle {
+    property <bool> two: self.width > 860 * Theme.u;
+    border-radius: 22 * Theme.u;
+    background: Theme.surface-low;
+    border-width: 1px;
+    border-color: Theme.outline;
+    clip: true;
+    ScrollView {
+        x: 10 * Theme.u;
+        y: 10 * Theme.u;
+        width: parent.width - 20 * Theme.u;
+        height: parent.height - 20 * Theme.u;
+        content-width: self.visible-width;
+        content-height: body.preferred-height + 10 * Theme.u;
+        body := VerticalLayout {
+            width: parent.width - 12px;
+            spacing: 10 * Theme.u;
+            alignment: start;
+            PreviewBar { }
+            if root.two: HorizontalLayout {
+                spacing: 10 * Theme.u;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 10 * Theme.u;
+                    alignment: start;
+                    RecorderCard { }
+                    DeessCard { }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 10 * Theme.u;
+                    alignment: start;
+                    OptimizeCard { }
+                    SoundcheckCard { }
+                }
+            }
+            if !root.two: VerticalLayout {
+                spacing: 10 * Theme.u;
+                RecorderCard { }
+                DeessCard { }
+                OptimizeCard { }
+                SoundcheckCard { }
+            }
+        }
+    }
+}

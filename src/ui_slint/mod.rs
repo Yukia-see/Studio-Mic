@@ -8,6 +8,7 @@
 
 slint::include_modules!();
 
+mod check;
 mod eq;
 mod matrix;
 mod tune;
@@ -103,6 +104,7 @@ pub fn run(
         mx: Default::default(),
         eq: Default::default(),
         tune: Default::default(),
+        check: Default::default(),
         visible: Cell::new(false),
         mic_missing: Cell::new(false),
         notice_timer: slint::Timer::default(),
@@ -115,10 +117,12 @@ pub fn run(
     strip.set_badges(ctx.badges.clone().into());
     ctx.init_matrix();
     ctx.init_eq();
+    ctx.init_check();
     wire_callbacks(&ctx);
     matrix::wire(&ctx);
     eq::wire(&ctx);
     tune::wire(&ctx);
+    check::wire(&ctx);
     ctx.refresh_state();
 
     win.window().set_size(slint::LogicalSize::new(cfg.window_width as f32, cfg.window_height as f32));
@@ -190,6 +194,7 @@ struct Ctx {
     mx: matrix::MatrixState,
     eq: eq::EqState,
     tune: tune::TuneState,
+    check: check::CheckState,
     visible: Cell<bool>,
     mic_missing: Cell<bool>,
     notice_timer: slint::Timer,
@@ -271,6 +276,8 @@ impl Ctx {
                 *self.mx.outs.borrow_mut() = outs;
                 self.refresh_state();
             }
+            UiPush::Recorder(json) => self.on_recorder(&json),
+            UiPush::Preview(json) => self.on_preview(&json),
             UiPush::LiveStreams(streams) => {
                 *self.mx.live.borrow_mut() = streams;
                 self.refresh_state();
@@ -825,6 +832,22 @@ mod snapshot {
         win.global::<Nav>().set_tab(2);
         shot(&window, &dir, "tune-1400x900", 1400, 900, 1.0);
         shot(&window, &dir, "tune-775x860@1.6", 1240, 1376, 1.6);
+        let k = win.global::<Check>();
+        k.set_preview_available(true);
+        k.set_rec_state("done".into());
+        k.set_rec_progress(1.0);
+        k.set_rec_status("Recorded. Preview it on EQ or Fine-Tune.".into());
+        k.set_check_done(true);
+        k.set_check_gate("-43 dB".into());
+        k.set_check_deess("-4.5 dB".into());
+        k.set_check_peak("-14.2 dBFS".into());
+        k.set_check_trim("+3.0 dB".into());
+        k.set_optimize_result("Optimized: room floor -48.3 dBFS → gate -43 dB, de-esser -4.5 dB, makeup +3.5 dB.".into());
+        win.global::<Nav>().set_tab(3);
+        shot(&window, &dir, "check-1400x900", 1400, 900, 1.0);
+        shot(&window, &dir, "check-775x860@1.6", 1240, 1376, 1.6);
+        win.global::<Nav>().set_tab(1);
+        shot(&window, &dir, "eq-preview-775x860@1.6", 1240, 1376, 1.6);
         win.global::<Nav>().set_tab(0);
         win.global::<Matrix>().set_empty(true);
         shot(&window, &dir, "main-1400x900-empty", 1400, 900, 1.0);

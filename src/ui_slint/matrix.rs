@@ -570,6 +570,11 @@ impl Ctx {
         });
     }
 
+    /// Confirm dialog for other tabs; `msg` is a backend message, or a `ui:` local action.
+    pub(super) fn ask(&self, text: &str, ok: &str, msg: &str) {
+        self.mx_confirm(text.to_string(), ok, msg.to_string());
+    }
+
     fn mx_confirm(&self, text: String, ok: &str, msg: String) {
         *self.mx.confirm.borrow_mut() = Some(msg);
         let m = self.win.global::<Matrix>();
@@ -717,8 +722,10 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
     m.on_commit_add_mix(cb!(|c| c.mx_commit_add_mix()));
     m.on_confirm_accepted(cb!(|c| {
         let msg = c.mx.confirm.borrow_mut().take();
-        if let Some(msg) = msg {
-            c.post(msg);
+        match msg {
+            Some(m) if m.starts_with("ui:") => c.local_action(&m),
+            Some(m) => c.post(m),
+            None => {}
         }
     }));
     m.on_rescan(cb!(|c| {

@@ -404,7 +404,7 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
                     let _ = webview.evaluate_script(&format!("window.setWidgetMode && window.setWidgetMode({})", on));
                 }
                 // Typed events are for the native UI; the webview gets their `Js` twins.
-                UiPush::State | UiPush::Peaks(_) | UiPush::Notice(_) | UiPush::MicMissing(_) | UiPush::Plugins(_) | UiPush::Devices { .. } | UiPush::LiveStreams(_) => {}
+                UiPush::State | UiPush::Peaks(_) | UiPush::Notice(_) | UiPush::MicMissing(_) | UiPush::Plugins(_) | UiPush::Devices { .. } | UiPush::LiveStreams(_) | UiPush::Recorder(_) | UiPush::Preview(_) => {}
                 UiPush::Quit => {
                     println!("Quitting Studio Mic...");
                     window.set_visible(false);

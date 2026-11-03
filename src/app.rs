@@ -52,6 +52,10 @@ pub enum UiPush {
     Plugins(String),
     /// Hardware inputs and outputs (after a rescan).
     Devices { mics: Vec<crate::audio::device_discovery::AudioDevice>, outs: Vec<crate::audio::device_discovery::AudioDevice> },
+    /// Voice test recorder state (`{state, elapsed, max}`), as for `updateRecorderState`.
+    Recorder(String),
+    /// Preview playback state (`{state}`), as for `updatePreviewState`.
+    Preview(String),
     /// App streams playing right now (which channel each one is routed to).
     LiveStreams(Vec<crate::routing::wireplumber_hook::HookedStream>),
 }
@@ -281,9 +285,13 @@ impl Controller {
                 ));
                 self.push(UiPush::Peaks(json));
             }
-            EngineEvent::Recorder(json) => self.js(format!("window.updateRecorderState && window.updateRecorderState({})", json)),
+            EngineEvent::Recorder(json) => {
+                self.js(format!("window.updateRecorderState && window.updateRecorderState({})", json));
+                self.push(UiPush::Recorder(json));
+            }
             EngineEvent::Preview(json) => {
                 self.js(format!("window.updatePreviewState && window.updatePreviewState({})", json));
+                self.push(UiPush::Preview(json));
                 self.push(UiPush::TrayRefresh);
             }
             EngineEvent::MonitorMaster => self.sync_ui(),
