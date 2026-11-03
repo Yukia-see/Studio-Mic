@@ -597,7 +597,9 @@ pub struct StudioMicConfig {
     #[serde(default)]
     pub strip_collapsed: bool,
     /// Open the native (Slint) window instead of the webview when no --ui-backend is given.
-    #[serde(default)]
+    /// On by default (also for state files from before it existed); the webview stays one
+    /// switch away for a release.
+    #[serde(default = "default_true")]
     pub native_ui: bool,
 }
 
@@ -671,7 +673,7 @@ impl Default for StudioMicConfig {
             always_on_top: true,
             mixer_simple: false,
             strip_collapsed: false,
-            native_ui: false,
+            native_ui: true,
         }
     }
 }
@@ -1223,6 +1225,14 @@ fn write_atomic_locked(path: &std::path::Path, content: &str) -> std::io::Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn state_files_without_native_ui_open_the_native_window() {
+        let mut v = serde_json::to_value(StudioMicConfig::default()).unwrap();
+        v.as_object_mut().unwrap().remove("native_ui");
+        let s: StudioMicConfig = serde_json::from_value(v).unwrap();
+        assert!(s.native_ui);
+    }
 
     #[test]
     fn legacy_migration_keeps_user_data() {

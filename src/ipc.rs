@@ -204,7 +204,7 @@ USAGE
   studiomic                       open the window (or focus the running one)
   studiomic --background          start in the tray (also: --start-minimized, --tray, -b, --daemon)
   studiomic --ui-backend slint|web   native window or the webview (also STUDIOMIC_UI);
-                                  default: the 'native window' setting in Settings (off = webview)
+                                  default: the 'native window' setting in Settings (on)
   studiomic --eq | --noise | --calib    open on a specific tab
 
 CONTROL (talks to the running instance over ~/.cache/studio-mic/studio-mic.sock,
