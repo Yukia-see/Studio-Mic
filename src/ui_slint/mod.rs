@@ -883,5 +883,8 @@ mod snapshot {
         shot(&window, &dir, "widget-260x200", 260, 200, 1.0);
         shot(&window, &dir, "widget-900x600", 900, 600, 1.0);
         shot(&window, &dir, "widget-672x512@1.6", 672, 512, 1.6);
+        shot(&window, &dir, "widget-834x491@1.6", 1334, 786, 1.6);
+        shot(&window, &dir, "widget-1200x300", 1200, 300, 1.0);
+        shot(&window, &dir, "widget-360x700", 360, 700, 1.0);
     }
 }

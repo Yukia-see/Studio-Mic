@@ -321,8 +321,9 @@ component StudioStrip inherits Rectangle {
     }
 }
 
-// Widget mode: the strip alone, stacked, designed at 400 units wide and fitted to the window.
+// Widget mode: the strip alone, filling the window (see MainWindow.widget-scale).
 component WidgetStrip inherits Rectangle {
+    property <bool> side: self.width >= 640 * Theme.u;
     border-radius: 16 * Theme.u;
     background: Theme.surface-mid;
     border-width: 1px;
@@ -336,8 +337,16 @@ component WidgetStrip inherits Rectangle {
             Rectangle { horizontal-stretch: 1; }
             Tools { }
         }
-        MicCard { }
-        MonCard { }
+        if root.side: HorizontalLayout {
+            spacing: 6 * Theme.u;
+            MicCard { horizontal-stretch: 1; }
+            MonCard { horizontal-stretch: 1; }
+        }
+        if !root.side: VerticalLayout {
+            spacing: 6 * Theme.u;
+            MicCard { }
+            MonCard { }
+        }
         PillGrid {
             pills: Strip.pills;
             toggle(id) => { Strip.pill-toggle(id); }
@@ -445,36 +454,44 @@ export component MainWindow inherits Window {
     min-width: 160px;
     min-height: 120px;
 
-    // Widget: fit the 400-unit design to the window. Rows of pills are estimated at that width
-    // (pill 100 + gap 6 → 3 per row) so the scale doesn't depend on its own layout.
-    property <int> pill-rows: ceil(Strip.pills.length / 3);
-    property <float> widget-natural-h: 8 + 30 + 6 + 62 + 6 + 62 + 6 + pill-rows * 32 + 6 + 24 + 8 + 12;
-    // Main window: the layout is fitted to the window width (down to half size) and the
-    // Small / Medium / Large setting multiplies that, so the three sizes always differ. Design
-    // widths are in units at scale 1: the matrix needs its source column + ~156 per mix, Simple
-    // two cards side by side. Height is never shrunk: tall content scrolls.
-    property <int> ncols: Matrix.cols.length;
-    property <bool> simple: Nav.simple;
-    property <float> design-w: simple ? 620 : 356 + ncols * 156;
+    // Widget: the card always fills the window. Its scale is the largest at which the content
+    // fits: at most window width / 400 units, and small enough for the height. A wide window
+    // gives the card more units across, so the pills use more columns (and from 640 units the
+    // mic and headphone cards sit side by side), which lowers the height needed: two passes
+    // find a scale whose layout fits. All sizes are in units at scale 1.
+    property <int> npills: Strip.pills.length;
+    property <float> ww: (self.width - 12px) / 1px;
+    property <float> wh: (self.height - 12px) / 1px;
+    pure function widget-h(rows: int, side: bool) -> float {
+        return 100 + (side ? 62 : 130) + rows * 32;
+    }
+    pure function pills-per-row(units: float) -> int {
+        return max(1, floor((units - 16 + 6) / 106));
+    }
+    property <float> s0: min(ww / 400, wh / widget-h(ceil(npills / 3), false));
+    property <float> s1: min(ww / 400, wh / widget-h(ceil(npills / pills-per-row(ww / s0)), ww / s0 >= 640));
+    property <float> s2: min(ww / 400, wh / widget-h(ceil(npills / pills-per-row(ww / s1)), ww / s1 >= 640));
+    property <float> widget-scale: min(s1, s2);
+    // Main window: the Small / Medium / Large setting; the layout reflows to the window and
+    // anything that doesn't fit scrolls.
     function rescale() {
         if (Strip.widget-mode) {
-            Theme.scale = clamp(min((self.width - 12px) / 400px, (self.height - 12px) / (widget-natural-h * 1px)), 0.45, 3.0);
+            Theme.scale = clamp(widget-scale, 0.45, 3.0);
         } else {
-            Theme.scale = size-factor * clamp(self.width / (design-w * 1px), 0.5, 1.0);
+            Theme.scale = size-factor;
         }
     }
-    changed design-w => { rescale(); }
+    changed widget-scale => { rescale(); }
     init => { rescale(); }
     changed width => { rescale(); resized(self.width, self.height); }
     changed height => { rescale(); resized(self.width, self.height); }
     changed size-factor => { rescale(); }
-    changed pill-rows => { rescale(); }
     property <bool> widget-mode: Strip.widget-mode;
     changed widget-mode => { rescale(); }
 
     // Centered; when the window is wider or taller than the fitted design, the card keeps its size.
     if Strip.widget-mode: WidgetStrip {
-        width: min(parent.width - 12px, 400 * Theme.u);
+        width: parent.width - 12px;
         height: min(parent.height - 12px, self.preferred-height);
         x: (parent.width - self.width) / 2;
         y: max(6px, (parent.height - self.height) / 2);
