@@ -41,7 +41,7 @@ done
 pkill -u "$TARGET_USER" -x studiomic 2>/dev/null || true
 
 echo ">> Removing files..."
-rm -f "$BIN_DIR/$BIN_NAME" "$BIN_DIR/studio-mic"
+rm -f "$BIN_DIR/$BIN_NAME" "$BIN_DIR/studio-mic"  # studio-mic: alias from older installs
 rm -f "$DESKTOP_DIR/studiomic.desktop" "$TARGET_HOME/.config/autostart/studiomic.desktop"
 rm -f "$ICON_DIR/studiomic.svg" "$PW_DROPIN" "$UNIT"
 rm -rf "$SHARE_DIR"

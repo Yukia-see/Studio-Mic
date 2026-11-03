@@ -1,6 +1,6 @@
 //! latency-probe: measures mic -> headphone (Monitor Mix) latency through Studio Mic.
 //!
-//!   latency-probe [--mode processed|raw|both] [--runs 3] [--cli studio-mic]
+//!   latency-probe [--mode processed|raw|both] [--runs 3] [--cli studiomic]
 //!
 //! An impulse burst is injected into the current mic chain input and recorded twice by ONE stereo
 //! recorder: left = the injected reference, right = the Monitor Mix limiter output. Because both
@@ -143,12 +143,12 @@ fn graph_quantum() -> usize {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "-h" || a == "--help") {
-        println!("usage: latency-probe [--mode processed|raw|both] [--runs 3] [--cli studio-mic]");
+        println!("usage: latency-probe [--mode processed|raw|both] [--runs 3] [--cli studiomic]");
         return;
     }
     let mode = arg(&args, "--mode", "both");
     let runs: usize = arg(&args, "--runs", "3").parse().unwrap_or(3).max(1);
-    let bin = arg(&args, "--cli", "studio-mic");
+    let bin = arg(&args, "--cli", "studiomic");
 
     let status: serde_like::Json = match cli(&bin, &["--status", "--json"]) {
         Ok(s) => serde_like::Json(s),
@@ -208,7 +208,7 @@ fn main() {
                 println!("{:<9} monitor latency: {:6.1} ms  (median of {} runs: {:?})", m, ms, v.len(), v.iter().map(|x| (x * 10.0).round() / 10.0).collect::<Vec<_>>());
                 results.push((m.to_string(), *ms));
             }
-            None => println!("{:<9} monitor latency: not measurable (burst suppressed? try `studio-mic --set-denoiser off`)", m),
+            None => println!("{:<9} monitor latency: not measurable (burst suppressed? try `studiomic --set-denoiser off`)", m),
         }
     }
     // Restore the user's monitoring.

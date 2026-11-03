@@ -37,6 +37,8 @@ pub enum UiPush {
     ToggleWindow,
     Quit,
     TrayRefresh,
+    /// Enter / leave the mini floating widget (window size, always-on-top, title).
+    Widget { on: bool, width: f64, height: f64, on_top: bool },
 }
 
 pub struct Controller {
@@ -151,6 +153,7 @@ impl Controller {
             "denoiser": s.denoiser.engine,
             "theme": s.theme,
             "view_mode": s.view_mode,
+            "widget_mode": s.widget_mode,
             "preview": self.engine.preview_is_active(),
             "channels": channels,
         });
@@ -323,12 +326,13 @@ impl Controller {
                 // Routing-matrix cells
                 "stream_route" => m.stream_routed = b()?,
                 "monitor_route" => m.monitor_routed = b()?,
-                // Voice Chat: the main mic always feeds it; Mic 2 and hardware inputs on request.
+                // Voice Chat: the main mic always feeds it; any other source on request, except
+                // the voice-chat channel itself (echo guard).
                 "voice_route" if voice_ok && id != "mic" => m.voice_routed = b()?,
                 "voice_mute" if voice_ok => m.voice_muted = b()?,
                 "voice_gain" if voice_ok => m.voice_gain_db = parse_gain_spec(value, m.voice_gain_db).ok_or("bad gain")?,
                 "voice_route" | "voice_mute" | "voice_gain" => {
-                    return Err("only microphones and hardware inputs can feed Voice Chat (apps never reach Discord)".into())
+                    return Err("Routing the voice-chat channel into Voice Chat would echo Discord back to itself".into())
                 }
                 "delay_stream" => m.delay_stream_ms = value.trim_end_matches("ms").parse::<f32>().map_err(|e| e.to_string())?,
                 "delay_monitor" => m.delay_monitor_ms = value.trim_end_matches("ms").parse::<f32>().map_err(|e| e.to_string())?,
@@ -504,7 +508,7 @@ impl Controller {
             let base = sanitize_channel_id(name);
             let mut id = base.clone();
             let mut n = 2;
-            while ["monitor", "stream", "vod", "voice"].contains(&id.as_str()) || s.custom_mixes.iter().any(|m| m.id == id) {
+            while config::RESERVED_MIX_IDS.contains(&id.as_str()) || s.custom_mixes.iter().any(|m| m.id == id) {
                 id = format!("{}_{}", base, n);
                 n += 1;
             }
@@ -715,6 +719,11 @@ impl Controller {
     // -----------------------------------------------------------------------------------------
 
     pub fn create_channel(&self, name: &str, preset: Option<&str>) -> Reply {
+        self.create_channel_with_input(name, preset, None)
+    }
+
+    /// Like `create_channel`; `hw_source` makes it a hardware-input (Line In) channel.
+    pub fn create_channel_with_input(&self, name: &str, preset: Option<&str>, hw_source: Option<String>) -> Reply {
         let name = name.trim();
         if name.is_empty() {
             return Err("channel name required".into());
@@ -733,6 +742,12 @@ impl Controller {
             };
             ch.id = id.clone();
             ch.name = name.to_string();
+            if let Some(hw) = hw_source {
+                ch.hw_source = Some(hw);
+                ch.kind = "hardware".into();
+                ch.route_mode = "manual".into();
+                ch.apps.clear();
+            }
             s.virtual_channels.push(ch);
             Ok(id)
         });
@@ -889,26 +904,48 @@ impl Controller {
         r
     }
 
-    pub fn toggle_view(&self) -> Reply {
+    /// Mini floating widget on/off (`None` toggles). Tab 1 is matrix-only, so the old
+    /// `--toggle-view` is an alias for this.
+    pub fn set_widget(&self, on: Option<bool>) -> Reply {
         let r = self.mutate(|s| {
-            // Cards -> Compact -> Matrix -> Cards
-            s.view_mode = match s.view_mode.as_str() {
-                "normal" => "simple",
-                "simple" => "matrix",
-                _ => "normal",
-            }
-            .into();
-            Ok(format!("View: {}", s.view_mode))
+            s.widget_mode = on.unwrap_or(!s.widget_mode);
+            Ok(format!("Widget mode: {}", if s.widget_mode { "on" } else { "off" }))
         });
-        self.sync_ui();
+        self.push_widget();
+        self.push(UiPush::TrayRefresh);
         r
     }
 
-    pub fn set_view(&self, mode: &str) -> Reply {
-        self.mutate(|s| {
-            s.view_mode = if ["simple", "matrix"].contains(&mode) { mode.to_string() } else { "normal".into() };
-            Ok(String::new())
-        })
+    /// Tells the window loop the saved widget state (also used once at startup).
+    pub fn push_widget(&self) {
+        let s = self.state.lock().unwrap();
+        let w = UiPush::Widget { on: s.widget_mode, width: s.widget_width, height: s.widget_height, on_top: s.always_on_top };
+        drop(s);
+        self.push(w);
+    }
+
+    pub fn set_always_on_top(&self, on: bool) -> Reply {
+        let r = self.mutate(|s| {
+            s.always_on_top = on;
+            Ok(format!("Widget always on top: {}", if on { "on" } else { "off" }))
+        });
+        if self.state.lock().unwrap().widget_mode {
+            self.push_widget();
+        }
+        r
+    }
+
+    /// Control size (Small / Medium / Large).
+    pub fn set_ui_size(&self, size: &str) -> Reply {
+        if !config::UI_SIZES.contains(&size) {
+            return Err(format!("unknown size '{}' (small, medium, large)", size));
+        }
+        let r = self.mutate(|s| {
+            s.ui_size = size.to_string();
+            Ok(format!("Size: {}", size))
+        });
+        self.js(format!("window.applyUiSize && window.applyUiSize('{}')", size));
+        r
     }
 
     pub fn save_profile(&self, name: &str) -> Reply {
@@ -991,6 +1028,9 @@ impl Controller {
             "schema_version": s.schema_version,
             "theme": s.theme,
             "view_mode": s.view_mode,
+            "ui_size": s.ui_size,
+            "widget_mode": s.widget_mode,
+            "always_on_top": s.always_on_top,
             "mic": {
                 "input": s.active_hw_mic,
                 "mono_center": s.mic.mono_center,
@@ -1177,7 +1217,11 @@ impl Controller {
                 self.save_profile(&a[1..].join(" "))
             }
             "--list-profiles" => Ok(StudioMicConfig::list_profiles().join("\n")),
-            "--toggle-view" => self.toggle_view(),
+            "--toggle-widget" | "--toggle-view" => self.set_widget(None),
+            "--set-size" => {
+                need(1)?;
+                self.set_ui_size(a[1])
+            }
             "--create-channel" => {
                 need(1)?;
                 self.create_channel(a[1], a.get(2).copied())
@@ -1208,7 +1252,7 @@ impl Controller {
             }
             "--record-test" => self.record("start"),
             "--ui" => {
-                // Sends one raw webview IPC message (scripting / tests): studio-mic --ui 'eq:[...]'
+                // Sends one raw webview IPC message (scripting / tests): studiomic --ui 'eq:[...]'
                 need(1)?;
                 self.handle_ui(&a[1..].join(" "));
                 Ok("sent".into())
@@ -1221,7 +1265,7 @@ impl Controller {
                     Ok(self.status_text())
                 }
             }
-            other => Err(format!("unknown command '{}' (see studio-mic --help)", other)),
+            other => Err(format!("unknown command '{}' (see studiomic --help)", other)),
         })();
         match r {
             Ok(m) => (true, m),
@@ -1243,7 +1287,11 @@ impl Controller {
             "mic_option" => self.set_mic_option(arg(0), arg(1) == "1"),
             "monitor_master" => self.set_monitor_master(arg(0), arg(1)),
             "monitor_output" => self.set_monitor_output(rest),
-            "view_mode" => self.set_view(rest),
+            // Tab 1 is matrix-only; old UIs may still send this.
+            "view_mode" => Ok(String::new()),
+            "ui_size" => self.set_ui_size(rest),
+            "toggle_widget_mode" => self.set_widget(if rest.is_empty() { None } else { Some(rest == "1") }),
+            "always_on_top" => self.set_always_on_top(rest == "1"),
             "theme" => self.set_theme(rest),
             "last_tab" => self.mutate(|s| {
                 s.last_tab = rest.to_string();
@@ -1255,9 +1303,12 @@ impl Controller {
                     name: String,
                     #[serde(default)]
                     preset: Option<String>,
+                    /// Hardware input for a Line In channel (node.name).
+                    #[serde(default)]
+                    hw_source: Option<String>,
                 }
                 match serde_json::from_str::<Add>(rest) {
-                    Ok(a) => self.create_channel(&a.name, a.preset.as_deref()),
+                    Ok(a) => self.create_channel_with_input(&a.name, a.preset.as_deref(), a.hw_source.filter(|h| !h.is_empty())),
                     Err(_) => self.create_channel(rest, None),
                 }
             }

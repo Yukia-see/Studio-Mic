@@ -55,7 +55,7 @@ Run the continuity test yourself while moving sliders:
 cargo build --release --workspace
 ./target/release/gap-probe live --inject StudioMic_Ch_music --capture StudioMic_Stream_Mix --secs 20
 # mic path (use a quiet room and turn the denoiser off, it removes test tones):
-./target/release/gap-probe live --inject "$(studio-mic --status --json --runtime | jq -r .runtime.mic_input_node)" \
+./target/release/gap-probe live --inject "$(studiomic --status --json --runtime | jq -r .runtime.mic_input_node)" \
     --capture StudioMic_Monitor_Mix_Lim --secs 20
 ```
 

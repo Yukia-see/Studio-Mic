@@ -37,7 +37,8 @@ fn cleanup_pipewire() {
     let mut removed = 0;
     for n in audio::pw::nodes() {
         let lname = n.name.to_lowercase();
-        if lname.starts_with("studiomic_") || n.name == audio::filter_chain::LEGACY_MIC_ALIAS {
+        // Also matches the pre-v0.2 studiomic_processed_mic alias.
+        if lname.starts_with("studiomic_") {
             if audio::pw::destroy_node(n.id) {
                 removed += 1;
             }
@@ -310,6 +311,11 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
         let _ = std::fs::remove_file(ipc::socket_path());
     };
 
+    // Normal window size while the widget is shown (restored when it's left).
+    let mut widget_saved: Option<tao::dpi::LogicalSize<f64>> = None;
+    let start_widget = cfg.widget_mode;
+    let widget_controller = controller.clone();
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         let set_visible = |vis: bool| {
@@ -321,7 +327,11 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
             let _ = webview.evaluate_script(&format!("window.setWindowVisible && window.setWindowVisible({})", vis));
         };
         match event {
-            Event::NewEvents(StartCause::Init) => {}
+            Event::NewEvents(StartCause::Init) => {
+                if start_widget {
+                    widget_controller.push_widget();
+                }
+            }
             Event::UserEvent(AppEvent::Ui(push)) => match push {
                 UiPush::Js(script) => {
                     let _ = webview.evaluate_script(&script);
@@ -332,6 +342,22 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
                     if let Some(h) = &tray_handle {
                         let _ = h.update(|_| {});
                     }
+                }
+                UiPush::Widget { on, width, height, on_top } => {
+                    hyprland_widget(on, width, height, on_top);
+                    if on {
+                        if widget_saved.is_none() {
+                            widget_saved = Some(window.inner_size().to_logical::<f64>(window.scale_factor()));
+                        }
+                        window.set_title(WIDGET_TITLE);
+                        window.set_inner_size(tao::dpi::LogicalSize::new(width, height));
+                        window.set_always_on_top(on_top);
+                    } else if let Some(size) = widget_saved.take() {
+                        window.set_title("Studio Mic");
+                        window.set_always_on_top(false);
+                        window.set_inner_size(size);
+                    }
+                    let _ = webview.evaluate_script(&format!("window.setWidgetMode && window.setWidgetMode({})", on));
                 }
                 UiPush::Quit => {
                     println!("Quitting Studio Mic...");
@@ -347,7 +373,16 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
             }
             Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
                 let logical = size.to_logical::<f64>(window.scale_factor());
-                if logical.width > 100.0 && logical.height > 100.0 {
+                if widget_saved.is_some() {
+                    // Widget resized by the user: remember its size, not the main window's.
+                    let mut s = state.lock().unwrap();
+                    if logical.width > 100.0 && ((s.widget_width - logical.width).abs() > 1.0 || (s.widget_height - logical.height).abs() > 1.0) {
+                        s.widget_width = logical.width.round();
+                        s.widget_height = logical.height.round();
+                        s.normalize();
+                        let _ = s.save();
+                    }
+                } else if logical.width > 100.0 && logical.height > 100.0 {
                     let mut s = state.lock().unwrap();
                     if (s.window_width - logical.width).abs() > 1.0 || (s.window_height - logical.height).abs() > 1.0 {
                         s.window_width = logical.width.round();
@@ -361,4 +396,82 @@ fn run(args: Vec<String>, background: bool) -> Result<(), Box<dyn std::error::Er
             _ => {}
         }
     });
+}
+
+const WIDGET_TITLE: &str = "Studio Mic Widget";
+
+/// Tiled Hyprland windows ignore client resizes and on-top hints, so the widget also asks the
+/// compositor directly (by our PID): float + pin + exact size. Leaving it unpins and re-tiles,
+/// unless the main window was already floating before. No-op outside Hyprland.
+fn hyprland_widget(on: bool, width: f64, height: f64, on_top: bool) {
+    use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
+    static WAS_FLOATING: AtomicBool = AtomicBool::new(false);
+    if std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_none() {
+        return;
+    }
+    // Read before the title changes, so a Hyprland window rule on the widget title can't hide
+    // the main window's own state.
+    if on {
+        WAS_FLOATING.store(hypr_client().is_some_and(|c| c.0), SeqCst);
+    }
+    std::thread::spawn(move || {
+        // Let the title change reach the compositor first.
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        let Some((floating, pinned, address)) = hypr_client() else { return };
+        let w = format!("address:{}", address);
+        if on {
+            if !floating {
+                hypr_dispatch(&format!("hl.dsp.window.float({{ window = \"{}\", action = \"enable\" }})", w), &["setfloating", &w]);
+            }
+            // `pin` toggles.
+            if on_top != pinned {
+                hypr_dispatch(&format!("hl.dsp.window.pin({{ window = \"{}\" }})", w), &["pin", &w]);
+            }
+            let (x, y) = (width.round() as i64, height.round() as i64);
+            hypr_dispatch(
+                &format!("hl.dsp.window.resize({{ window = \"{}\", x = {}, y = {} }})", w, x, y),
+                &["resizewindowpixel", &format!("exact {} {},{}", x, y, w)],
+            );
+        } else {
+            if pinned {
+                hypr_dispatch(&format!("hl.dsp.window.pin({{ window = \"{}\" }})", w), &["pin", &w]);
+            }
+            if floating && !WAS_FLOATING.load(SeqCst) {
+                hypr_dispatch(&format!("hl.dsp.window.float({{ window = \"{}\", action = \"disable\" }})", w), &["settiled", &w]);
+            }
+        }
+    });
+}
+
+/// Hyprland 0.53+ takes Lua dispatches (`hl.dsp.window.*`); older versions the classic
+/// dispatcher names. Try Lua first, fall back (same approach as omarchy-hyprland-window-pop).
+fn hypr_dispatch(lua: &str, legacy: &[&str]) {
+    let ok = std::process::Command::new("hyprctl")
+        .args(["dispatch", lua])
+        .output()
+        .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).trim() == "ok")
+        .unwrap_or(false);
+    if !ok {
+        let _ = std::process::Command::new("hyprctl")
+            .arg("dispatch")
+            .args(legacy)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    }
+}
+
+/// (floating, pinned, address) of this process's Hyprland window.
+fn hypr_client() -> Option<(bool, bool, String)> {
+    std::process::Command::new("hyprctl")
+        .args(["clients", "-j"])
+        .output()
+        .ok()
+        .and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok())
+        .and_then(|v| {
+            v.as_array()?.iter().find(|c| c["pid"].as_u64() == Some(std::process::id() as u64)).map(|c| {
+                (c["floating"].as_bool().unwrap_or(false), c["pinned"].as_bool().unwrap_or(false), c["address"].as_str().unwrap_or("").to_string())
+            })
+        })
+        .filter(|c| !c.2.is_empty())
 }

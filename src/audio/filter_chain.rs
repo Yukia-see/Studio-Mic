@@ -21,7 +21,6 @@ use std::path::{Path, PathBuf};
 pub const EQ_SLOTS: usize = 10;
 /// Gate closes this far below where it opens (keyboard-chatter guard).
 pub const GATE_HYSTERESIS_DB: f32 = 7.0;
-pub const LEGACY_MIC_ALIAS: &str = "studiomic_processed_mic";
 pub const MIC2_IN: &str = "StudioMic_Mic2_In";
 pub const MIC2_OUT: &str = "StudioMic_Mic2";
 
@@ -215,7 +214,7 @@ fn filter_chain_module(desc: &str, nodes: &[String], links: &[String], inputs: &
 
 /// Text that is safe inside a quoted SPA-JSON string: a stray backslash or quote in a channel
 /// name would otherwise break the whole config (the strip would not start).
-fn spa_string_safe(s: &str) -> String {
+pub fn spa_string_safe(s: &str) -> String {
     s.chars()
         .map(|c| match c {
             '"' => '\'',

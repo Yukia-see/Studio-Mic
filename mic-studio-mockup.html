@@ -394,171 +394,163 @@
     .sm-btn.primary { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border-color: transparent; }
     .sm-btn:disabled { opacity: .45; cursor: not-allowed; }
     .sm-btn .material-symbols-outlined { font-size: 16px; }
+    /* ---------- Control size (Small / Medium / Large): data-size on <html> ---------- */
+    :root { --sm-btn-py: 6px; --sm-btn-px: 12px; --sm-fs: 11px; --sm-icon: 16px; --sm-fader-h: 8px; --sm-knob: 15px; --sm-mute: 36px; --sm-cell-mute: 28px; --sm-chip-fs: 10px; }
+    :root[data-size="small"] { --sm-btn-py: 3px; --sm-btn-px: 8px; --sm-fs: 10px; --sm-icon: 14px; --sm-fader-h: 6px; --sm-knob: 12px; --sm-mute: 28px; --sm-cell-mute: 24px; --sm-chip-fs: 9px; }
+    :root[data-size="large"] { --sm-btn-py: 9px; --sm-btn-px: 16px; --sm-fs: 13px; --sm-icon: 20px; --sm-fader-h: 11px; --sm-knob: 19px; --sm-mute: 44px; --sm-cell-mute: 36px; --sm-chip-fs: 12px; }
+    .sm-btn { padding: var(--sm-btn-py) var(--sm-btn-px); font-size: var(--sm-fs); }
+    .sm-btn .material-symbols-outlined { font-size: var(--sm-icon); }
+    .sm-chip { font-size: var(--sm-chip-fs); padding: calc(var(--sm-btn-py) / 2 + 1px) calc(var(--sm-btn-px) * .7); }
+    .sm-chip .material-symbols-outlined { font-size: calc(var(--sm-icon) - 2px); }
+    .mx-cell .mx-mute { width: var(--sm-cell-mute); height: var(--sm-cell-mute); }
+    .mx-cell .mx-mute .material-symbols-outlined { font-size: calc(var(--sm-icon)); }
+    .mx-slider { height: var(--sm-fader-h); }
+    .mx-slider::-webkit-slider-thumb { width: var(--sm-knob); height: var(--sm-knob); }
+    .mx-src .nm { font-size: calc(var(--sm-fs) + 1px); }
+
+    /* ---------- Studio strip (top bar; the whole UI in widget mode) ---------- */
+    .sm-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 12px; min-height: 68px; border-radius: 24px;
+      background: var(--md-sys-color-surface-container); border: 1px solid var(--md-sys-color-outline-variant); min-width: 0; }
+    .sm-strip-logo { display: flex; align-items: center; gap: 8px; font: 800 11px ui-monospace, monospace; letter-spacing: .12em; color: var(--md-sys-color-on-surface); }
+    .sm-strip-logo .logo { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+    .sm-strip-logo .logo .material-symbols-outlined { font-size: 17px; }
+    .sm-strip-sep { width: 1px; align-self: stretch; margin: 4px 0; background: var(--md-sys-color-outline-variant); }
+    .sm-group { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; }
+    .sm-group-label { font: 800 9px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .06em; color: var(--md-sys-color-on-surface-variant); }
+    .sm-strip .sm-sel { font-size: 10px; font-weight: 700; border-radius: 10px; padding: 2px 24px 2px 8px; max-width: 210px; min-width: 0; }
+    .sm-strip .sm-selects { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .sm-strip .sm-selects .row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .sm-warn { font: 700 9px ui-monospace, monospace; color: #f59e0b; }
+
+    /* Wave Link dual-track fader: mute button | (meter on top, slider below) */
+    .df-strip { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 16px; min-width: 0; flex: 1 1 250px; max-width: 420px;
+      background: var(--md-sys-color-surface-container-low); border: 1px solid var(--md-sys-color-outline-variant); }
+    .df-mute { position: relative; width: var(--sm-mute); height: var(--sm-mute); flex: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+      background: var(--md-sys-color-surface-container-highest); border: 1px solid var(--md-sys-color-outline-variant); color: var(--md-sys-color-on-surface); transition: all .15s; }
+    .df-mute .material-symbols-outlined { font-size: calc(var(--sm-icon) + 2px); }
+    .df-mute.muted { background: rgba(239, 68, 68, .2); border-color: #ef4444; color: #ef4444; box-shadow: 0 0 12px rgba(239, 68, 68, .35); }
+    .df-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .df-head { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--sm-fs); font-weight: 700; }
+    .df-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--md-sys-color-on-surface); min-width: 0; }
+    .df-read, .df-peak { font: 700 10px ui-monospace, monospace; white-space: nowrap; color: var(--md-sys-color-primary); }
+    .df-peak { color: var(--md-sys-color-success); padding: 0 5px; border-radius: 6px; background: var(--md-sys-color-surface-container-highest); }
+    .df-peak.hot { color: #f59e0b; } .df-peak.clip { color: #ef4444; }
+    .df-badge { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 6px; font: 800 9px ui-monospace, monospace; white-space: nowrap; cursor: pointer;
+      background: var(--md-sys-color-surface-container-highest); border: 1px solid var(--md-sys-color-outline-variant); color: var(--md-sys-color-on-surface-variant); }
+    .df-badge.on { border-color: #38bdf8; color: #38bdf8; }
+    .df-badge.pad { border-color: #f59e0b; color: #f59e0b; cursor: default; }
+    .df-badge .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+    .df-meter { position: relative; height: 6px; border-radius: 999px; overflow: hidden; background: var(--md-sys-color-surface-container-highest); }
+    .df-meter .fill { position: absolute; inset: 0 auto 0 0; width: 0%; border-radius: 999px; transition: width .08s ease-out;
+      background: linear-gradient(90deg, #10b981 0%, #34d399 70%, #f59e0b 90%, #f59e0b 100%); background-size: var(--df-w, 240px) 100%; }
+    .df-meter.hot .fill { background: #f59e0b; } .df-meter.clip .fill { background: #ef4444; }
+    .df-slider { -webkit-appearance: none; appearance: none; width: 100%; height: calc(var(--sm-fader-h) - 3px); border-radius: 999px; outline: none; cursor: pointer; margin: 0;
+      background: var(--md-sys-color-surface-container-highest); }
+    .df-slider::-webkit-slider-thumb { -webkit-appearance: none; width: var(--sm-knob); height: var(--sm-knob); border-radius: 50%; background: #38bdf8; border: 2px solid var(--md-sys-color-surface); box-shadow: 0 0 8px rgba(56, 189, 248, .6); cursor: pointer; }
+    .df-strip.mon .df-slider::-webkit-slider-thumb { background: #34c759; box-shadow: 0 0 8px rgba(52, 199, 89, .5); }
+    .df-slider:disabled { opacity: .4; }
+    /* Matrix cells: the meter sits above the slider (dual track), not inside it. */
+    .mx-cell .df-meter { height: 5px; }
+    .mx-cell.muted .df-meter { opacity: .35; }
+
+    /* Status dots (smStatus): green ok, amber HOT/limiting, red flashing PEAK! (real clipping only), solid red muted */
+    .st-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; background: #10b981; box-shadow: 0 0 6px #10b98180; transition: background .1s; }
+    [data-st="hot"] .st-dot, .st-dot[data-st="hot"] { background: #f59e0b; box-shadow: 0 0 6px #f59e0b99; }
+    [data-st="peak"] .st-dot, .st-dot[data-st="peak"] { background: #ef4444; box-shadow: 0 0 10px #ef4444; animation: sm-peak .25s steps(2) infinite; }
+    [data-st="muted"] .st-dot, .st-dot[data-st="muted"] { background: #ef4444; box-shadow: none; }
+    @keyframes sm-peak { 50% { opacity: .25; } }
+    .df-mute .st-dot { position: absolute; top: -3px; right: -3px; border: 2px solid var(--md-sys-color-surface-container); width: 10px; height: 10px; }
+    .df-mute[data-st="peak"] { box-shadow: 0 0 0 2px #ef4444, 0 0 14px #ef4444; }
+    .df-mute[data-st="hot"]:not(.muted) { box-shadow: 0 0 0 1px #f59e0b; }
+    .sm-qm { display: inline-flex; align-items: center; gap: 5px; padding: calc(var(--sm-btn-py) / 2 + 1px) calc(var(--sm-btn-px) * .7); border-radius: 999px; cursor: pointer; white-space: nowrap;
+      font: 800 var(--sm-chip-fs) ui-monospace, monospace; letter-spacing: .03em; background: var(--md-sys-color-surface-container-highest); border: 1px solid var(--md-sys-color-outline-variant); color: var(--md-sys-color-on-surface); }
+    .sm-qm[data-st="muted"] { background: rgba(127, 29, 29, .55); border-color: rgba(239, 68, 68, .6); color: #fca5a5; }
+    .sm-qm[data-st="peak"] { border-color: #ef4444; color: #fecaca; }
+    .sm-qm .material-symbols-outlined { font-size: calc(var(--sm-icon) - 3px); }
+    .sm-dsp { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+      font: 800 9px ui-monospace, monospace; background: var(--md-sys-color-surface-container-highest); border: 1px solid var(--md-sys-color-outline-variant); color: var(--md-sys-color-on-surface-variant); }
+    .sm-dsp.on { border-color: rgba(16, 185, 129, .5); color: #34d399; }
+    .sm-dsp.dn.on { border-color: rgba(34, 211, 238, .5); color: #67e8f9; }
+    .sm-dsp.comp.on { border-color: rgba(168, 85, 247, .5); color: #d8b4fe; }
+    .sm-dsp.warn { border-color: #f59e0b; color: #f59e0b; }
+    .sm-icon-btn { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--md-sys-color-on-surface-variant); }
+    .sm-icon-btn:hover { background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface); }
+    .sm-icon-btn.on { color: #38bdf8; }
+    .sm-icon-btn .material-symbols-outlined { font-size: 16px; }
+    .sm-widget-only { display: none !important; }
+
+    /* Matrix empty state (clean slate) */
+    .mx-emptystate { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 16px; text-align: center; }
+    .mx-emptystate p { font-size: 12px; color: var(--md-sys-color-on-surface-variant); }
+    .mx-emptystate .sm-btn { font-size: calc(var(--sm-fs) + 2px); padding: calc(var(--sm-btn-py) + 4px) calc(var(--sm-btn-px) + 10px); }
+    /* Add Channel presets */
+    .ac-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .ac-preset { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; text-align: left; cursor: pointer;
+      background: var(--md-sys-color-surface-container-low); border: 1px solid var(--md-sys-color-outline-variant); }
+    .ac-preset:hover:not(:disabled) { border-color: var(--md-sys-color-primary); }
+    .ac-preset:disabled { opacity: .4; cursor: not-allowed; }
+    .ac-preset.on { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-primary-container); }
+    .ac-preset .material-symbols-outlined { font-size: 22px; color: var(--md-sys-color-primary); }
+    .ac-preset b { display: block; font-size: 12px; } .ac-preset small { display: block; font-size: 10px; color: var(--md-sys-color-on-surface-variant); }
+
+    /* ---------- Mini floating widget: only the strip, stacked ---------- */
+    body.widget-mode { padding: 6px !important; overflow: hidden; }
+    body.widget-mode .sm-page > :not(#sm-strip) { display: none !important; }
+    body.widget-mode .sm-page { max-width: none; padding: 0; }
+    body.widget-mode #sm-strip { display: grid; grid-template-columns: 1fr; gap: 5px; padding: 6px 8px; border-radius: 16px; min-height: 0; }
+    body.widget-mode .sm-full { display: none !important; }
+    body.widget-mode .sm-widget-only { display: inline-flex !important; }
+    body.widget-mode .sm-strip-sep { display: none; }
+    body.widget-mode .df-strip { max-width: none; padding: 3px 8px; }
+    body.widget-mode .sm-strip-logo { justify-content: space-between; }
+    body.widget-mode .sm-group { flex-wrap: nowrap; overflow: hidden; }
     #sm-toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 60; max-width: 90vw; padding: 10px 16px; border-radius: 16px; font-size: 12px; font-weight: 600;
       background: var(--md-sys-color-surface-container-highest); color: var(--md-sys-color-on-surface); border: 1px solid var(--md-sys-color-outline-variant); box-shadow: 0 6px 24px rgba(0,0,0,.4); display: none; }
   </style>
 </head>
 <body class="p-3 md:p-4 min-h-screen antialiased select-none overflow-x-hidden overflow-y-auto">
-  <div class="max-w-[1680px] w-full mx-auto space-y-3 pb-4 min-w-0">
+  <div class="sm-page max-w-[1680px] w-full mx-auto space-y-3 pb-4 min-w-0">
 
     <!-- ========================================================================= -->
-    <!-- 0. QUICK ACCESS BAR: MASTER VOL, QUICK MUTES, DUAL MIC, SIDETONE & SOUNDCHECK -->
+    <!-- 0. STUDIO STRIP: mic, headphones, quick mutes, DSP badges and app toggles. -->
+    <!--    Every control exists once. In widget mode it is the whole window.      -->
     <!-- ========================================================================= -->
-    <header id="quick-access-bar" class="bg-[var(--md-sys-color-surface-container)] rounded-[24px] px-4 py-2.5 border border-[var(--md-sys-color-outline-variant)] shadow-sm flex flex-wrap items-center justify-between gap-2.5 min-w-0">
-      <!-- Left: Logo & Dual Mic Setup Toggle -->
-      <div class="flex flex-wrap items-center gap-2.5 min-w-0">
-        <div class="flex items-center gap-2 font-bold text-xs tracking-wide text-[var(--md-sys-color-on-surface)]">
-          <div class="w-7 h-7 rounded-lg bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] flex items-center justify-center shadow-sm shrink-0">
-            <span class="material-symbols-outlined text-[16px]">equalizer</span>
-          </div>
-          <span class="hidden sm:inline font-mono tracking-widest text-[11px]">STUDIOMIC</span>
+    <header id="sm-strip" class="sm-strip">
+      <div class="sm-strip-logo">
+        <div class="flex items-center gap-2">
+          <div class="logo"><span class="material-symbols-outlined">equalizer</span></div>
+          <span class="hidden sm:inline">STUDIOMIC</span>
         </div>
-
-        <div class="h-5 w-px bg-[var(--md-sys-color-outline-variant)]"></div>
-
-        <!-- Dual Mic Setup Toggle Switch -->
-        <label class="flex items-center gap-2 cursor-pointer bg-[var(--md-sys-color-surface-container-low)] px-3 py-1 rounded-full border border-[var(--md-sys-color-outline-variant)] hover:border-[var(--md-sys-color-primary)] m3-transition" title="Enable Dual Microphone setup (Host Mic 1 + Guest Mic 2)">
-          <input type="checkbox" id="qa-dual-mic-toggle" onchange="toggleDualMicMode(this.checked)" class="w-3.5 h-3.5 accent-[var(--md-sys-color-primary)] cursor-pointer">
-          <span class="text-[11px] font-bold text-[var(--md-sys-color-on-surface)] flex items-center gap-1">
-            <span class="material-symbols-outlined text-[14px] text-[var(--md-sys-color-primary)]">group</span>
-            <span>Dual Mic Setup</span>
-          </span>
-          <span id="qa-dual-mic-pill" class="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-neutral-800 text-neutral-400">1 MIC</span>
-        </label>
-      </div>
-
-      <!-- Center: Quick Mute Action Pills -->
-      <div class="flex flex-wrap items-center gap-1.5 py-0.5 min-w-0">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--md-sys-color-on-surface-variant)] mr-1">Quick Mute:</span>
-        <button id="qa-mute-mic" onclick="qaToggleMute('mic')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Mic 1">
-          <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
-          <span class="material-symbols-outlined text-[13px]">mic</span>
-          <span>Mic 1</span>
-        </button>
-        <button id="qa-mute-mic2" onclick="qaToggleMute('mic2')" class="hidden px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 hover:bg-[var(--md-sys-color-surface-container-high)] border border-cyan-500/40 m3-transition items-center gap-1.5 shrink-0" title="Quick Mute Mic 2 (Guest)">
-          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-          <span class="material-symbols-outlined text-[13px]">mic_external_on</span>
-          <span>Mic 2</span>
-        </button>
-        <button id="qa-mute-game" onclick="qaToggleMute('game')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Game Audio">
-          <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
-          <span class="material-symbols-outlined text-[13px]">sports_esports</span>
-          <span>Game</span>
-        </button>
-        <button id="qa-mute-voice" onclick="qaToggleMute('voice')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Discord Voice">
-          <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
-          <span class="material-symbols-outlined text-[13px]">forum</span>
-          <span>Voice</span>
-        </button>
-        <button id="qa-mute-music" onclick="qaToggleMute('music')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Music">
-          <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
-          <span class="material-symbols-outlined text-[13px]">music_note</span>
-          <span>Music</span>
-        </button>
-        <button id="qa-mute-capture" onclick="qaToggleMute('capture')" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-high)] border border-[var(--md-sys-color-outline-variant)] m3-transition flex items-center gap-1.5 shrink-0" title="Quick Mute Capture Card (Video In)">
-          <span class="w-1.5 h-1.5 rounded-full bg-[var(--md-sys-color-success)]"></span>
-          <span class="material-symbols-outlined text-[13px]">videocam</span>
-          <span>Capture</span>
-        </button>
-      </div>
-
-      <!-- Right: Vocal Compressor, Monitoring, Autostart, Start Minimized, Live Peak Meter & Calibration -->
-      <div class="flex flex-wrap items-center gap-1.5 min-w-0">
-        <!-- Vocal Compressor Quick Access -->
-        <button onclick="toggleCompressorQuick()" id="qa-comp-btn" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-emerald-500/40 text-emerald-200 hover:border-emerald-400 m3-transition flex items-center gap-1.5" title="Vocal Compressor & Auto Leveler">
-          <span class="material-symbols-outlined text-[15px] text-emerald-400">compress</span>
-          <span>Comp</span>
-          <span id="qa-comp-pill" class="w-2 h-2 rounded-full bg-[var(--md-sys-color-success)] shadow-[0_0_8px_#6dd58c]"></span>
-        </button>
-
-        <button onclick="toggleMonitor()" id="qa-sidetone-btn" class="px-3 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface)] hover:border-[var(--md-sys-color-primary)] m3-transition flex items-center gap-1.5" title="Monitoring (hear yourself in headphones)">
-          <span class="material-symbols-outlined text-[15px]">headphones</span>
-          <span>Hear Myself</span>
-          <span id="qa-sidetone-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span>
-        </button>
-
-        <!-- Autostart on Boot Quick Access -->
-        <button onclick="toggleAutostartQuick()" id="qa-autostart-btn" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface)] hover:border-[var(--md-sys-color-primary)] m3-transition flex items-center gap-1.5" title="Launch StudioMic automatically on system startup">
-          <span class="material-symbols-outlined text-[15px] text-[var(--md-sys-color-primary)]">power_settings_new</span>
-          <span>Autostart</span>
-          <span id="qa-autostart-pill" class="w-2 h-2 rounded-full bg-[var(--md-sys-color-success)] shadow-[0_0_8px_#6dd58c]"></span>
-        </button>
-
-        <!-- Start Minimized Quick Access -->
-        <button onclick="toggleStartMinimizedQuick()" id="qa-minimized-btn" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-surface-container-low)] border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface-variant)] hover:border-[var(--md-sys-color-primary)] m3-transition flex items-center gap-1.5" title="Launch StudioMic directly minimized to tray in background">
-          <span class="material-symbols-outlined text-[15px]">expand_more</span>
-          <span>Minimized</span>
-          <span id="qa-minimized-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span>
-        </button>
-
-        <!-- Theme selector (persisted in state.json "theme") -->
-        <label class="flex items-center gap-1.5 bg-[var(--md-sys-color-surface-container-low)] pl-2.5 pr-1 py-0.5 rounded-full border border-[var(--md-sys-color-outline-variant)] text-[11px] font-bold" title="Theme">
-          <span class="material-symbols-outlined text-[15px] text-[var(--md-sys-color-primary)]">palette</span>
-          <select id="theme-selector" onchange="applyTheme(this.value)" class="text-[11px] font-bold rounded-full py-0.5 pl-2 outline-none cursor-pointer">
-            <option value="oled_black">OLED Black</option>
-            <option value="material_dark">Material Dark</option>
-            <option value="midnight_slate">Midnight Slate</option>
-            <option value="light">Material Light</option>
-          </select>
-        </label>
-
-        <!-- Peak Meter badge -->
-        <div class="flex items-center gap-1.5 bg-[var(--md-sys-color-surface-container-low)] px-2.5 py-1 rounded-full border border-[var(--md-sys-color-outline-variant)] text-[10px] font-mono">
-          <span class="text-[var(--md-sys-color-on-surface-variant)]">Peak:</span>
-          <span id="qa-peak-reading" class="font-bold text-[var(--md-sys-color-success)]">-14.2 dB</span>
+        <div class="sm-widget-only items-center gap-1">
+          <button class="sm-icon-btn" onclick="cycleUiSize()" title="Control size: Small / Medium / Large"><span class="material-symbols-outlined">format_size</span></button>
+          <button class="sm-icon-btn" id="sm-pin-btn" onclick="toggleAlwaysOnTop()" title="Keep the widget on top"><span class="material-symbols-outlined">push_pin</span></button>
+          <button class="sm-icon-btn" onclick="toggleWidgetMode()" title="Back to the full window"><span class="material-symbols-outlined">open_in_full</span></button>
         </div>
-
-        <!-- Soundcheck Shortcut -->
-        <button onclick="switchTab('tab-calib')" class="px-3 py-1 rounded-full text-[11px] font-bold bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-sm hover:opacity-95 flex items-center gap-1">
-          <span class="material-symbols-outlined text-[14px]">tune</span>
-          <span class="hidden md:inline">Soundcheck</span>
-        </button>
       </div>
-    </header>
 
-    <!-- ========================================================================= -->
-    <!-- 1. HERO MICROPHONE CARD: THE VERY FIRST THING THE USER SEES AT THE TOP -->
-    <!-- ========================================================================= -->
-    <section class="bg-[var(--md-sys-color-surface-container)] rounded-[32px] p-4 border-2 border-[var(--md-sys-color-primary)] shadow-md m3-transition relative overflow-hidden min-w-0">
-      <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 min-w-0">
-        
-        <!-- Microphone Hardware Showcase & Dual Selectors -->
-        <div class="flex items-start sm:items-center gap-4 min-w-0 w-full lg:w-auto flex-1">
-          <!-- Mic Capsule Hero Avatar -->
-          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-[24px] bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center text-3xl shadow-sm shrink-0">
-            <span class="material-symbols-outlined text-3xl">mic</span>
+      <!-- Mic: master mute, input trim (dual-track fader), hardware input + acoustic profile -->
+      <div class="df-strip" id="sm-mic-strip">
+        <button class="df-mute" id="sm-mic-mute" data-status="mic" onclick="qaToggleMute('mic')" title="Mute the microphone (every mix)">
+          <span class="material-symbols-outlined">mic</span><span class="st-dot"></span>
+        </button>
+        <div class="df-body">
+          <div class="df-head">
+            <span class="df-name" id="hero-hw-telemetry">Microphone</span>
+            <span class="df-badge pad hidden" id="sm-pad-badge" title="Clipguard lowered the hardware input gain to stop clipping">PAD</span>
+            <span class="flex-1"></span>
+            <span class="df-read" id="sm-trim-read" title="Input trim (double-click the slider for 0 dB)">+0.0 dB</span>
+            <span class="df-peak" id="db-reading" title="Mic peak (holds 1.5 s)">-∞ dBFS</span>
           </div>
-
-          <div class="space-y-1.5 min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2 min-w-0">
-              <span class="text-[11px] font-bold text-[var(--md-sys-color-primary)] uppercase tracking-wider">Active Broadcast Microphone</span>
-              <span class="w-2.5 h-2.5 rounded-full bg-[var(--md-sys-color-success)] animate-pulse shrink-0"></span>
-              <span id="hero-hw-telemetry" class="text-[11px] font-medium text-[var(--md-sys-color-success)] truncate">Wireless Mic RX (DJI) · 48 kHz / 24-bit</span>
-            </div>
-
-            <!-- Dual Selectors: 1. Physical Hardware Interface | 2. Acoustic DSP Model -->
-            <div class="flex flex-wrap items-center gap-3 mt-1 min-w-0">
-              <!-- Physical Hardware Input Interface Selector -->
-              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
-                <span class="text-[9px] font-bold text-[var(--md-sys-color-secondary)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
-                  <span class="material-symbols-outlined text-[13px]">settings_input_component</span>
-                  Physical Audio Interface
-                </span>
-                <div class="flex items-center gap-1.5 min-w-0">
-                  <select id="hw-mic-selector" onchange="switchHardwareInput(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-[var(--md-sys-color-secondary)]">
-                  </select>
-                  <button onclick="rescanDevices()" class="sm-btn shrink-0" title="Refresh: rescan audio devices"><span class="material-symbols-outlined">refresh</span></button>
-                </div>
-                <span id="hw-mic-missing" class="hidden text-[10px] font-bold text-amber-400 mt-0.5">Saved microphone is unplugged (Missing). Plug it in and press Refresh.</span>
-              </div>
-
-              <!-- Acoustic Mic Profile (DSP Model) Selector -->
-              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
-                <span class="text-[9px] font-bold text-[var(--md-sys-color-primary)] uppercase tracking-wider flex items-center gap-1 mb-0.5">
-                  <span class="material-symbols-outlined text-[13px]">graphic_eq</span>
-                  Acoustic DSP Model
-                </span>
-                <select id="mic-selector" onchange="switchMicrophone(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] rounded-xl px-3 py-1.5 border border-[var(--md-sys-color-outline-variant)] outline-none cursor-pointer focus:ring-2 focus:ring-[var(--md-sys-color-primary)]">
+          <div class="df-meter" id="sm-mic-meter"><div class="fill" id="meter-fill"></div></div>
+          <input id="sm-trim" class="df-slider" type="range" min="-24" max="12" step="0.5" value="0" title="Mic input trim (double-click: 0 dB)"
+                 oninput="onStripTrim(this)" ondblclick="this.value=0; onStripTrim(this)">
+        </div>
+        <div class="sm-selects sm-full">
+          <div class="row">
+            <select id="hw-mic-selector" class="sm-sel" onchange="switchHardwareInput(this.value)" title="Hardware input"></select>
+            <button onclick="rescanDevices()" class="sm-icon-btn" title="Rescan audio devices"><span class="material-symbols-outlined">refresh</span></button>
+          </div>
+          <select id="mic-selector" onchange="switchMicrophone(this.value)" class="sm-sel" title="Acoustic DSP model (EQ preset base)">
                   <optgroup label="Audio-Technica">
                     <option value="at2020">Audio-Technica AT2020</option>
                   </optgroup>
@@ -608,31 +600,68 @@
                     <option value="generic">Generic / Flat Microphone</option>
                   </optgroup>
                 </select>
-              </div>
-            </div>
+          <span id="hw-mic-missing" class="hidden sm-warn">Mic unplugged (Missing): plug it in, press Refresh</span>
+        </div>
+      </div>
 
-            <!-- Secondary Microphone (Mic 2 Guest) Controls (Shown when Dual Mic Enabled) -->
-            <div id="hero-mic2-row" class="hidden flex flex-wrap items-center gap-3 pt-2 mt-1 border-t border-[var(--md-sys-color-outline-variant)] min-w-0">
-              <!-- Physical Hardware Input Interface Selector (Mic 2) -->
-              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
-                <span class="text-[9px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1 mb-0.5">
-                  <span class="material-symbols-outlined text-[13px]">settings_input_component</span>
-                  Mic 2 Audio Interface (Guest)
-                </span>
-                <select id="hw-mic2-selector" onchange="switchHardwareInput2(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-200 rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-cyan-400">
-                  <option value="alsa_input.usb-Focusrite_Scarlett_Solo_USB_Y7B1KNX059807F-00.HiFi__Mic1__source">Scarlett Solo · Input 1 (Mic XLR)</option>
-                  <option value="alsa_input.usb-Focusrite_Scarlett_Solo_USB_Y7B1KNX059807F-00.HiFi__Mic2__source" selected>Scarlett Solo · Input 2 (Inst/Line)</option>
-                  <option value="alsa_input.usb-DJI_Technology_Co.__Ltd._Wireless_Microphone_RX-00.analog-stereo">Wireless Mic RX (DJI)</option>
-                </select>
-              </div>
+      <!-- Headphones: master monitor mute, Hear Myself, monitor meter, volume -->
+      <div class="df-strip mon" id="sm-mon-strip">
+        <button class="df-mute" id="sm-mon-mute" onclick="toggleMonitorMaster()" title="Mute your headphones (My Mix)">
+          <span class="material-symbols-outlined">headphones</span>
+        </button>
+        <div class="df-body">
+          <div class="df-head">
+            <span class="df-name">Headphones</span>
+            <button class="df-badge" id="qa-sidetone-btn" onclick="toggleMonitor()" title="Hear Myself: your mic in your headphones"><span class="dot" id="qa-sidetone-pill"></span>HEAR MYSELF</button>
+            <span class="flex-1"></span>
+            <span class="df-read" id="sm-mon-read" title="Headphone volume">0.0 dB · 100%</span>
+          </div>
+          <div class="df-meter" data-sm-meter="bus:monitor"><div class="fill"></div></div>
+          <input id="sm-mon-gain" class="df-slider" type="range" min="-60" max="12" step="0.5" value="0" title="Headphone volume (double-click: 0 dB)"
+                 oninput="onStripMonitor(this)" ondblclick="this.value=0; onStripMonitor(this)">
+        </div>
+      </div>
 
-              <!-- Acoustic Mic Profile (DSP Model) Selector (Mic 2) -->
-              <div class="flex flex-col min-w-0 flex-1 sm:flex-initial max-w-full">
-                <span class="text-[9px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1 mb-0.5">
-                  <span class="material-symbols-outlined text-[13px]">graphic_eq</span>
-                  Mic 2 DSP Model
-                </span>
-                <select id="mic2-selector" onchange="switchMicrophone2(this.value)" class="w-full max-w-full min-w-0 truncate text-xs md:text-sm font-bold bg-[var(--md-sys-color-surface-container-highest)] text-cyan-100 rounded-xl px-3 py-1.5 border border-cyan-500/40 outline-none cursor-pointer focus:ring-2 focus:ring-cyan-400">
+      <div class="sm-strip-sep sm-full"></div>
+      <!-- Quick mutes: one pill per channel (generated), with a level status dot -->
+      <div class="sm-group" id="sm-quick-mutes"></div>
+
+      <div class="sm-strip-sep sm-full"></div>
+      <!-- DSP badges -->
+      <div class="sm-group" id="sm-dsp-badges">
+        <button class="sm-dsp" id="sm-dsp-clipguard" onclick="toggleMicOption('clipguard')" title="Clipguard: limiter + hardware auto-pad">CLIPGUARD</button>
+        <button class="sm-dsp dn" id="sm-dsp-denoiser" onclick="switchTab('tab-noise')" title="Noise remover (Tab 3)">NOISE OFF</button>
+        <button class="sm-dsp comp" id="qa-comp-btn" onclick="toggleCompressorQuick()" title="Vocal compressor (live gain reduction)">COMP <span id="hero-comp-gr">-0.0 dB</span></button>
+        <button class="sm-dsp sm-full" id="btn-ab-compare" onclick="toggleABCompare()" title="A/B: hear the processed or the flat EQ">EQ <span id="ab-state-badge">ON</span></button>
+      </div>
+
+      <span class="flex-1 sm-full"></span>
+      <!-- App toggles -->
+      <div class="sm-group sm-full">
+        <label class="sm-chip" title="Second microphone (guest)">
+          <input type="checkbox" id="qa-dual-mic-toggle" onchange="toggleDualMicMode(this.checked)" class="w-3 h-3 accent-[var(--md-sys-color-primary)] cursor-pointer">
+          <span class="material-symbols-outlined">group</span><span id="qa-dual-mic-pill">1 MIC</span>
+        </label>
+        <label class="sm-chip" title="Theme"><span class="material-symbols-outlined">palette</span>
+          <select id="theme-selector" onchange="applyTheme(this.value)" class="text-[10px] font-bold rounded-full outline-none cursor-pointer bg-transparent">
+            <option value="oled_black">OLED Black</option>
+            <option value="material_dark">Material Dark</option>
+            <option value="midnight_slate">Midnight Slate</option>
+            <option value="light">Material Light</option>
+          </select>
+        </label>
+        <button onclick="toggleAutostartQuick()" id="qa-autostart-btn" class="sm-chip" title="Launch Studio Mic on login"><span class="material-symbols-outlined">power_settings_new</span>Autostart<span id="qa-autostart-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span></button>
+        <button onclick="toggleStartMinimizedQuick()" id="qa-minimized-btn" class="sm-chip" title="Start in the tray"><span class="material-symbols-outlined">expand_more</span>Minimized<span id="qa-minimized-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span></button>
+        <button onclick="cycleUiSize()" id="sm-size-btn" class="sm-chip" title="Control size: Small / Medium / Large"><span class="material-symbols-outlined">format_size</span><span id="sm-size-text">Size: M</span></button>
+        <button onclick="toggleWidgetMode()" class="sm-chip" title="Mini floating widget (small, on top)"><span class="material-symbols-outlined">picture_in_picture_alt</span>Widget</button>
+        <button onclick="switchTab('tab-calib')" class="sm-btn primary" title="Test &amp; Optimize (Tab 4)"><span class="material-symbols-outlined">tune</span><span class="hidden md:inline">Soundcheck</span></button>
+      </div>
+
+      <!-- Mic 2 (guest): shown when the second mic is on -->
+      <div id="hero-mic2-row" class="hidden sm-full w-full flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--md-sys-color-outline-variant)]">
+        <span class="sm-group-label text-cyan-400">Mic 2</span>
+        <select id="hw-mic2-selector" class="sm-sel" onchange="switchHardwareInput2(this.value)" title="Mic 2 hardware input"></select>
+        <select id="mic2-selector" onchange="switchMicrophone2(this.value)" class="sm-sel" title="Mic 2 DSP model">
                   <option value="sm7b" selected>Shure SM7B (Guest Preset)</option>
                   <option value="podmic_xlr">Rode PodMic</option>
                   <option value="at2020">Audio-Technica AT2020</option>
@@ -640,61 +669,8 @@
                   <option value="wave3">Elgato Wave:3</option>
                   <option value="generic">Flat / Generic Dynamic</option>
                 </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Real-Time Hardware VU Meter & Fast Controls -->
-        <div class="flex items-stretch flex-wrap gap-2.5 w-full lg:w-auto justify-start lg:justify-end min-w-0">
-          
-          <!-- Live VU Level Meter -->
-          <div class="bg-[var(--md-sys-color-surface-container-low)] p-3.5 rounded-2xl border border-[var(--md-sys-color-outline-variant)] space-y-1.5 w-full sm:w-56 flex-1 sm:flex-initial min-w-[200px]">
-            <div class="flex justify-between items-center text-xs">
-              <span class="text-[var(--md-sys-color-on-surface-variant)] font-medium">Input Peak Level</span>
-              <span id="db-reading" class="font-mono text-[var(--md-sys-color-success)] font-bold">-14.2 dBFS</span>
-            </div>
-            <div class="w-full h-3 bg-[var(--md-sys-color-surface-container-highest)] rounded-full overflow-hidden flex">
-              <div id="meter-fill" class="h-full bg-[var(--md-sys-color-success)] rounded-full transition-all duration-75" style="width: 65%;"></div>
-            </div>
-            <div class="flex justify-between text-[10px] text-[var(--md-sys-color-on-surface-variant)] font-mono">
-              <span>PipeWire Buffer: 128 spl</span>
-              <span>Latency: 2.6ms</span>
-            </div>
-          </div>
-
-          <!-- Quick Actions: Vocal Compressor, Monitoring & Processed Audio (same height as Input Peak box) -->
-          <div class="flex flex-wrap sm:flex-nowrap gap-2 items-stretch self-stretch flex-1 sm:flex-initial">
-            <!-- Vocal Compressor Hero Action -->
-            <button id="btn-comp-toggle" onclick="toggleCompressorQuick()" class="m3-state-layer px-3.5 py-2 rounded-2xl text-xs font-bold border border-emerald-500/40 bg-[var(--md-sys-color-surface-container-low)] text-emerald-100 flex flex-col items-center justify-center gap-1 min-h-[76px] flex-1 sm:flex-initial" title="Vocal Compressor & Auto Leveler">
-              <div class="flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[19px] text-emerald-400">compress</span>
-                <span>Compressor</span>
-                <span id="comp-status-pill" class="w-2 h-2 rounded-full bg-[var(--md-sys-color-success)] shadow-[0_0_8px_#6dd58c]"></span>
-              </div>
-              <div class="flex items-center gap-1 text-[10px] font-mono text-emerald-300">
-                <span>GR:</span>
-                <span id="hero-comp-gr" class="font-bold text-emerald-400">-0.0 dB</span>
-              </div>
-            </button>
-
-            <button id="btn-monitor-toggle" onclick="toggleMonitor()" class="m3-state-layer px-4 py-2 rounded-2xl text-xs font-bold border border-[var(--md-sys-color-outline-variant)] bg-[var(--md-sys-color-surface-container-low)] text-[var(--md-sys-color-on-surface)] flex items-center justify-center gap-2 min-h-[76px] flex-1 sm:flex-initial">
-              <span class="material-symbols-outlined text-[20px]">headphones</span>
-              <span>Hear Myself</span>
-              <span id="monitor-status-pill" class="w-2 h-2 rounded-full bg-neutral-600"></span>
-            </button>
-
-            <button id="btn-ab-compare" onclick="toggleABCompare()" class="m3-state-layer px-4 py-2 rounded-2xl text-xs font-bold border border-[var(--md-sys-color-outline-variant)] bg-[var(--md-sys-color-surface-container-low)] text-[var(--md-sys-color-on-surface)] flex items-center justify-center gap-2 min-h-[76px] flex-1 sm:flex-initial">
-              <span class="material-symbols-outlined text-[20px]">graphic_eq</span>
-              <span>Processed Audio</span>
-              <span id="ab-state-badge" class="px-2 py-0.5 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] text-[10px] font-bold">ON</span>
-            </button>
-          </div>
-
-        </div>
-
       </div>
-    </section>
+    </header>
 
     <!-- A/B Audition Alert Banner (shows when bypassing) -->
     <div id="ab-notice-banner" class="hidden p-4 rounded-[24px] bg-[var(--md-sys-color-tertiary-container)] text-[var(--md-sys-color-on-tertiary-container)] text-xs flex flex-wrap items-center justify-between gap-2 shadow-md">
@@ -981,38 +957,10 @@
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[var(--md-sys-color-outline-variant)]">
           <div class="min-w-0">
             <h2 class="text-base font-bold text-[var(--md-sys-color-on-surface)]">Monitoring &amp; Channel Mixer</h2>
-            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Every channel feeds <b>Stream Mix</b> (OBS Track 1), <b>VOD Mix</b> (Track 2, DMCA-safe) and your <b>Monitor</b> (headphones). Only the microphone reaches <b>Voice Out</b> (Discord).</p>
+            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Route any channel into <b>My Mix</b> (headphones), <b>Stream</b> (OBS Track 1), <b>Recording · VOD</b> (Track 2, DMCA-safe), <b>Voice Chat</b> (Discord) or your own mixes. Only the voice-chat channel stays out of Voice Chat, so Discord never hears itself.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <div class="sm-seg" role="tablist" aria-label="View mode">
-              <button id="view-matrix-btn" onclick="setViewMode('matrix')" title="Routing matrix: every channel against every mix (V cycles views)"><span class="material-symbols-outlined text-[15px]">table_chart</span>Matrix</button>
-              <button id="view-normal-btn" onclick="setViewMode('normal')" title="Channel cards with waveforms"><span class="material-symbols-outlined text-[15px]">view_column</span>Cards</button>
-              <button id="view-simple-btn" onclick="setViewMode('simple')" title="Compact sliders"><span class="material-symbols-outlined text-[15px]">density_small</span>Compact</button>
-            </div>
             <button onclick="openAddChannelModal()" class="sm-btn primary"><span class="material-symbols-outlined">add</span>Add Channel</button>
-            <button onclick="resetChannelsToDefault()" class="sm-btn" title="Restore the default channels"><span class="material-symbols-outlined">restart_alt</span>Default</button>
-          </div>
-        </div>
-
-        <!-- Master Monitor (headphones) -->
-        <div class="sm-card" id="monitor-master-card">
-          <div class="sm-head">
-            <div class="sm-title"><span class="material-symbols-outlined text-[18px] text-emerald-400">headphones</span><span class="name">Master Monitor</span></div>
-            <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Your private headphone mix (never streamed)</span>
-            <span class="flex-1"></span>
-            <span id="duck-indicator" class="sm-chip" title="Auto-Duck: background channels are lowered on Stream/VOD while you talk"><span class="material-symbols-outlined">south</span><span>Duck 0.0 dB</span></span>
-            <button id="monitor-master-mute" class="sm-chip mute" onclick="toggleMonitorMaster()"><span class="material-symbols-outlined">headset_off</span>Mute</button>
-          </div>
-          <div class="sm-src">
-            <span class="material-symbols-outlined text-[16px] text-[var(--md-sys-color-on-surface-variant)]">speaker</span>
-            <select id="monitor-output-selector" onchange="setMonitorOutput(this.value)"></select>
-            <button class="sm-btn" onclick="rescanDevices()" title="Refresh devices"><span class="material-symbols-outlined">refresh</span></button>
-          </div>
-          <div class="sm-row">
-            <label><span class="material-symbols-outlined">headphones</span>Monitor Gain</label>
-            <input id="monitor-master-gain" class="sm-gain monitor" type="range" min="-60" max="12" step="0.5" value="0"
-                   oninput="onMonitorMasterGain(this.value)" ondblclick="this.value=0; onMonitorMasterGain(0)">
-            <span id="monitor-master-readout" class="sm-readout" onclick="editGainReadout('monitor-master')">0.0 dB · 100%</span>
           </div>
         </div>
 
@@ -1021,6 +969,8 @@
           <div class="sm-head">
             <div class="sm-title"><span class="material-symbols-outlined text-[18px] text-purple-400">cast</span><span class="name">Broadcast Output</span></div>
             <span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">Exactly what OBS records (after the safety limiters)</span>
+            <span class="flex-1"></span>
+            <span id="duck-indicator" class="sm-chip" title="Auto-Duck: background channels are lowered on Stream/VOD while you talk"><span class="material-symbols-outlined">south</span><span>Duck 0.0 dB</span></span>
           </div>
           <div class="sm-row">
             <label title="StudioMic_Stream_Mix (OBS Track 1)"><span class="material-symbols-outlined">sensors</span>Stream Mix</label>
@@ -1034,7 +984,7 @@
           </div>
         </div>
 
-        <div id="mixer-channels-grid" class="view-normal w-full min-w-0"></div>
+        <div id="mixer-channels-grid" class="view-matrix w-full min-w-0"></div>
         <p class="text-[10px] text-[var(--md-sys-color-on-surface-variant)] font-mono">Double-click any Gain slider to snap back to 0.0 dB (100%). Click a dB readout to type an exact value.</p>
       </section>
     </div>
@@ -1542,28 +1492,26 @@
     </div>
   </div>
   <div id="add-channel-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-[var(--md-sys-color-surface-container)] border border-[var(--md-sys-color-outline-variant)] rounded-[32px] p-6 max-w-md w-full shadow-2xl space-y-4">
+    <div class="bg-[var(--md-sys-color-surface-container)] border border-[var(--md-sys-color-outline-variant)] rounded-[32px] p-6 max-w-lg w-full shadow-2xl space-y-4">
       <div class="flex items-center gap-3">
         <div class="w-11 h-11 rounded-2xl bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] flex items-center justify-center"><span class="material-symbols-outlined">add</span></div>
-        <div><h3 class="text-base font-bold">Add Channel</h3><p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Presets come with smart auto-routing rules</p></div>
+        <div class="flex-1"><h3 class="text-base font-bold">Add Channel</h3><p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">One click creates the channel. Presets route their apps automatically.</p></div>
+        <button class="sm-icon-btn" onclick="closeAddChannelModal()" title="Close"><span class="material-symbols-outlined">close</span></button>
       </div>
-      <label class="block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Type
-        <select id="add-channel-preset" onchange="onAddChannelPreset(this.value)" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5">
-          <option value="game">Game (Steam, Wine, Proton, gamescope, Lutris)</option>
-          <option value="music">Music (Spotify, Feishin, Elisa, Rhythmbox, MPD, Amberol)</option>
-          <option value="voice">Voice Chat (Discord, Vesktop, WebCord, TeamSpeak, Mumble)</option>
-          <option value="browser">Browser (Firefox, Chromium, Brave, Zen, Vivaldi, Chrome)</option>
-          <option value="sfx">SFX / Soundboard</option>
-          <option value="capture">Capture Card / Hardware Input (raw passthrough)</option>
-          <option value="">Custom (empty)</option>
-        </select>
-      </label>
-      <label class="block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Name
-        <input id="add-channel-name" type="text" value="Game" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5 bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] border border-[var(--md-sys-color-outline-variant)] outline-none">
-      </label>
-      <div class="flex gap-2 pt-1">
-        <button class="sm-btn primary flex-1 justify-center py-2.5" onclick="commitAddChannel()"><span class="material-symbols-outlined">check</span>Add</button>
-        <button class="sm-btn py-2.5" onclick="closeAddChannelModal()">Cancel</button>
+      <div class="ac-grid" id="add-channel-presets"></div>
+      <!-- Line In / Custom need one more detail -->
+      <div id="add-channel-detail" class="hidden space-y-2">
+        <label id="add-channel-hw-wrap" class="hidden block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Hardware input
+          <select id="add-channel-hw" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5"></select>
+        </label>
+        <label class="block text-xs font-semibold text-[var(--md-sys-color-on-surface-variant)]">Name
+          <input id="add-channel-name" type="text" value="" class="w-full mt-1 text-xs font-bold rounded-2xl p-2.5 bg-[var(--md-sys-color-surface-container-highest)] text-[var(--md-sys-color-on-surface)] border border-[var(--md-sys-color-outline-variant)] outline-none"
+                 onkeydown="if (event.key === 'Enter') commitAddChannel()">
+        </label>
+        <div class="flex gap-2 pt-1">
+          <button class="sm-btn primary flex-1 justify-center py-2.5" onclick="commitAddChannel()"><span class="material-symbols-outlined">check</span>Add</button>
+          <button class="sm-btn py-2.5" onclick="closeAddChannelModal()">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -3847,6 +3795,44 @@
 
     // Real-Time PipeWire Hardware Peak Detection & Waveform Telemetry Listener
     window.currentPeakDb = -60;
+    // Mic meter + peak readout in the studio strip. Raw block peaks jump every 50 ms (syllables
+    // vs gaps), which made the readout flicker. Standard meter ballistics instead:
+    //   bar:  instant attack, 24 dB/s fall-off
+    //   text: peak hold for 1.5 s, then falls 12 dB/s; redrawn at most ~7x per second
+    //   amber: from -6 dB (hot); red: real clipping only (raw_clip), latched 1 s so it reads as a flash
+    // window.currentPeakDb stays the raw value (calibration and Tab 3 sample it).
+    const smPeakDisp = { bar: -80, hold: -80, holdAt: 0, last: 0, txtAt: 0, clipUntil: 0, txt: '', pct: -1, state: '' };
+    function smPeakDisplayTick() {
+      const st = smPeakDisp;
+      const now = performance.now();
+      const dt = st.last ? Math.min(0.5, (now - st.last) / 1000) : 0;
+      st.last = now;
+      const db = typeof window.currentPeakDb === 'number' ? window.currentPeakDb : -80;
+      st.bar = db >= st.bar ? db : Math.max(db, st.bar - 24 * dt);
+      if (db >= st.hold) { st.hold = db; st.holdAt = now; }
+      else if (now - st.holdAt > 1500) st.hold = Math.max(db, st.hold - 12 * dt);
+      if (((window.channelPeakLevels || {}).raw_clip ?? -80) > 0) st.clipUntil = now + 1000;
+      const state = now < st.clipUntil ? 'clip' : (st.hold >= -6.0 ? 'hot' : '');
+      const pct = st.bar <= -60 ? 0 : Math.max(0, Math.min(100, Math.round((st.bar + 60) / 60 * 100)));
+      const meter = document.getElementById('meter-fill');
+      if (meter && pct !== st.pct) { meter.style.width = pct + '%'; st.pct = pct; meter.parentElement.style.setProperty('--df-w', meter.parentElement.clientWidth + 'px'); }
+      const txt = st.hold <= -60 ? '-∞' : st.hold.toFixed(1);
+      const reading = document.getElementById('db-reading');
+      if (txt !== st.txt && now - st.txtAt >= 150) {
+        st.txt = txt; st.txtAt = now;
+        if (reading) reading.textContent = txt + ' dBFS';
+      }
+      if (state !== st.state) {
+        st.state = state;
+        for (const el of [reading, meter && meter.parentElement]) {
+          if (!el) continue;
+          el.classList.toggle('hot', state === 'hot');
+          el.classList.toggle('clip', state === 'clip');
+        }
+      }
+    }
+    setInterval(() => { if (window.isWindowVisible !== false) smPeakDisplayTick(); }, 50);
+
     // Writes only on change: unchanged textContent/className writes still cost style work at 20 Hz.
     function setCls(el, c) { if (el.className !== c) el.className = c; }
     function setTxt(el, t) { if (el.textContent !== t) el.textContent = t; }
@@ -3890,32 +3876,8 @@
         }
       }
 
-      const reading = document.getElementById('db-reading');
-      const meter = document.getElementById('meter-fill');
-      const qaReading = document.getElementById('qa-peak-reading');
-
-      const isInf = db <= -60;
-      const text = isInf ? "-∞ dBFS" : db.toFixed(1) + " dBFS";
-      const qaText = isInf ? "-∞ dB" : db.toFixed(1) + " dB";
-      const pct = isInf ? 0 : Math.max(0, Math.min(100, Math.round(((db + 60) / 60) * 100)));
-
-      if (reading) reading.textContent = text;
-      if (qaReading) qaReading.textContent = qaText;
-      if (meter) meter.style.width = pct + "%";
-
-      let color = "var(--md-sys-color-success)";
-      // This reading is after Clipguard (-0.5 dB ceiling), so touching -0.5 is the limiter working.
-      // Red only when the hardware input itself clips (or overs get through with no limiter).
-      const rawClip = ((window.channelPeakLevels || {}).raw_clip ?? -80) > 0;
-      if (rawClip || db > 0.0) {
-        color = "var(--md-sys-color-error)";
-      } else if (db > -4.0) {
-        color = "#fbbc04";
-      }
-
-      if (meter) meter.style.backgroundColor = color;
-      if (reading) reading.style.color = color;
-      if (qaReading) qaReading.style.color = color;
+      // The header "Peak:" badge and the Input Peak Level bar are drawn by smPeakDisplayTick
+      // (meter ballistics) instead of jumping to every raw 25 ms block here.
 
       // Real-time dynamic gain reduction readout for Vocal Compressor card
       const compGrElem = document.getElementById('hero-comp-gr');
@@ -5569,25 +5531,32 @@
       if (!fromBackend) post('theme:' + theme);
     };
 
-    // view_mode: "normal" = Cards, "simple" = Compact, "matrix" = routing matrix.
-    const SM_VIEWS = ['normal', 'simple', 'matrix'];
-    function setViewMode(mode, fromBackend) {
-      mode = SM_VIEWS.includes(mode) ? mode : 'normal';
-      const grid = document.getElementById('mixer-channels-grid');
-      const wasMatrix = !!grid && grid.classList.contains('view-matrix');
-      smCfg().view_mode = mode;
-      if (grid) {
-        grid.classList.toggle('view-simple', mode === 'simple');
-        grid.classList.toggle('view-normal', mode === 'normal');
-        grid.classList.toggle('view-matrix', mode === 'matrix');
-      }
-      document.getElementById('view-normal-btn')?.classList.toggle('on', mode === 'normal');
-      document.getElementById('view-simple-btn')?.classList.toggle('on', mode === 'simple');
-      document.getElementById('view-matrix-btn')?.classList.toggle('on', mode === 'matrix');
-      if (!fromBackend) post('view_mode:' + mode);
-      // Matrix and cards are different markup: switching between them needs a re-render.
-      if (!fromBackend && wasMatrix !== (mode === 'matrix')) renderMixerChannelsGrid();
-      if (mode === 'normal' && typeof initWaveformVisualizers === 'function') initWaveformVisualizers();
+    // ---------- control size & mini widget ----------
+    const SM_SIZES = ['small', 'medium', 'large'];
+    window.applyUiSize = function (size, fromBackend) {
+      if (!SM_SIZES.includes(size)) size = 'medium';
+      document.documentElement.setAttribute('data-size', size);
+      smCfg().ui_size = size;
+      const t = document.getElementById('sm-size-text');
+      if (t) t.textContent = 'Size: ' + size[0].toUpperCase();
+      if (!fromBackend) post('ui_size:' + size);
+    };
+    function cycleUiSize() {
+      const cur = SM_SIZES.indexOf(smCfg().ui_size || 'medium');
+      applyUiSize(SM_SIZES[(cur + 1) % SM_SIZES.length]);
+    }
+    // Called by the window loop after it resized the window (and at startup).
+    window.setWidgetMode = function (on) {
+      smCfg().widget_mode = !!on;
+      document.body.classList.toggle('widget-mode', !!on);
+      renderStrip();
+    };
+    function toggleWidgetMode() { post('toggle_widget_mode:' + (smCfg().widget_mode ? 0 : 1)); }
+    function toggleAlwaysOnTop() {
+      const c = smCfg();
+      c.always_on_top = c.always_on_top === false;
+      post('always_on_top:' + (c.always_on_top ? 1 : 0));
+      renderStrip();
     }
 
     // Tab order 2 + persisted last tab (replaces the old localStorage wrapper).
@@ -5601,10 +5570,6 @@
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
       const map = { '1': 'tab-mixer', '2': 'tab-eq', '3': 'tab-noise', '4': 'tab-calib' };
       if (map[e.key]) { switchTab(map[e.key]); e.stopImmediatePropagation(); }
-      else if (e.key.toLowerCase() === 'v') {
-        // Cards -> Compact -> Matrix -> Cards (same order as studio-mic --toggle-view)
-        const cur = SM_VIEWS.indexOf(smCfg().view_mode); setViewMode(SM_VIEWS[(cur + 1 + SM_VIEWS.length) % SM_VIEWS.length] || 'normal'); e.stopImmediatePropagation();
-      }
     }, true);
 
     // ---------- channel model ----------
@@ -5647,133 +5612,26 @@
       return (window.liveAudioStreams || []).filter(s => s.channel === chId);
     }
 
-    function cardHtml(ch) {
-      const m = ch.mix || {};
-      const c = smCfg();
-      const isMic = ch.kind === 'mic';
-      const isMic2 = ch.kind === 'mic2';
-      const comms = smIsComms(ch);
-      const sGain = typeof m.stream_gain_db === 'number' ? m.stream_gain_db : 0;
-      const mGain = typeof m.monitor_gain_db === 'number' ? m.monitor_gain_db : 0;
-      const kindBadge = isMic ? 'VOICE · DSP' : isMic2 ? 'MIC 2' : ch.kind === 'hardware' ? 'HARDWARE · RAW' : comms ? 'VOICE CHAT' : 'APPS · RAW';
-      const icon = ch.icon && ch.icon !== 'instant_mix' ? ch.icon : (typeof getChannelIcon === 'function' ? getChannelIcon(ch.id, ch.name) : 'instant_mix');
-      let toggles = '';
-      if (isMic) {
-        toggles += chip('Clipguard', 'shield', (c.mic || {}).clipguard, `toggleMicOption('clipguard')`);
-        toggles += chip('Mono-Center', 'center_focus_strong', (c.mic || {}).mono_center, `toggleMicOption('mono_center')`);
-        const raw = (c.mic || {}).monitor_mode === 'raw';
-        const lat = window.__LATENCY__ || {};
-        const latTxt = raw ? (lat.raw_ms ? ` (~${Math.round(lat.raw_ms)} ms)` : '') : (lat.processed_ms ? ` (~${Math.round(lat.processed_ms)} ms)` : '');
-        toggles += `<span class="sm-chip ${raw ? 'warn' : ''}" onclick="toggleMonitorMode()" title="What you hear in your headphones: Processed = full voice chain; Raw = zero-latency hardware tap (no DSP)"><span class="material-symbols-outlined">${raw ? 'bolt' : 'graphic_eq'}</span>${raw ? 'Raw' : 'Processed'}${latTxt}</span>`;
-      } else {
-        toggles += comms
-          ? `<span class="sm-chip" disabled title="Voice chat is exempt from Auto-Duck"><span class="material-symbols-outlined">south</span>Duck exempt</span>`
-          : chip('Auto-Duck', 'south', m.autoduck, `toggleMix('${ch.id}','autoduck')`);
-      }
-      toggles += chip('VOD', 'movie', m.vod !== false, `toggleMix('${ch.id}','vod')`);
-      toggles += chip('S', 'hearing', m.solo, `toggleMix('${ch.id}','solo')`, 'solo');
-      toggles += chip('Stream', m.stream_muted ? 'sensors_off' : 'sensors', m.stream_muted, `toggleMix('${ch.id}','stream_mute')`, 'mute');
-      toggles += chip('Monitor', m.monitor_muted ? 'headset_off' : 'headphones', m.monitor_muted, `toggleMix('${ch.id}','monitor_mute')`, 'mute');
-
-      let src = '';
-      if (isMic || isMic2 || ch.kind === 'hardware') {
-        const sel = isMic ? c.active_hw_mic : isMic2 ? (c.dual_mic || {}).hw_mic : ch.hw_source;
-        const handler = isMic ? `switchHardwareInput(this.value)` : isMic2 ? `switchHardwareInput2(this.value)` : `setChannelHw('${ch.id}', this.value)`;
-        src = `<div class="sm-src"><span class="material-symbols-outlined text-[16px] text-[var(--md-sys-color-secondary)]">settings_input_component</span>
-          <select class="hw-select" data-ch="${ch.id}" onchange="${handler}">${deviceOptions(sel, true)}</select>
-          <button class="sm-btn" onclick="rescanDevices()" title="Refresh: rescan devices"><span class="material-symbols-outlined">refresh</span></button></div>`;
-      } else {
-        const live = liveAppsFor(ch.id);
-        const liveBins = live.map(s => (s.binary || s.app_name || '').toLowerCase());
-        const apps = (ch.apps || []).map(a => {
-          const isLive = liveBins.some(b => b.includes(a));
-          return `<span class="sm-app ${isLive ? 'live' : ''}" title="${isLive ? 'Producing audio now' : 'Routed automatically when it plays'}">${esc(a)}<button onclick="removeChannelApp('${ch.id}','${esc(a)}')" title="Unassign"><span class="material-symbols-outlined text-[12px]">close</span></button></span>`;
-        }).join('');
-        const active = live[0];
-        const activeIcon = active
-          ? `<button class="sm-chip on" title="Now playing: ${esc(active.app_name)}${active.media_name ? ' · ' + esc(active.media_name) : ''} (click to switch application)" onclick="openBrowseAppsModal(null,'${ch.id}')"><span class="material-symbols-outlined">${esc(active.icon || 'volume_up')}</span>${esc((active.app_name || '').slice(0, 18))}</button>`
-          : '';
-        const mode = ch.route_mode || 'auto';
-        src = `<div class="sm-src">
-          <span class="material-symbols-outlined text-[16px] text-[var(--md-sys-color-secondary)]">apps</span>
-          ${activeIcon}${apps || '<span class="text-[10px] text-[var(--md-sys-color-on-surface-variant)]">No apps assigned</span>'}
-          <button class="sm-btn" onclick="openBrowseAppsModal(null,'${ch.id}')"><span class="material-symbols-outlined">add</span>Add Application</button>
-          <select class="!flex-none !w-auto" onchange="setChannelMode('${ch.id}', this.value)" title="Active Apps mode">
-            <option value="auto" ${mode === 'auto' ? 'selected' : ''}>Auto rules</option>
-            <option value="manual" ${mode === 'manual' ? 'selected' : ''}>Manual list</option>
-            <option value="desktop" ${mode === 'desktop' ? 'selected' : ''}>Auto (Desktop Audio)</option>
-          </select></div>`;
-      }
-      const soloOut = anySolo() && !m.solo;
-      const nodeLabel = isMic ? 'StudioMic_Voice_Out · Stream_Mix · VOD_Mix' : isMic2 ? 'StudioMic_Mic2' : `StudioMic_Ch_${ch.id}`;
-      return `<div class="sm-card ${isMic ? 'is-mic' : ''} ${m.solo ? 'is-soloed' : ''}" data-channel-id="${ch.id}">
-        <div class="sm-head">
-          <div class="sm-title" ${!isMic && !isMic2 ? `ondblclick="renameChannel('${ch.id}', this)" title="Double-click to rename"` : ''}>
-            <span class="material-symbols-outlined text-[18px] text-[var(--md-sys-color-primary)]">${icon}</span><span class="name">${esc(ch.name)}</span>
-          </div>
-          <span class="text-[9px] font-bold font-mono text-[var(--md-sys-color-on-surface-variant)]">${kindBadge}</span>
-          <span class="flex-1"></span>${toggles}
-          ${!isMic && !isMic2 ? `<button class="sm-chip" onclick="removeChannelById('${ch.id}')" title="Remove channel"><span class="material-symbols-outlined">close</span></button>` : ''}
-        </div>
-        ${src}
-        <div class="sm-wave"><canvas class="channel-waveform-canvas" data-channel-id="${ch.id}"></canvas></div>
-        <div class="sm-row">
-          <label><span class="material-symbols-outlined">sensors</span>Stream Gain</label>
-          <input class="sm-gain" type="range" min="-60" max="12" step="0.5" value="${sGain}" ${m.stream_muted || m.stream_routed === false ? 'disabled' : ''}
-                 oninput="onGain('${ch.id}','stream',this)" ondblclick="this.value=0; onGain('${ch.id}','stream',this)">
-          ${m.stream_routed === false
-            ? `<span class="sm-readout muted" onclick="mxRoute('${ch.id}','stream',true)" title="Removed from the Stream mix in the Matrix view. Click to add it back.">Not in mix</span>`
-            : `<span class="sm-readout ${m.stream_muted ? 'muted' : ''}" data-readout="${ch.id}:stream" onclick="editGainReadout('${ch.id}:stream')">${fmtGain(sGain)}</span>`}
-        </div>
-        <div class="sm-row">
-          <label><span class="material-symbols-outlined">headphones</span>Monitor Gain</label>
-          <input class="sm-gain monitor" type="range" min="-60" max="12" step="0.5" value="${mGain}" ${m.monitor_muted || m.monitor_routed === false ? 'disabled' : ''}
-                 oninput="onGain('${ch.id}','monitor',this)" ondblclick="this.value=0; onGain('${ch.id}','monitor',this)">
-          ${m.monitor_routed === false
-            ? `<span class="sm-readout muted" onclick="mxRoute('${ch.id}','monitor',true)" title="Removed from My Mix in the Matrix view. Click to add it back.">Not in mix</span>`
-            : `<span class="sm-readout ${m.monitor_muted || soloOut ? 'muted' : ''}" data-readout="${ch.id}:monitor" onclick="editGainReadout('${ch.id}:monitor')">${fmtGain(mGain)}</span>`}
-        </div>
-        <div class="sm-row">
-          <label title="${m.stream_muted ? 'Level entering this channel (Stream is muted)' : 'Level this channel sends to the Stream mix (after the Stream Gain fader), the same signal OBS gets'}"><span class="material-symbols-outlined">graphic_eq</span>${m.stream_muted ? 'Input' : 'To Stream'}</label>
-          <div class="sm-meter" data-meter="${ch.id}"><div class="fill"></div><div class="hold"></div></div>
-          <span class="sm-peak" data-peak="${ch.id}" onclick="resetPeak('${ch.id}')" title="Peak hold (click to reset)">-∞ dB</span>
-        </div>
-        <div class="text-[9px] font-mono text-[var(--md-sys-color-on-surface-variant)] truncate">${esc(nodeLabel)}</div>
-      </div>`;
-    }
-
-    // Overrides the original strip renderer.
+    // Tab 1 is the routing matrix only (the Cards / Compact views were removed).
     function renderMixerChannelsGrid() {
       const grid = document.getElementById('mixer-channels-grid');
       if (!grid) return;
       // Keep the focused element if the user is typing in it.
       if (grid.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') return;
-      const c = smCfg();
-      grid.innerHTML = c.view_mode === 'matrix' ? matrixHtml() : smChannels().map(cardHtml).join('');
-      grid.querySelectorAll('.sm-gain').forEach(setFill);
+      grid.innerHTML = matrixHtml();
       window.channelMuteStates = window.channelMuteStates || {};
       smChannels().forEach(ch => { window.channelMuteStates[ch.id] = !!(ch.mix || {}).stream_muted; });
       refreshQuickMutePills();
       renderMonitorMaster();
-      setViewMode(c.view_mode || 'normal', true);
     }
-
-    function refreshCard(id) {
-      const ch = smChannels().find(x => x.id === id);
-      const old = document.querySelector(`.sm-card[data-channel-id="${id}"]`);
-      if (!ch || !old || smCfg().view_mode === 'matrix') { renderMixerChannelsGrid(); return; }
-      const tmp = document.createElement('div');
-      tmp.innerHTML = cardHtml(ch);
-      const fresh = tmp.firstElementChild;
-      old.replaceWith(fresh);
-      fresh.querySelectorAll('.sm-gain').forEach(setFill);
-      if (smCfg().view_mode === 'normal' && typeof initWaveformVisualizers === 'function') initWaveformVisualizers();
-    }
+    // Old callers refreshed one card; the matrix re-renders as a whole.
+    function refreshCard() { renderMixerChannelsGrid(); renderStrip(); }
 
     // ---------- Tab 1 routing matrix (Wave Link style) ----------
     // Rows = channels (sources), columns = mixes (buses). A cell is routed (mute + fader + x)
     // or empty (+). Rules shown as-is: VOD follows the Stream fader and is a DMCA include /
-    // exclude toggle; Voice Chat takes microphones and hardware inputs only (never app audio).
+    // exclude toggle; Voice Chat takes every source except the voice-chat channel itself (echo
+    // guard: Discord would hear itself).
     // Custom mixes ("+ Add Mix") are their own PipeWire bus, StudioMic_Mix_<id>.
     const MX_BUILTIN = [
       { key: 'monitor', name: 'My Mix', sub: 'Monitor_Mix · headphones', icon: 'headphones', color: '#34c759' },
@@ -5788,7 +5646,8 @@
     }
     function mxColByKey(key) { return mxCols().find(c => c.key === key); }
     function mxNum(v, d) { return typeof v === 'number' && isFinite(v) ? v : d; }
-    function mxVoiceEligible(ch) { return ch.kind === 'mic' || ch.kind === 'mic2' || ch.kind === 'hardware'; }
+    // Echo guard: everything can feed Voice Chat except the voice-chat (Discord) channel.
+    function mxVoiceEligible(ch) { return !smIsComms(ch); }
     // Cell model for (channel, column): what the engine will actually do.
     function mxCell(ch, colKey) {
       const m = ch.mix || {};
@@ -5825,7 +5684,7 @@
       const c = mxCell(ch, col.key);
       const st = `--mx-c:${col.color}`;
       if (c.locked) {
-        return `<div class="mx-locked" title="Voice Chat takes microphones and hardware inputs only, so Discord never hears your game or music"><span class="material-symbols-outlined text-[14px]">lock</span>Mics &amp; inputs only</div>`;
+        return `<div class="mx-locked" title="Routing the voice-chat channel into Voice Chat would echo Discord back to itself"><span class="material-symbols-outlined text-[14px]">lock</span>Echo guard</div>`;
       }
       if (!c.routed) {
         return `<div class="mx-empty" style="${st}" onclick="mxRoute('${ch.id}','${col.key}',true)" title="Add ${esc(ch.name)} to ${esc(col.name)}"><div class="mx-plus"><span class="material-symbols-outlined text-[18px]">add</span></div></div>`;
@@ -5845,6 +5704,7 @@
         ${remove}
         <button class="mx-mute" onclick="mxMute('${ch.id}','${col.key}')" title="${muteTitle}"><span class="material-symbols-outlined">${icon}</span></button>
         <div class="mx-fad">
+          <div class="df-meter mx-meter" data-mxm="${ch.id}:${col.key}"><div class="fill"></div></div>
           <input class="mx-slider" type="range" min="-60" max="12" step="0.5" value="${c.gain}" data-mx="${ch.id}:${col.key}"
             ${c.editable && !c.muted ? '' : 'disabled'} oninput="mxGain('${ch.id}','${col.key}',this)" ondblclick="this.value=0; mxGain('${ch.id}','${col.key}',this)">
           <span class="mx-read" data-mx-read="${ch.id}:${col.key}">${read}</span>
@@ -5872,7 +5732,7 @@
       return `<div class="mx-src"><div class="mx-ico"><span class="material-symbols-outlined text-[20px]">${icon}</span></div>
         <div class="min-w-0 flex-1"><div class="flex items-center gap-1.5 min-w-0"><span class="nm" ${rename}><span class="name">${esc(ch.name)}</span></span><span class="mx-badge">${badge}</span></div>
         <div class="sub">${sub}</div></div>
-        ${!isMic && !isMic2 ? `<button class="sm-chip" onclick="removeChannelById('${ch.id}')" title="Remove channel"><span class="material-symbols-outlined">close</span></button>` : ''}</div>`;
+        ${!isMic && !isMic2 ? `<button class="sm-icon-btn" onclick="removeChannelById('${ch.id}')" title="Delete this channel (its PipeWire sink is removed)"><span class="material-symbols-outlined">delete</span></button>` : ''}</div>`;
     }
     function mxOutputDevices() { return window.outputDevices || window.__INITIAL_OUTPUT_DEVICES__ || []; }
     // Output device picker for a mix column (My Mix: headphones; others: optional extra output).
@@ -5907,11 +5767,17 @@
     function matrixHtml() {
       const cols = mxCols();
       const rows = smChannels().map(ch => `<tr data-channel-id="${ch.id}"><td>${mxSourceHtml(ch)}</td>${cols.map(col => `<td>${mxCellHtml(ch, col)}</td>`).join('')}<td></td></tr>`).join('');
-      const addRow = `<tr><td colspan="${cols.length + 2}"><button class="sm-btn" onclick="openAddChannelModal()"><span class="material-symbols-outlined">add</span>Add Channel</button></td></tr>`;
+      // Clean slate: until the user adds a channel, only the mic is here.
+      const empty = !(smCfg().virtual_channels || []).length;
+      const addRow = empty
+        ? `<tr><td colspan="${cols.length + 2}"><div class="mx-emptystate"><span class="material-symbols-outlined text-[32px] text-[var(--md-sys-color-primary)]">playlist_add</span>
+            <p>No extra virtual channels created. Choose only what you need.</p>
+            <button class="sm-btn primary" onclick="openAddChannelModal()"><span class="material-symbols-outlined">add</span>Add Channel</button></div></td></tr>`
+        : `<tr><td colspan="${cols.length + 2}"><button class="sm-btn" onclick="openAddChannelModal()"><span class="material-symbols-outlined">add</span>Add Channel</button></td></tr>`;
       return `<div class="mx-wrap"><table class="mx"><thead><tr><th>Audio Channels</th>${cols.map(mxHeadHtml).join('')}
           <th class="mx-add" onclick="openAddMixModal()" title="Add a mix: a new output bus (Guest mix, speakers, a second recording track...)"><div class="mx-addbtn"><span class="material-symbols-outlined text-[20px]">add</span></div><div class="text-[9px] font-bold font-mono mt-0.5 text-[var(--md-sys-color-on-surface-variant)]">ADD MIX</div></th></tr></thead>
         <tbody>${rows}${addRow}</tbody></table>
-        <div class="mx-foot"><span>Click: mute · Drag: volume · Double-click: 0 dB · x: remove from a mix · +: add</span><span>VOD follows each channel's Stream fader · Voice Chat takes mics &amp; hardware inputs only</span></div></div>`;
+        <div class="mx-foot"><span>Click: mute · Drag: volume · Double-click: 0 dB · x: remove from a mix · +: add</span><span>VOD follows each channel's Stream fader · Voice Chat takes everything except the voice-chat channel (echo guard)</span></div></div>`;
     }
     function mxMute(id, col) {
       const m = smMix(id);
@@ -5973,6 +5839,10 @@
       onMonitorMasterGain(el.value);
       const r = document.getElementById('mx-master-read');
       if (r) r.textContent = fmtGain(parseFloat(el.value));
+      const ss = document.getElementById('sm-mon-gain');
+      if (ss) ss.value = el.value;
+      const sr = document.getElementById('sm-mon-read');
+      if (sr) sr.textContent = fmtGain(parseFloat(el.value));
     }
     function mxSetOutput(key, dev) {
       const c = smCfg();
@@ -6100,49 +5970,146 @@
     function toggleSolo(btn, chKeyOverride) { toggleMix(chKeyOverride || 'mic', 'solo'); }
     function applySoloRouting() { renderMixerChannelsGrid(); }
 
-    function refreshQuickMutePills() {
-      ['mic', 'mic2', 'game', 'voice', 'music', 'capture'].forEach(id => {
-        const b = document.getElementById(`qa-mute-${id}`);
-        if (!b) return;
-        const muted = !!smMix(id).stream_muted;
-        b.classList.toggle('!bg-rose-950/80', muted);
-        b.classList.toggle('!text-rose-300', muted);
-        b.classList.toggle('!border-rose-500/50', muted);
-        const dot = b.querySelector('span:first-child');
-        if (dot) dot.className = 'w-1.5 h-1.5 rounded-full ' + (muted ? 'bg-rose-500' : 'bg-[var(--md-sys-color-success)]');
-      });
-      const hasCh = id => id === 'mic' || id === 'mic2' || (smCfg().virtual_channels || []).some(c => c.id === id);
-      ['game', 'voice', 'music', 'capture'].forEach(id => { const b = document.getElementById(`qa-mute-${id}`); if (b) b.style.display = hasCh(id) ? '' : 'none'; });
+    // Quick-mute pills: one per channel, generated (no hard-coded Game/Voice/Music row).
+    function smShortName(ch) {
+      if (ch.id === 'mic') return 'MIC';
+      if (ch.id === 'mic2') return 'MIC 2';
+      return String(ch.name || ch.id).split(/[\s/·]+/)[0].slice(0, 9).toUpperCase();
     }
-    window.setMicMuteUI = function () { refreshCard('mic'); refreshQuickMutePills(); };
+    function refreshQuickMutePills() {
+      const box = document.getElementById('sm-quick-mutes');
+      if (!box) return;
+      const html = smChannels().map(ch => {
+        const muted = !!(ch.mix || {}).stream_muted;
+        const icon = ch.icon && ch.icon !== 'instant_mix' ? ch.icon : (typeof getChannelIcon === 'function' ? getChannelIcon(ch.id, ch.name) : 'instant_mix');
+        const name = smShortName(ch);
+        return `<button class="sm-qm" data-status="${esc(ch.id)}" data-name="${esc(name)}" data-st="${muted ? 'muted' : 'ok'}" onclick="qaToggleMute('${ch.id}')" title="${muted ? 'Unmute' : 'Mute'} ${esc(ch.name)} on stream">
+          <span class="st-dot"></span><span class="material-symbols-outlined">${esc(icon)}</span><span class="lbl">${muted ? 'MUTED' : esc(name)}</span></button>`;
+      }).join('');
+      if (box.__html !== html) { box.innerHTML = html; box.__html = html; }
+    }
+    window.setMicMuteUI = function () { renderMixerChannelsGrid(); renderStrip(); };
+
+    // Level status for pills and mute rings:
+    //   ok    green  below -6 dB
+    //   hot   amber  from -6 dB, or while a limiter is catching peaks
+    //   peak  red, flashing "PEAK!": real clipping only (raw_clip, or overs with no LSP), held 800 ms
+    //   muted solid red "MUTED"
+    const smStatusHold = {};
+    window.smStatus = function (id, now) {
+      now = now === undefined ? performance.now() : now;
+      const c = smCfg();
+      const muted = id === 'bus:monitor' ? !!c.monitor_muted : !!(smMix(id) || {}).stream_muted;
+      if (muted) return { state: 'muted', label: 'MUTED' };
+      const idle = now - (window.__smLastPeakAt || 0) > 1500;
+      const ls = idle ? { db: -80, clip: false, limit: false } : window.smLevelState(id);
+      const h = smStatusHold[id] || (smStatusHold[id] = { until: 0 });
+      if (ls.clip) h.until = now + 800;
+      if (now < h.until) return { state: 'peak', label: 'PEAK!' };
+      if (ls.db >= -6 || ls.limit) return { state: 'hot', label: 'HOT' };
+      return { state: 'ok', label: '' };
+    };
 
     // "Hear Myself" = the mic's Monitor branch.
-    function toggleMonitor() { toggleMix('mic', 'monitor_mute'); }
+    function toggleMonitor() { toggleMix('mic', 'monitor_mute'); renderStrip(); }
     function updateMonitorUI() {
-      const on = !smMix('mic').monitor_muted;
-      const cls = on ? 'w-2 h-2 rounded-full bg-[var(--md-sys-color-success)] shadow-[0_0_8px_#6dd58c]' : 'w-2 h-2 rounded-full bg-neutral-600';
-      ['monitor-status-pill', 'qa-sidetone-pill'].forEach(id => { const p = document.getElementById(id); if (p) p.className = cls; });
-      ['btn-monitor-toggle', 'qa-sidetone-btn'].forEach(id => { const b = document.getElementById(id); if (b) b.classList.toggle('!border-emerald-400', on); });
+      const b = document.getElementById('qa-sidetone-btn');
+      if (b) b.classList.toggle('on', !smMix('mic').monitor_muted);
     }
+
+    // ---------- studio strip (top bar / widget) ----------
+    function renderStrip() {
+      const c = smCfg();
+      const g = id => document.getElementById(id);
+      const mic = c.mic || {};
+      const mm = mic.mix || {};
+      const trim = mxNum((c.calibration || {}).preamp_gain_db, 0);
+      const ts = g('sm-trim');
+      if (ts && document.activeElement !== ts) ts.value = trim;
+      if (g('sm-trim-read')) g('sm-trim-read').textContent = `${trim > 0 ? '+' : ''}${trim.toFixed(1)} dB`;
+      const mb = g('sm-mic-mute');
+      if (mb) { mb.classList.toggle('muted', !!mm.stream_muted); mb.firstElementChild.textContent = mm.stream_muted ? 'mic_off' : 'mic'; }
+      const mg = mxNum(c.monitor_gain_db, 0);
+      const ms = g('sm-mon-gain');
+      if (ms && document.activeElement !== ms) ms.value = mg;
+      if (g('sm-mon-read')) g('sm-mon-read').textContent = fmtGain(mg);
+      const mon = g('sm-mon-mute');
+      if (mon) { mon.classList.toggle('muted', !!c.monitor_muted); mon.firstElementChild.textContent = c.monitor_muted ? 'headset_off' : 'headphones'; mon.dataset.status = 'bus:monitor'; }
+      updateMonitorUI();
+      g('sm-dsp-clipguard')?.classList.toggle('on', mic.clipguard !== false);
+      const dn = (c.denoiser || {}).engine || 'off';
+      const dnb = g('sm-dsp-denoiser');
+      if (dnb) { dnb.classList.toggle('on', dn !== 'off'); dnb.textContent = dn === 'off' ? 'NOISE OFF' : ({ deepfilter: 'DEEPFILTER', rnnoise: 'RNNOISE', speex: 'SPEEX' }[dn] || dn.toUpperCase()); }
+      g('qa-comp-btn')?.classList.toggle('on', !!window.isCompressorActive);
+      g('sm-pin-btn')?.classList.toggle('on', c.always_on_top !== false);
+      const t = g('sm-size-text');
+      if (t) t.textContent = 'Size: ' + (c.ui_size || 'medium')[0].toUpperCase();
+      refreshQuickMutePills();
+    }
+    function onStripTrim(el) {
+      const v = parseFloat(el.value);
+      const c = smCfg();
+      (c.calibration = c.calibration || {}).preamp_gain_db = v;
+      const r = document.getElementById('sm-trim-read');
+      if (r) r.textContent = `${v > 0 ? '+' : ''}${v.toFixed(1)} dB`;
+      // Keep Tab 4's "effective gain" (base + its own trim) in step with this slider.
+      try { baseAfterGain = v - (currentCalibTrim || 0); } catch (e) { }
+      throttled('calib_trim', 30, () => post('calib_trim:' + v.toFixed(1)));
+    }
+    function onStripMonitor(el) {
+      const v = parseFloat(el.value);
+      onMonitorMasterGain(v);
+      const r = document.getElementById('sm-mon-read');
+      if (r) r.textContent = fmtGain(v);
+      const ms = document.getElementById('mx-master-gain');
+      if (ms) ms.value = v;
+      const mr = document.getElementById('mx-master-read');
+      if (mr) mr.textContent = fmtGain(v);
+    }
+    updateCompressorUI = function () {
+      const on = !!window.isCompressorActive;
+      document.getElementById('qa-comp-btn')?.classList.toggle('on', on);
+      const gr = document.getElementById('hero-comp-gr');
+      if (gr && !on) gr.textContent = 'BYPASS';
+    };
+    // Strip meters (headphones), status dots and mute rings: ~15 FPS on every tab.
+    let smStripFrame = 0;
+    function smStripLoop(ts) {
+      requestAnimationFrame(smStripLoop);
+      if (window.isWindowVisible === false || ts - smStripFrame < 66) return;
+      smStripFrame = ts;
+      const now = performance.now();
+      document.querySelectorAll('[data-status]').forEach(el => {
+        const st = window.smStatus(el.dataset.status, now);
+        if (el.dataset.st !== st.state) {
+          el.dataset.st = st.state;
+          const lbl = el.querySelector('.lbl');
+          if (lbl) lbl.textContent = (st.state === 'muted' || st.state === 'peak') ? st.label : (el.dataset.name || '');
+        }
+      });
+      const idle = now - (window.__smLastPeakAt || 0) > 1500;
+      document.querySelectorAll('.df-meter[data-sm-meter]').forEach(el => {
+        const id = el.dataset.smMeter;
+        const ls = idle ? { db: -80, clip: false, limit: false } : window.smLevelState(id);
+        const pct = Math.max(0, Math.min(100, (ls.db + 60) / 60 * 100));
+        if (Math.abs(pct - (el.__pct ?? -1)) >= 0.5) { el.firstElementChild.style.width = pct.toFixed(1) + '%'; el.__pct = pct; el.style.setProperty('--df-w', el.clientWidth + 'px'); }
+        const cls = ls.clip ? 'clip' : (ls.db >= -6 || ls.limit) ? 'hot' : '';
+        if (el.__cls !== cls) { el.classList.toggle('clip', cls === 'clip'); el.classList.toggle('hot', cls === 'hot'); el.__cls = cls; }
+      });
+    }
+    requestAnimationFrame(smStripLoop);
 
     // ---------- master monitor ----------
     function renderMonitorMaster() {
       const c = smCfg();
-      const sl = document.getElementById('monitor-master-gain');
-      if (sl && document.activeElement !== sl) { sl.value = c.monitor_gain_db || 0; setFill(sl); }
-      const r = document.getElementById('monitor-master-readout');
-      if (r) { r.textContent = fmtGain(c.monitor_gain_db || 0); r.classList.toggle('muted', !!c.monitor_muted); }
-      const mb = document.getElementById('monitor-master-mute');
-      if (mb) mb.classList.toggle('on', !!c.monitor_muted);
-      const os = document.getElementById('monitor-output-selector');
-      if (os) os.value = c.monitor_output || '';
-      // Matrix "My Mix" header copy of the master controls.
+      // Matrix "My Mix" header copy of the master controls (the strip has the other).
       const ms = document.getElementById('mx-master-gain');
       if (ms && document.activeElement !== ms) ms.value = c.monitor_gain_db || 0;
       const mr = document.getElementById('mx-master-read');
       if (mr) mr.textContent = fmtGain(c.monitor_gain_db || 0);
       const mm = document.getElementById('mx-master-mute');
       if (mm) { mm.classList.toggle('on', !!c.monitor_muted); mm.firstElementChild.textContent = c.monitor_muted ? 'headset_off' : 'headphones'; }
+      renderStrip();
     }
     function onMonitorMasterGain(v) {
       v = parseFloat(v);
@@ -6170,7 +6137,7 @@
       window.outputDevices.forEach(d => { html += `<option value="${esc(d.name)}">${esc(d.description)}${d.is_default ? ' [Default]' : ''}</option>`; });
       sel.innerHTML = html;
       sel.value = cur;
-      if (smCfg().view_mode === 'matrix') renderMixerChannelsGrid(); // refresh the per-mix output pickers
+      renderMixerChannelsGrid(); // refresh the per-mix output pickers
     };
 
     // ---------- devices (never auto-switch a missing saved device) ----------
@@ -6209,20 +6176,63 @@
     window.updateCaptureCards = function (cards) { window.__INITIAL_CAPTURE_CARDS__ = cards || []; };
 
     // ---------- channels ----------
+    // One-click presets. Existing app presets are greyed out; Line In and Custom ask for one detail.
+    const AC_PRESETS = [
+      { p: 'voice', icon: 'forum', name: 'Discord / Voice Chat', def: 'Voice Chat', sub: 'Discord, Vesktop, TeamSpeak, Mumble' },
+      { p: 'game', icon: 'sports_esports', name: 'Games', def: 'Game', sub: 'Steam, Proton, Wine, Lutris' },
+      { p: 'browser', icon: 'language', name: 'Web Browser', def: 'Browser', sub: 'Firefox, Chromium, Brave, Zen' },
+      { p: 'music', icon: 'music_note', name: 'Music', def: 'Music', sub: 'Spotify, Elisa, MPD (off the VOD track)' },
+      { p: 'apps', icon: 'apps', name: 'Apps & Media', def: 'Apps & Media', sub: 'VLC, mpv and other players' },
+      { p: 'capture', icon: 'settings_input_component', name: 'Second Mic / Line In', def: 'Line In', sub: 'A hardware input: USB, XLR, capture card', detail: 'hw' },
+      { p: '', icon: 'tune', name: 'Custom', def: 'New Channel', sub: 'An empty virtual output you name', detail: 'name' },
+    ];
+    let acPick = null;
+    function acExists(p) {
+      const chs = smCfg().virtual_channels || [];
+      return chs.some(c => c.id === p) || (p === 'voice' && chs.some(smIsComms));
+    }
     function openAddChannelModal() {
+      acPick = null;
+      const grid = document.getElementById('add-channel-presets');
+      grid.innerHTML = AC_PRESETS.map((a, i) => {
+        const taken = !a.detail && acExists(a.p);
+        return `<button class="ac-preset" data-i="${i}" ${taken ? 'disabled title="Already added"' : ''} onclick="pickAddChannelPreset(${i})">
+          <span class="material-symbols-outlined">${a.icon}</span><span class="min-w-0"><b>${esc(a.name)}</b><small>${taken ? 'Already added' : esc(a.sub)}</small></span></button>`;
+      }).join('');
+      document.getElementById('add-channel-detail').classList.add('hidden');
       document.getElementById('add-channel-modal').classList.remove('hidden');
-      onAddChannelPreset(document.getElementById('add-channel-preset').value);
     }
     function closeAddChannelModal() { document.getElementById('add-channel-modal').classList.add('hidden'); }
-    function onAddChannelPreset(p) {
-      const names = { game: 'Game', music: 'Music', voice: 'Voice Chat', browser: 'Browser', sfx: 'SFX', capture: 'Capture Card', '': 'New Channel' };
-      document.getElementById('add-channel-name').value = names[p] || 'New Channel';
+    function pickAddChannelPreset(i) {
+      const a = AC_PRESETS[i];
+      if (!a) return;
+      if (!a.detail) {
+        post('channel_add:' + JSON.stringify({ name: a.def, preset: a.p }));
+        closeAddChannelModal();
+        window.showNotice(`Adding ${a.name}...`);
+        return;
+      }
+      acPick = a;
+      document.querySelectorAll('.ac-preset').forEach(b => b.classList.toggle('on', b.dataset.i === String(i)));
+      document.getElementById('add-channel-detail').classList.remove('hidden');
+      const hwWrap = document.getElementById('add-channel-hw-wrap');
+      hwWrap.classList.toggle('hidden', a.detail !== 'hw');
+      if (a.detail === 'hw') document.getElementById('add-channel-hw').innerHTML = deviceOptions('', false);
+      const n = document.getElementById('add-channel-name');
+      n.value = a.def;
+      n.focus(); n.select();
     }
     function commitAddChannel() {
+      if (!acPick) return;
       const name = document.getElementById('add-channel-name').value.trim();
-      const preset = document.getElementById('add-channel-preset').value;
       if (!name) return;
-      post('channel_add:' + JSON.stringify({ name, preset }));
+      const msg = { name, preset: acPick.p };
+      if (acPick.detail === 'hw') {
+        const hw = document.getElementById('add-channel-hw').value;
+        if (!hw) { window.showNotice('Choose the hardware input first.'); return; }
+        msg.hw_source = hw;
+      }
+      post('channel_add:' + JSON.stringify(msg));
       closeAddChannelModal();
     }
     function addVirtualMixChannel() { openAddChannelModal(); }
@@ -6250,10 +6260,6 @@
       span.replaceWith(input); input.focus(); input.select();
     }
     function makeChannelTitleEditable(el, id) { renameChannel(id, el); }
-    function resetChannelsToDefault() {
-      if (!confirm('Reset to the default channels (Game, Voice Chat, Music, Browser, Capture Card)?')) return;
-      post('reset_default_channels');
-    }
     function applyChannelsToSystem() { window.showNotice('Channels are saved automatically.'); }
     function setChannelMode(id, mode) {
       const ch = (smCfg().virtual_channels || []).find(c => c.id === id);
@@ -6282,11 +6288,9 @@
     window.updateLiveStreams = function (streams) {
       if (_smUpdateLive) _smUpdateLive(streams); else window.liveAudioStreams = streams || [];
       window.liveAudioStreams = streams || [];
-      // Refresh the app chips / now-playing icons without touching sliders being dragged.
-      (smCfg().virtual_channels || []).forEach(ch => {
-        const card = document.querySelector(`.sm-card[data-channel-id="${ch.id}"]`);
-        if (card && !card.contains(document.activeElement)) refreshCard(ch.id);
-      });
+      // Refresh the live app chips without touching a slider being dragged.
+      const grid = document.getElementById('mixer-channels-grid');
+      if (grid && !grid.contains(document.activeElement)) renderMixerChannelsGrid();
     };
 
     // ---------- meters: 30 FPS, peak hold 4 s, 1 s clip flash; idle frames skipped ----------
@@ -6296,7 +6300,14 @@
     window.updateChannelPeaks = function (peaks) {
       if (!peaks || typeof peaks !== 'object') return;
       Object.assign(window.channelPeakLevels, peaks);
-      smLastPeakAt = performance.now();
+      smLastPeakAt = window.__smLastPeakAt = performance.now();
+      // Clipguard hardware auto-pad badge ("PAD -N dB" while it's lowering the input).
+      const pad = document.getElementById('sm-pad-badge');
+      if (pad && typeof peaks.pad === 'number') {
+        const on = peaks.pad > 0.05;
+        pad.classList.toggle('hidden', !on);
+        if (on) pad.textContent = `PAD -${peaks.pad.toFixed(0)} dB`;
+      }
       const duck = document.getElementById('duck-indicator');
       if (duck && typeof peaks.duck === 'number') {
         duck.querySelector('span:last-child').textContent = `Duck ${peaks.duck > 0 ? '-' : ''}${peaks.duck.toFixed(1)} dB`;
@@ -6358,35 +6369,33 @@
         const txt = st.hold <= -60 ? '-∞ dB' : `${st.hold.toFixed(1)} dB`;
         if (txt !== st.txt) { const p = document.querySelector(`[data-peak="${id}"]`); if (p) p.textContent = txt; st.txt = txt; }
       });
-      // Routing matrix: each fader track shows what that channel sends into that mix.
-      const sliders = document.querySelectorAll('.mx-slider[data-mx]');
-      if (sliders.length) {
+      // Routing matrix: each cell's meter (above its slider) shows what that channel sends into that mix.
+      const meters = document.querySelectorAll('.mx-meter[data-mxm]');
+      if (meters.length) {
         const chs = {};
         smChannels().forEach(ch => { chs[ch.id] = ch; });
-        sliders.forEach(el => {
-          const [id, col] = el.dataset.mx.split(':');
+        meters.forEach(el => {
+          const [id, col] = el.dataset.mxm.split(':');
           const ch = chs[id];
           if (!ch) return;
           const db = idle ? -80 : mxLevel(ch, col);
           const pct = Math.max(0, Math.min(100, (db + 60) / 60 * 100));
-          const last = el.__mxPct ?? -1;
-          if (Math.abs(pct - last) >= 1) { el.style.setProperty('--meter', pct.toFixed(0) + '%'); el.__mxPct = pct; }
+          if (Math.abs(pct - (el.__pct ?? -1)) >= 1) { el.firstElementChild.style.width = pct.toFixed(0) + '%'; el.__pct = pct; el.style.setProperty('--df-w', el.clientWidth + 'px'); }
           if (col === 'stream') {
             const ls = idle ? { clip: false, limit: false } : window.smLevelState(id);
             const cell = el.closest('.mx-cell');
             if (cell) {
-              if (cell.__clip !== ls.clip) { cell.classList.toggle('clip', ls.clip); cell.__clip = ls.clip; }
+              if (cell.__clip !== ls.clip) { cell.classList.toggle('clip', ls.clip); el.classList.toggle('clip', ls.clip); cell.__clip = ls.clip; }
               const lim = !ls.clip && ls.limit;
-              if (cell.__lim !== lim) { cell.classList.toggle('limit', lim); cell.__lim = lim; }
+              if (cell.__lim !== lim) { cell.classList.toggle('limit', lim); el.classList.toggle('hot', lim); cell.__lim = lim; }
             }
           }
         });
       }
     }
     requestAnimationFrame(smMeterLoop);
-    // Waveforms only in Normal mode (Simple mode skips them entirely).
-    const _smInitWave = initWaveformVisualizers;
-    initWaveformVisualizers = function () { if ((smCfg().view_mode || 'normal') === 'normal') _smInitWave(); };
+    // The channel-card waveforms went away with the Cards view: never start their animation loop.
+    initWaveformVisualizers = function () { };
 
     // ---------- Tab 3: denoiser, gate, DSP (all live) ----------
     function renderDenoiserUI() {
@@ -6625,6 +6634,8 @@
       const prevBands = JSON.stringify((smCfg().eq_bands || []));
       window.__SAVED_CONFIG__ = cfg;
       applyTheme(cfg.theme, true);
+      applyUiSize(cfg.ui_size, true);
+      document.body.classList.toggle('widget-mode', !!cfg.widget_mode);
       renderMixerChannelsGrid();
       renderMonitorMaster();
       updateMonitorUI();
@@ -6632,6 +6643,7 @@
       renderDenoiserUI();
       window.isCompressorActive = !!(cfg.noise_clean || {}).compressor_enabled;
       if (typeof updateCompressorUI === 'function') updateCompressorUI();
+      renderStrip();
       if (JSON.stringify(cfg.eq_bands || []) !== prevBands && activeEQTargetMic !== 'mic2') {
         const norm = normalizeBandsFromBackend(cfg.eq_bands);
         if (norm && norm.length) { currentBands = norm; renderManualBandsTable(); renderMainEQCanvas(); }
@@ -6643,6 +6655,8 @@
     window.addEventListener('load', () => {
       const c = smCfg();
       applyTheme(c.theme || 'material_dark', true);
+      applyUiSize(c.ui_size, true);
+      document.body.classList.toggle('widget-mode', !!c.widget_mode);
       window.updateOutputDevices(window.__INITIAL_OUTPUT_DEVICES__ || []);
       window.populateHardwareDevices(window.__INITIAL_HARDWARE_MICS__ || []);
       window.liveAudioStreams = window.__INITIAL_LIVE_STREAMS__ || [];
@@ -6650,6 +6664,7 @@
       renderDenoiserUI();
       if (c.noise_clean) ncSetUI(c.noise_clean);
       updateMonitorUI();
+      renderStrip();
       highlightActivePreset();
       renderPreviewBars();
       const tab = window.__INITIAL_TAB__ || 'tab-mixer';

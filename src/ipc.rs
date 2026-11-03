@@ -81,6 +81,8 @@ pub const CLI_COMMANDS: &[&str] = &[
     "--save-profile",
     "--list-profiles",
     "--toggle-view",
+    "--toggle-widget",
+    "--set-size",
     "--status",
     "--create-channel",
     "--remove-channel",
@@ -153,17 +155,17 @@ pub fn instance_running() -> bool {
 pub fn run_client(args: &[String]) -> i32 {
     if let Some((ok, msg)) = send(args) {
         if !msg.is_empty() {
-            if ok { println!("{}", msg) } else { eprintln!("studio-mic: {}", msg) }
+            if ok { println!("{}", msg) } else { eprintln!("studiomic: {}", msg) }
         }
         return if ok { 0 } else { 1 };
     }
     if args.first().map(|a| a == "--quit").unwrap_or(false) {
-        eprintln!("studio-mic: not running");
+        eprintln!("studiomic: not running");
         return 0;
     }
     if instance_locked() {
         // An instance is running but its socket is unreachable: never start a second engine.
-        eprintln!("studio-mic: Studio Mic is running but its control socket is unreachable ({})", socket_path().display());
+        eprintln!("studiomic: Studio Mic is running but its control socket is unreachable ({})", socket_path().display());
         return 2;
     }
     // Headless wake: start the engine in the background (no window) and retry.
@@ -177,7 +179,7 @@ pub fn run_client(args: &[String]) -> i32 {
         .process_group(0)
         .spawn();
     if spawned.is_err() {
-        eprintln!("studio-mic: could not start the Studio Mic engine");
+        eprintln!("studiomic: could not start the Studio Mic engine");
         return 2;
     }
     let start = Instant::now();
@@ -185,12 +187,12 @@ pub fn run_client(args: &[String]) -> i32 {
         std::thread::sleep(Duration::from_millis(250));
         if let Some((ok, msg)) = send(args) {
             if !msg.is_empty() {
-                if ok { println!("{}", msg) } else { eprintln!("studio-mic: {}", msg) }
+                if ok { println!("{}", msg) } else { eprintln!("studiomic: {}", msg) }
             }
             return if ok { 0 } else { 1 };
         }
     }
-    eprintln!("studio-mic: engine did not come up (see ~/.cache/studio-mic/engine.log)");
+    eprintln!("studiomic: engine did not come up (see ~/.cache/studio-mic/engine.log)");
     2
 }
 
@@ -199,9 +201,9 @@ pub fn print_help() {
         "Studio Mic - broadcast mic processing & virtual mixer for PipeWire
 
 USAGE
-  studio-mic                      open the window (or focus the running one)
-  studio-mic --background         start in the tray (also: --start-minimized, --tray, -b, --daemon)
-  studio-mic --eq | --noise | --calib   open on a specific tab
+  studiomic                       open the window (or focus the running one)
+  studiomic --background          start in the tray (also: --start-minimized, --tray, -b, --daemon)
+  studiomic --eq | --noise | --calib    open on a specific tab
 
 CONTROL (talks to the running instance over ~/.cache/studio-mic/studio-mic.sock,
 starting a background instance first if none is running)
@@ -217,7 +219,8 @@ starting a background instance first if none is running)
   --download-deepfilter           fetch the pinned DeepFilterNet plugin (SHA256-checked, ~54 MB)
   --set-preset <EQPresetName>     --set-theme <oled_black|material_dark|midnight_slate|light>
   --load-profile <Name>           --save-profile <Name>      --list-profiles
-  --toggle-view (Cards > Compact > Matrix)   --status [--json] [--runtime]
+  --toggle-widget                 mini floating widget on/off (--toggle-view is an alias)
+  --set-size <small|medium|large> control size             --status [--json] [--runtime]
   --create-channel <Name> [preset]  --remove-channel <Name>  --rename-channel <Old> <New>
   --assign-app <Channel> <app>    --unassign-app <Channel> <app>   --add-foreground-app <Channel>
   --preview <play|loop|stop>      --record-test

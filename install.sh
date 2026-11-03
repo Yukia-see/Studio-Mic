@@ -110,7 +110,7 @@ if [ "$MODE" = "package" ]; then
             ;;
         *) die "--package supports Arch/CachyOS and Fedora; use the default user install elsewhere." ;;
     esac
-    say "Package installed. Launch 'studiomic' (or run 'studio-mic --status')."
+    say "Package installed. Launch 'studiomic' (or run 'studiomic --status')."
     exit 0
 fi
 
@@ -153,7 +153,10 @@ done
 # ------------------------------------------------------------------ 5. install files
 say "[4/6] Installing to $BIN_DIR"
 inst -Dm755 "$BIN_SRC" "$BIN_DIR/$BIN_NAME"
-if [ "$MODE" = "system" ]; then as_root ln -sf "$BIN_NAME" "$BIN_DIR/studio-mic"; else as_user ln -sf "$BIN_NAME" "$BIN_DIR/studio-mic"; fi
+# One command only: drop the old `studio-mic` alias left by earlier installs (only if it is our symlink).
+if [ -L "$BIN_DIR/studio-mic" ] && [ "$(readlink "$BIN_DIR/studio-mic")" = "$BIN_NAME" ]; then
+    if [ "$MODE" = "system" ]; then as_root rm -f "$BIN_DIR/studio-mic"; else as_user rm -f "$BIN_DIR/studio-mic"; fi
+fi
 inst -Dm644 "$SCRIPT_DIR/assets/studiomic.svg" "$ICON_DIR/studiomic.svg"
 tmp_desktop="$(mktemp)"
 sed "s|^Exec=studiomic|Exec=$BIN_DIR/$BIN_NAME|" "$SCRIPT_DIR/studiomic.desktop" > "$tmp_desktop"
@@ -200,7 +203,7 @@ cat <<EOF
 
     Open:            $BIN_NAME
     Tray only:       $BIN_NAME --background
-    Control / CLI:   studio-mic --status        (studio-mic --help for all commands)
+    Control / CLI:   studiomic --status         (studiomic --help for all commands)
 
   The four buses (Voice Out, Stream Mix, VOD Mix, Monitor Mix) are created as soon as Studio Mic
   starts. They come up at login without Studio Mic after your next login or

@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio Mic · Compact Floating Widget & De-duplicated UI Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0b0c10;
+      color: #e5e5eb;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2rem 1rem;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    
+    /* Elgato Wave Link Dual-Track (Meter on Top, Slider Below) */
+    .fader-track-container {
+      position: relative;
+      width: 100%;
+      height: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    .vu-meter-bar {
+      height: 6px;
+      width: 100%;
+      background: #1c1d24;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .vu-meter-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #10b981 0%, #34d399 65%, #f59e0b 85%, #ef4444 100%);
+      transition: width 0.08s ease-out;
+      box-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
+    }
+
+    .slider-track-wrap {
+      position: relative;
+      height: 14px;
+      display: flex;
+      align-items: center;
+    }
+
+    input[type=range].wave-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      background: #272832;
+      border-radius: 999px;
+      outline: none;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    input[type=range].wave-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #38bdf8;
+      border: 2px solid #0f172a;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    input[type=range].wave-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: #7dd3fc;
+    }
+
+    input[type=range].wave-slider:active::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background: #bae6fd;
+    }
+
+    /* Dynamic Button Sizing for Widget */
+    .widget-window.sz-sm .mute-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+    }
+    .widget-window.sz-sm .mute-btn span.material-symbols-outlined {
+      font-size: 15px;
+    }
+    .widget-window.sz-sm button[id^="qm-"] {
+      padding: 2px 5px !important;
+      font-size: 9px !important;
+    }
+    .widget-window.sz-sm button[id^="dsp-"] {
+      padding: 1px 4px !important;
+      font-size: 8.5px !important;
+    }
+
+    .widget-window.sz-lg .mute-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+    }
+    .widget-window.sz-lg .mute-btn span.material-symbols-outlined {
+      font-size: 22px;
+    }
+    .widget-window.sz-lg button[id^="qm-"] {
+      padding: 6px 10px !important;
+      font-size: 11.5px !important;
+    }
+    .widget-window.sz-lg button[id^="dsp-"] {
+      padding: 3px 8px !important;
+      font-size: 11px !important;
+    }
+
+    /* Mute Button Wave Link Style */
+    .mute-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #1e1f29;
+      border: 1px solid #323444;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .mute-btn:hover {
+      background: #2a2c3a;
+      border-color: #475569;
+      color: #f1f5f9;
+    }
+
+    .mute-btn.active-muted {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #ef4444;
+      color: #ef4444;
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+    }
+
+    /* Resizable Widget Container */
+    .widget-window {
+      background: #14151c;
+      border: 1px solid #282a36;
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      overflow: hidden;
+      transition: border-color 0.2s ease, width 0.2s ease;
+      resize: both;
+      min-width: 380px;
+      max-width: 680px;
+      min-height: 180px;
+    }
+
+    .widget-window.always-on-top {
+      border-color: #38bdf8;
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.25), 0 20px 40px -10px rgba(0, 0, 0, 0.8);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header & Interactive Controls -->
+  <header class="w-full max-w-4xl mb-6 text-center space-y-2">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-mono font-semibold">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+      Studio Mic · Non-Duplicated Compact Widget & Streamer HUD
+    </div>
+    <h1 class="text-3xl font-extrabold text-white tracking-tight">Studio Mic Quick-Monitor Widget</h1>
+    <p class="text-neutral-400 text-sm max-w-xl mx-auto">
+      Adjust microphone gain, monitor headphone volume, verify levels, and toggle stream mutes with zero duplication.
+    </p>
+
+    <!-- View Mode Switcher & Peak Simulation -->
+    <div class="flex flex-wrap items-center justify-center gap-2 pt-3">
+      <button onclick="setWidgetPreset('compact')" class="px-3.5 py-1.5 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-bold hover:bg-neutral-700 transition">Compact (420px)</button>
+      <button onclick="setWidgetPreset('standard')" class="px-3.5 py-1.5 rounded-xl bg-cyan-600 text-white text-xs font-bold shadow-lg shadow-cyan-600/30 transition">Standard (480px)</button>
+      <button onclick="setWidgetPreset('wide')" class="px-3.5 py-1.5 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-bold hover:bg-neutral-700 transition">Wide HUD (560px)</button>
+      <button onclick="toggleAlwaysOnTop()" id="btn-pin-toggle" class="px-3.5 py-1.5 rounded-xl bg-neutral-800 text-neutral-300 text-xs font-bold hover:text-cyan-400 flex items-center gap-1.5 transition">
+        <span class="material-symbols-outlined text-[15px]" id="pin-icon">push_pin</span>
+        <span id="pin-text">Pin on Top</span>
+      </button>
+      <button onclick="triggerSimulatedPeak()" class="px-3.5 py-1.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-300 text-xs font-bold hover:bg-red-900 transition flex items-center gap-1.5 shadow-md">
+        <span class="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+        <span>Simulate Peak / Clip (Scream)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- THE MINI FLOATING WIDGET (LIVE INTERACTIVE MOCKUP) -->
+  <!-- ========================================================================= -->
+  <main class="w-full flex flex-col items-center gap-8 mb-10">
+    
+    <div id="studio-widget" class="widget-window w-[480px] p-4 flex flex-col gap-3.5 select-none relative">
+      
+      <!-- Window Titlebar & Quick Header (Drag Region) -->
+      <div class="flex items-center justify-between pb-2 border-b border-neutral-800/80 cursor-grab active:cursor-grabbing">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-lg bg-gradient-to-tr from-cyan-600 to-sky-400 text-black flex items-center justify-center font-black text-xs shadow-md">
+            <span class="material-symbols-outlined text-[14px]">equalizer</span>
+          </div>
+          <span class="font-bold text-xs tracking-wider text-neutral-200 font-mono">STUDIOMIC HUD</span>
+          <span id="clipguard-badge" class="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>CLIPGUARD
+          </span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <!-- Button Size Adjuster on Top -->
+          <button onclick="cycleWidgetButtonSize()" id="widget-size-btn" class="px-2 py-0.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-cyan-400 text-[10px] font-bold font-mono flex items-center gap-1 transition" title="Adjust Button Size: Small / Medium / Large">
+            <span class="material-symbols-outlined text-[13px]">photo_size_select_small</span>
+            <span id="widget-size-text">Size: Med</span>
+          </button>
+          <button onclick="toggleAlwaysOnTop()" title="Always on Top (Pin)" class="w-6 h-6 rounded hover:bg-neutral-800 text-neutral-400 hover:text-cyan-400 flex items-center justify-center transition">
+            <span class="material-symbols-outlined text-[15px]">push_pin</span>
+          </button>
+          <button onclick="alert('In the app, this expands back to the full Studio Mic dashboard (1100x700).')" title="Expand to Full Application" class="w-6 h-6 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center transition">
+            <span class="material-symbols-outlined text-[15px]">open_in_full</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ROW 1: PRIMARY MICROPHONE STRIP (Wave Link Style Mute + Meter + Slider) -->
+      <div class="bg-neutral-900/80 rounded-xl p-2.5 border border-neutral-800 flex items-center gap-3">
+        <!-- Tactile Mute Button with Peak Halo -->
+        <button id="widget-mic-mute-btn" onclick="toggleMicMute()" class="mute-btn relative" title="Toggle Mic 1 Mute">
+          <span id="widget-mic-icon" class="material-symbols-outlined text-[18px]">mic</span>
+          <!-- Dynamic Peak / Healthy Status LED -->
+          <span id="widget-mic-peak-dot" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-neutral-900 transition-all duration-100 shadow-[0_0_6px_#34d399]"></span>
+        </button>
+
+        <!-- Right Side: Header Info + Meter + Fader Knob -->
+        <div class="flex-1 min-w-0 flex flex-col gap-1">
+          <!-- Text Labels -->
+          <div class="flex items-center justify-between text-xs font-semibold">
+            <div class="flex items-center gap-1.5 truncate">
+              <span class="text-white truncate">FIFINE AmpliGame AM8</span>
+              <span class="text-[10px] text-neutral-500 font-mono font-normal">Input 1</span>
+            </div>
+            <div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
+              <span class="text-neutral-400">Gain:</span>
+              <span id="mic-gain-display" class="font-bold text-cyan-400">+2.0 dB</span>
+              <span id="mic-peak-display" class="font-bold text-emerald-400 text-[10px] bg-neutral-950 px-1.5 py-0.2 rounded border border-neutral-800">-12.4 dBFS</span>
+            </div>
+          </div>
+
+          <!-- Dual Track: Level Meter on Top, Gain Slider on Bottom -->
+          <div class="fader-track-container">
+            <!-- Top: Live VU Level Meter -->
+            <div class="vu-meter-bar">
+              <div id="mic-meter-fill" class="vu-meter-fill" style="width: 58%;"></div>
+            </div>
+            <!-- Bottom: Hardware/Digital Gain Fader Knob -->
+            <div class="slider-track-wrap">
+              <input type="range" id="mic-gain-slider" min="-24" max="24" step="0.5" value="2" oninput="onMicGainChange(this.value)" class="wave-slider" title="Mic Input Gain (-24 dB to +24 dB)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2: HEADPHONE MONITOR & SIDETONE STRIP -->
+      <div class="bg-neutral-900/80 rounded-xl p-2.5 border border-neutral-800 flex items-center gap-3">
+        <!-- Monitor Mute Button -->
+        <button id="widget-mon-mute-btn" onclick="toggleMonitorMute()" class="mute-btn" title="Mute Headphones Monitor">
+          <span id="widget-mon-icon" class="material-symbols-outlined text-[18px]">headphones</span>
+        </button>
+
+        <!-- Right Side: Monitor Header + Meter + Volume Fader Knob -->
+        <div class="flex-1 min-w-0 flex flex-col gap-1">
+          <div class="flex items-center justify-between text-xs font-semibold">
+            <div class="flex items-center gap-1.5 truncate">
+              <span class="text-neutral-300">Headphone Monitor</span>
+              <!-- Hear Myself Toggle Badge -->
+              <button onclick="toggleHearMyself()" id="widget-hear-badge" class="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-sky-950 text-sky-300 border border-sky-500/40 hover:bg-sky-900 transition flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>HEAR MYSELF ON
+              </button>
+            </div>
+            <div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
+              <span class="text-neutral-400">Vol:</span>
+              <span id="mon-vol-display" class="font-bold text-sky-400">75%</span>
+            </div>
+          </div>
+
+          <!-- Dual Track: Monitor Level Meter on Top, Volume Slider on Bottom -->
+          <div class="fader-track-container">
+            <div class="vu-meter-bar">
+              <div id="mon-meter-fill" class="vu-meter-fill" style="width: 48%; background: linear-gradient(90deg, #0284c7 0%, #38bdf8 80%, #fbbf24 100%);"></div>
+            </div>
+            <div class="slider-track-wrap">
+              <input type="range" id="mon-vol-slider" min="0" max="100" step="1" value="75" oninput="onMonVolChange(this.value)" class="wave-slider" title="Monitor Volume (0% - 100%)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 3: STREAM QUICK-MUTE BAR (NON-DUPLICATED) -->
+      <div class="flex items-center justify-between gap-1.5 pt-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-500 font-mono">Stream Mutes:</span>
+        <div class="flex items-center gap-1.5 flex-1 justify-end flex-wrap">
+          <button id="qm-mic" onclick="toggleQuickMute('mic')" class="px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1.5">
+            <span id="qm-mic-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-100 shadow-[0_0_6px_#34d399]"></span>
+            <span id="qm-mic-label">MIC</span>
+          </button>
+          <button id="qm-game" onclick="toggleQuickMute('game')" class="px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1.5">
+            <span id="qm-game-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-100 shadow-[0_0_6px_#34d399]"></span>
+            <span id="qm-game-label">GAME</span>
+          </button>
+          <button id="qm-voice" onclick="toggleQuickMute('voice')" class="px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1.5">
+            <span id="qm-voice-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-100 shadow-[0_0_6px_#34d399]"></span>
+            <span id="qm-voice-label">VOICE</span>
+          </button>
+          <button id="qm-music" onclick="toggleQuickMute('music')" class="px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1.5">
+            <span id="qm-music-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-100 shadow-[0_0_6px_#34d399]"></span>
+            <span id="qm-music-label">MUSIC</span>
+          </button>
+          <button id="qm-capture" onclick="toggleQuickMute('capture')" class="px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1.5">
+            <span id="qm-capture-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 transition-all duration-100 shadow-[0_0_6px_#34d399]"></span>
+            <span id="qm-capture-label">CAPTURE</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ROW 4: DSP STATUS PILLS (CLICKABLE SHORTCUTS) -->
+      <div class="flex items-center justify-between pt-1 border-t border-neutral-800/80 text-[10px] text-neutral-400">
+        <div class="flex items-center gap-2">
+          <span class="font-mono text-neutral-500">DSP:</span>
+          <button onclick="toggleDSP('clipguard')" id="dsp-clipguard" class="px-1.5 py-0.5 rounded bg-emerald-950/70 border border-emerald-500/30 text-emerald-300 font-mono font-bold hover:bg-emerald-900">CLIPGUARD</button>
+          <button onclick="toggleDSP('rnnoise')" id="dsp-rnnoise" class="px-1.5 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/30 text-cyan-300 font-mono font-bold hover:bg-cyan-900">RNNOISE</button>
+          <button onclick="toggleDSP('comp')" id="dsp-comp" class="px-1.5 py-0.5 rounded bg-purple-950/70 border border-purple-500/30 text-purple-300 font-mono font-bold hover:bg-purple-900">COMP (-1.2dB)</button>
+        </div>
+        <span class="text-[9px] font-mono text-neutral-500 flex items-center gap-1">
+          <span class="material-symbols-outlined text-[11px] text-cyan-400">speed</span> 2.6ms · 48kHz
+        </span>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- SIDE-BY-SIDE ARCHITECTURAL COMPARISON: BEFORE VS AFTER -->
+  <!-- ========================================================================= -->
+  <section class="w-full max-w-4xl bg-neutral-900/60 border border-neutral-800 rounded-2xl p-5 space-y-4">
+    <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+      <div>
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="material-symbols-outlined text-cyan-400">compare_arrows</span>
+          De-duplication Breakdown: Before vs After
+        </h2>
+        <p class="text-xs text-neutral-400">How the bloated 260px top bar is unified into a sleek, zero-waste 480x180px widget & header</p>
+      </div>
+      <span class="px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">-72% Height Saved</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+      <!-- BEFORE -->
+      <div class="bg-red-950/20 border border-red-500/30 rounded-xl p-3.5 space-y-2">
+        <div class="font-bold text-red-400 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">cancel</span>
+          Before: Bloated & Redundant (260px Height)
+        </div>
+        <ul class="space-y-1.5 text-neutral-300 list-disc list-inside">
+          <li><strong>Comp Status Duplication:</strong> Top bar pill button AND Hero card box with GR text.</li>
+          <li><strong>Hear Myself Duplication:</strong> Top bar pill button AND Hero card big toggle box.</li>
+          <li><strong>Peak Meter Duplication:</strong> Top bar textual <code class="text-neutral-400 font-mono">Peak: -inf dB</code> AND Hero card wide green bar.</li>
+          <li><strong>Mute Duplication:</strong> Quick Mute pill AND large microphone avatar card.</li>
+          <li><strong>No Gain Slider:</strong> Hero card has device dropdowns and meter, but NO fader knob to adjust gain directly!</li>
+        </ul>
+      </div>
+
+      <!-- AFTER -->
+      <div class="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3.5 space-y-2">
+        <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">check_circle</span>
+          After: Unified Mini Widget & Studio Strip
+        </div>
+        <ul class="space-y-1.5 text-neutral-300 list-disc list-inside">
+          <li><strong>Direct Wave Link Faders:</strong> Tactile Mute button + top VU Meter + bottom Gain Slider knob in one unified strip.</li>
+          <li><strong>Dedicated Monitor Strip:</strong> Direct headphone volume control and Hear Myself toggle right at your fingertips.</li>
+          <li><strong>Zero Duplication:</strong> Each control exists in exactly ONE place with immediate visual feedback.</li>
+          <li><strong>Adjustable Desktop Widget:</strong> Can stay pinned on top with live PipeWire dBFS meter for Twitch streamers / podcasters.</li>
+          <li><strong>Dual Mode in Tao/Wry:</strong> Can switch between floating HUD window (480x180) and Full Studio App (1100x700).</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // Live State
+    let isMicMuted = false;
+    let isMonMuted = false;
+    let isHearMyselfOn = true;
+    let isAlwaysOnTop = false;
+    let micGain = 2.0;
+    let monVol = 75;
+    let simulatedScreamUntil = 0;
+    let peakHoldUntil = 0;
+
+    function triggerSimulatedPeak() {
+      simulatedScreamUntil = Date.now() + 1500;
+      peakHoldUntil = Date.now() + 2000;
+    }
+
+    // Simulated VU Meter Animation & Real-Time Peak Detection
+    setInterval(() => {
+      let clamped = 0;
+      let dbVal = -99;
+
+      if (!isMicMuted) {
+        if (Date.now() < simulatedScreamUntil) {
+          // Simulated high-volume transient / scream
+          clamped = 98 + Math.random() * 2;
+          dbVal = (-0.2 + Math.random() * 0.2).toFixed(1);
+          peakHoldUntil = Date.now() + 800;
+        } else {
+          // Natural speech fluctuation with occasional louder syllables
+          const rand = Math.sin(Date.now() / 250) * 22 + Math.cos(Date.now() / 180) * 15 + Math.random() * 20 + 35;
+          clamped = Math.max(8, Math.min(97, rand));
+          dbVal = (-36 + (clamped / 100) * 36).toFixed(1);
+        }
+
+        document.getElementById('mic-meter-fill').style.width = clamped + '%';
+        document.getElementById('mic-peak-display').textContent = dbVal + ' dBFS';
+        
+        // Dynamic Peak Indicator Logic on Green Buttons & Dots
+        updatePeakIndicators(parseFloat(dbVal), clamped);
+      } else {
+        document.getElementById('mic-meter-fill').style.width = '0%';
+        document.getElementById('mic-peak-display').textContent = '-inf dBFS';
+        resetPeakIndicatorsToMuted();
+      }
+
+      if (!isMonMuted && isHearMyselfOn) {
+        const monLevel = isMicMuted ? 0 : Math.max(5, (document.getElementById('mic-meter-fill').style.width.replace('%', '') * (monVol / 100)));
+        document.getElementById('mon-meter-fill').style.width = monLevel + '%';
+      } else {
+        document.getElementById('mon-meter-fill').style.width = '0%';
+      }
+    }, 85);
+
+    function updatePeakIndicators(db, clamped) {
+      const isPeaking = db >= -1.0 || Date.now() < peakHoldUntil;
+      const isWarning = db >= -6.0 && db < -1.0;
+
+      const micBtn = document.getElementById('widget-mic-mute-btn');
+      const micPeakDot = document.getElementById('widget-mic-peak-dot');
+      const qmMic = document.getElementById('qm-mic');
+      const qmMicDot = document.getElementById('qm-mic-dot');
+      const qmMicLabel = document.getElementById('qm-mic-label');
+      const peakDisplay = document.getElementById('mic-peak-display');
+      const clipBadge = document.getElementById('clipguard-badge');
+
+      if (isPeaking) {
+        // Red Peaking State: Pulsating Crimson Glow
+        micPeakDot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-neutral-900 shadow-[0_0_12px_#ef4444] animate-ping';
+        micBtn.style.borderColor = '#ef4444';
+        micBtn.style.boxShadow = '0 0 14px rgba(239, 68, 68, 0.4)';
+
+        qmMicDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500 animate-ping shadow-[0_0_8px_#ef4444]';
+        qmMic.className = 'px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-red-950/70 border border-red-500 text-red-300 transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(239,68,68,0.4)]';
+        qmMicLabel.textContent = 'PEAK!';
+
+        peakDisplay.className = 'font-bold text-red-400 text-[10px] bg-red-950 px-1.5 py-0.2 rounded border border-red-500/60 shadow-[0_0_8px_rgba(239,68,68,0.3)] animate-pulse';
+
+        // Clipguard Auto-Pad Activated (-3 dB hardware/digital pad)
+        clipBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>CLIPGUARD: PAD -3dB';
+        clipBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-amber-950 text-amber-300 border border-amber-500/60 flex items-center gap-1 shadow-[0_0_10px_rgba(245,158,11,0.4)]';
+      } else if (isWarning) {
+        // Amber Warning State (Hot Signal: -6 to -1 dBFS)
+        micPeakDot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-neutral-900 shadow-[0_0_8px_#f59e0b]';
+        micBtn.style.borderColor = '#f59e0b';
+        micBtn.style.boxShadow = '0 0 8px rgba(245, 158, 11, 0.25)';
+
+        qmMicDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]';
+        qmMic.className = 'px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-amber-500/50 text-amber-200 transition flex items-center gap-1.5';
+        qmMicLabel.textContent = 'MIC';
+
+        peakDisplay.className = 'font-bold text-amber-400 text-[10px] bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-500/40';
+
+        clipBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>CLIPGUARD';
+        clipBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30 flex items-center gap-1';
+      } else {
+        // Healthy Green State (Normal Speech < -6 dBFS)
+        micPeakDot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-neutral-900 shadow-[0_0_6px_#34d399]';
+        micBtn.style.borderColor = '#323444';
+        micBtn.style.boxShadow = 'none';
+
+        qmMicDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]';
+        qmMic.className = 'px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1.5';
+        qmMicLabel.textContent = 'MIC';
+
+        peakDisplay.className = 'font-bold text-emerald-400 text-[10px] bg-neutral-950 px-1.5 py-0.2 rounded border border-neutral-800';
+
+        clipBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>CLIPGUARD';
+        clipBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30 flex items-center gap-1';
+      }
+    }
+
+    function resetPeakIndicatorsToMuted() {
+      const micPeakDot = document.getElementById('widget-mic-peak-dot');
+      const micBtn = document.getElementById('widget-mic-mute-btn');
+      micPeakDot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-neutral-600 border-2 border-neutral-900';
+      micBtn.style.borderColor = '#ef4444';
+      micBtn.style.boxShadow = '0 0 12px rgba(239, 68, 68, 0.35)';
+
+      const peakDisplay = document.getElementById('mic-peak-display');
+      peakDisplay.className = 'font-bold text-neutral-500 text-[10px] bg-neutral-950 px-1.5 py-0.2 rounded border border-neutral-800';
+    }
+
+    // Controls
+    function toggleMicMute() {
+      isMicMuted = !isMicMuted;
+      const btn = document.getElementById('widget-mic-mute-btn');
+      const icon = document.getElementById('widget-mic-icon');
+      if (isMicMuted) {
+        btn.classList.add('active-muted');
+        icon.textContent = 'mic_off';
+      } else {
+        btn.classList.remove('active-muted');
+        icon.textContent = 'mic';
+      }
+      updateQuickMuteMic(isMicMuted);
+    }
+
+    function toggleMonitorMute() {
+      isMonMuted = !isMonMuted;
+      const btn = document.getElementById('widget-mon-mute-btn');
+      const icon = document.getElementById('widget-mon-icon');
+      if (isMonMuted) {
+        btn.classList.add('active-muted');
+        icon.textContent = 'headset_off';
+      } else {
+        btn.classList.remove('active-muted');
+        icon.textContent = 'headphones';
+      }
+    }
+
+    function toggleHearMyself() {
+      isHearMyselfOn = !isHearMyselfOn;
+      const badge = document.getElementById('widget-hear-badge');
+      if (isHearMyselfOn) {
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>HEAR MYSELF ON';
+        badge.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-sky-950 text-sky-300 border border-sky-500/40 hover:bg-sky-900 transition flex items-center gap-1';
+      } else {
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-neutral-500"></span>OFF';
+        badge.className = 'px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-neutral-900 text-neutral-400 border border-neutral-700 hover:bg-neutral-800 transition flex items-center gap-1';
+      }
+    }
+
+    function onMicGainChange(val) {
+      micGain = parseFloat(val);
+      const sign = micGain > 0 ? '+' : '';
+      document.getElementById('mic-gain-display').textContent = `${sign}${micGain.toFixed(1)} dB`;
+    }
+
+    function onMonVolChange(val) {
+      monVol = parseInt(val);
+      document.getElementById('mon-vol-display').textContent = `${monVol}%`;
+    }
+
+    function toggleAlwaysOnTop() {
+      isAlwaysOnTop = !isAlwaysOnTop;
+      const win = document.getElementById('studio-widget');
+      const btnText = document.getElementById('pin-text');
+      const pinIcon = document.getElementById('pin-icon');
+      if (isAlwaysOnTop) {
+        win.classList.add('always-on-top');
+        btnText.textContent = 'Pinned (On Top)';
+        btnText.parentElement.classList.add('bg-cyan-900/60', 'text-cyan-300', 'border', 'border-cyan-500/50');
+      } else {
+        win.classList.remove('always-on-top');
+        btnText.textContent = 'Pin on Top';
+        btnText.parentElement.classList.remove('bg-cyan-900/60', 'text-cyan-300', 'border', 'border-cyan-500/50');
+      }
+    }
+
+    function setWidgetPreset(mode) {
+      const win = document.getElementById('studio-widget');
+      if (mode === 'compact') {
+        win.style.width = '420px';
+      } else if (mode === 'standard') {
+        win.style.width = '480px';
+      } else if (mode === 'wide') {
+        win.style.width = '580px';
+      }
+    }
+
+    function toggleQuickMute(type) {
+      const btn = document.getElementById('qm-' + type);
+      const isMuted = btn.classList.contains('bg-red-950');
+      if (isMuted) {
+        btn.className = 'px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1';
+        btn.querySelector('span').className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+        if (type === 'mic' && isMicMuted) toggleMicMute();
+      } else {
+        btn.className = 'px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-red-950 border border-red-500/60 text-red-300 transition flex items-center gap-1 shadow-[0_0_8px_rgba(239,68,68,0.3)]';
+        btn.querySelector('span').className = 'w-1.5 h-1.5 rounded-full bg-red-400';
+        if (type === 'mic' && !isMicMuted) toggleMicMute();
+      }
+    }
+
+    function updateQuickMuteMic(muted) {
+      const btn = document.getElementById('qm-mic');
+      const dot = document.getElementById('qm-mic-dot');
+      const label = document.getElementById('qm-mic-label');
+      if (muted) {
+        btn.className = 'px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-red-950 border border-red-500/60 text-red-300 transition flex items-center gap-1.5 shadow-[0_0_8px_rgba(239,68,68,0.3)]';
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-red-400';
+        label.textContent = 'MUTED';
+      } else {
+        btn.className = 'px-2 py-1 rounded-lg text-[10px] font-bold font-mono bg-neutral-900 border border-neutral-700 text-neutral-300 hover:border-neutral-500 transition flex items-center gap-1.5';
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+        label.textContent = 'MIC';
+      }
+    }
+
+    function toggleDSP(type) {
+      const btn = document.getElementById('dsp-' + type);
+      if (btn.classList.contains('opacity-40')) {
+        btn.classList.remove('opacity-40', 'line-through');
+      } else {
+        btn.classList.add('opacity-40', 'line-through');
+      }
+    }
+
+    // Button Size Cycling (Small -> Medium -> Large)
+    let currentWidgetSize = 'md';
+    function cycleWidgetButtonSize() {
+      const win = document.getElementById('studio-widget');
+      const label = document.getElementById('widget-size-text');
+      win.classList.remove('sz-sm', 'sz-lg');
+
+      if (currentWidgetSize === 'md') {
+        currentWidgetSize = 'lg';
+        win.classList.add('sz-lg');
+        label.textContent = 'Size: Lrg';
+      } else if (currentWidgetSize === 'lg') {
+        currentWidgetSize = 'sm';
+        win.classList.add('sz-sm');
+        label.textContent = 'Size: Sml';
+      } else {
+        currentWidgetSize = 'md';
+        label.textContent = 'Size: Med';
+      }
+    }
+  </script>
+</body>
+</html>

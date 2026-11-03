@@ -2,7 +2,7 @@
 
 The socket lives at ~/.cache/studio-mic/studio-mic.sock. Inside the StreamController Flatpak the
 real home is visible (XDG_CACHE_HOME points elsewhere, so we build the path from $HOME). If the
-socket cannot be reached, the `studio-mic` CLI is run on the host via flatpak-spawn as a fallback.
+socket cannot be reached, the `studiomic` CLI is run on the host via flatpak-spawn as a fallback.
 """
 import json
 import os
@@ -38,7 +38,7 @@ def send(*args, timeout=5.0):
 
 
 def _send_via_cli(args):
-    cmd = ["studio-mic", *args]
+    cmd = ["studiomic", *args]
     if os.path.exists("/.flatpak-info") and shutil.which("flatpak-spawn"):
         cmd = ["flatpak-spawn", "--host", *cmd]
     try:

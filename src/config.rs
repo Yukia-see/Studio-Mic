@@ -182,6 +182,7 @@ pub fn preset_apps(preset: &str) -> Vec<String> {
         "music" => &["spotify", "feishin", "elisa", "rhythmbox", "mpd", "amberol"],
         "voice" => &["discord", "vesktop", "webcord", "teamspeak", "mumble"],
         "browser" => &["firefox", "chromium", "brave", "zen", "vivaldi", "chrome"],
+        "apps" => &["vlc", "mpv", "celluloid", "totem", "haruna", "clapper"],
         _ => &[],
     };
     list.iter().map(|s| s.to_string()).collect()
@@ -194,12 +195,13 @@ pub fn preset_channel(preset: &str) -> VirtualChannelConfig {
         "voice" => ("voice", "Voice Chat", "forum", "comms"),
         "browser" => ("browser", "Browser", "language", "virtual"),
         "sfx" => ("sfx", "SFX", "notifications", "virtual"),
-        "capture" => ("capture", "Capture Card", "videocam", "hardware"),
+        "capture" => ("capture", "Line In", "settings_input_component", "hardware"),
+        "apps" => ("apps", "Apps & Media", "apps", "virtual"),
         _ => ("custom", "Custom", "instant_mix", "virtual"),
     };
     let mut mix = ChannelMix::default();
     // Auto-Duck: ON for Game, Capture Card, Music, Browser (and SFX); OFF for Voice Chat.
-    mix.autoduck = matches!(preset, "game" | "capture" | "music" | "browser" | "sfx");
+    mix.autoduck = matches!(preset, "game" | "capture" | "music" | "browser" | "sfx" | "apps");
     // Music is excluded from the VOD track by default (DMCA safety).
     mix.vod = preset != "music";
     VirtualChannelConfig {
@@ -574,10 +576,28 @@ pub struct StudioMicConfig {
     pub user_presets: Vec<UserPreset>,
     #[serde(default)]
     pub capture_card_source: Option<String>,
+
+    // 6. Window / widget
+    /// Control size: "small" | "medium" | "large".
+    #[serde(default = "default_ui_size")]
+    pub ui_size: String,
+    /// Mini floating widget mode (small always-on-top window).
+    #[serde(default)]
+    pub widget_mode: bool,
+    #[serde(default = "default_widget_w")]
+    pub widget_width: f64,
+    #[serde(default = "default_widget_h")]
+    pub widget_height: f64,
+    #[serde(default = "default_true")]
+    pub always_on_top: bool,
 }
 
 fn default_theme() -> String { "material_dark".into() }
-fn default_view_mode() -> String { "normal".into() }
+fn default_view_mode() -> String { "matrix".into() }
+fn default_ui_size() -> String { "medium".into() }
+fn default_widget_w() -> f64 { 480.0 }
+fn default_widget_h() -> f64 { 185.0 }
+pub const UI_SIZES: [&str; 3] = ["small", "medium", "large"];
 fn default_last_tab() -> String { "tab-mixer".into() }
 fn default_window_w() -> f64 { 1100.0 }
 fn default_window_h() -> f64 { 760.0 }
@@ -593,8 +613,10 @@ pub fn default_assigned_routes() -> std::collections::BTreeMap<String, String> {
     m
 }
 
+/// Channels of a brand-new setup: none (clean slate; the user adds only what they need).
+/// Existing state files and the legacy migration keep their own channels.
 pub fn default_channels() -> Vec<VirtualChannelConfig> {
-    ["game", "voice", "music", "browser", "capture"].iter().map(|p| preset_channel(p)).collect()
+    Vec::new()
 }
 
 impl Default for StudioMicConfig {
@@ -633,6 +655,11 @@ impl Default for StudioMicConfig {
             autostart_minimized: true,
             user_presets: default_user_presets(),
             capture_card_source: None,
+            ui_size: default_ui_size(),
+            widget_mode: false,
+            widget_width: default_widget_w(),
+            widget_height: default_widget_h(),
+            always_on_top: true,
         }
     }
 }
@@ -791,10 +818,13 @@ impl StudioMicConfig {
         if !THEMES.contains(&self.theme.as_str()) {
             self.theme = default_theme();
         }
-        // "normal" = Cards, "simple" = Compact, "matrix" = routing matrix.
-        if !["normal", "simple", "matrix"].contains(&self.view_mode.as_str()) {
-            self.view_mode = "normal".into();
+        // Tab 1 is matrix-only now; the field stays so old state files still parse.
+        self.view_mode = default_view_mode();
+        if !UI_SIZES.contains(&self.ui_size.as_str()) {
+            self.ui_size = default_ui_size();
         }
+        self.widget_width = if self.widget_width.is_finite() { self.widget_width.clamp(320.0, 1600.0) } else { default_widget_w() };
+        self.widget_height = if self.widget_height.is_finite() { self.widget_height.clamp(120.0, 900.0) } else { default_widget_h() };
         if !DENOISERS.contains(&self.denoiser.engine.as_str()) {
             self.denoiser.engine = "off".into();
         }
@@ -819,16 +849,42 @@ impl StudioMicConfig {
                 ch.mix.autoduck = false;
             }
         }
+        // Mix ids must not collide with each other or with a built-in bus (the same rule as
+        // `create_mix`): a reserved or duplicate id gets `_2`, `_3`, ... and its sends follow.
         let mut seen_mix = std::collections::HashSet::new();
+        let mut renamed: Vec<(String, String)> = Vec::new();
         self.custom_mixes.retain_mut(|m| {
-            m.id = sanitize_channel_id(&m.id);
-            if m.name.trim().is_empty() {
-                m.name = m.id.clone();
+            let original = m.id.clone();
+            let base = sanitize_channel_id(&m.id);
+            if base.is_empty() {
+                return false;
             }
-            seen_mix.insert(m.id.clone())
+            let mut id = base.clone();
+            let mut n = 2;
+            while RESERVED_MIX_IDS.contains(&id.as_str()) || seen_mix.contains(&id) {
+                id = format!("{}_{}", base, n);
+                n += 1;
+            }
+            if m.name.trim().is_empty() {
+                m.name = id.clone();
+            }
+            if id != original {
+                renamed.push((original, id.clone()));
+            }
+            m.id = id.clone();
+            seen_mix.insert(id)
         });
         let mix_ids: std::collections::HashSet<String> = self.custom_mixes.iter().map(|m| m.id.clone()).collect();
         for m in self.virtual_channels.iter_mut().map(|c| &mut c.mix).chain([&mut self.mic.mix, &mut self.dual_mic.mix]) {
+            if !renamed.is_empty() {
+                // One pass over the old keys, so `stream` -> `stream_2` never chains into a
+                // second rename of an existing `stream_2`.
+                let old = std::mem::take(&mut m.sends);
+                for (k, cell) in old {
+                    let key = renamed.iter().find(|(o, _)| *o == k).map(|(_, n)| n.clone()).unwrap_or(k);
+                    m.sends.entry(key).or_insert(cell);
+                }
+            }
             m.sends.retain(|id, _| mix_ids.contains(id));
             for cell in m.sends.values_mut() {
                 cell.gain_db = clamp_gain(cell.gain_db);
@@ -838,6 +894,13 @@ impl StudioMicConfig {
         for m in &mut self.custom_mixes {
             if m.output_device.as_deref().is_some_and(|d| d.is_empty() || d.starts_with("StudioMic_")) {
                 m.output_device = None;
+            }
+        }
+        // A channel that can no longer feed Voice Chat (e.g. its kind changed) loses the route.
+        let stale: Vec<String> = self.virtual_channels.iter().filter(|c| c.mix.voice_routed && !self.voice_eligible(&c.id)).map(|c| c.id.clone()).collect();
+        for id in stale {
+            if let Some(c) = self.channel_mut(&id) {
+                c.mix.voice_routed = false;
             }
         }
         clamp_mix(&mut self.mic.mix);
@@ -903,7 +966,8 @@ impl StudioMicConfig {
 
     /// True for sources allowed into Voice Chat besides the main mic: Mic 2 and hardware inputs.
     pub fn voice_eligible(&self, id: &str) -> bool {
-        id == "mic2" || self.channel(id).is_some_and(|c| c.kind == "hardware")
+        // Echo guard: the voice-chat channel (Discord's own output) never feeds Voice Chat.
+        id == "mic2" || self.channel(id).is_some_and(|c| !c.is_comms())
     }
 
     pub fn channel(&self, id: &str) -> Option<&VirtualChannelConfig> {
@@ -974,6 +1038,23 @@ impl StudioMicConfig {
     }
 
     /// Loads a named profile, keeping machine-specific settings (devices, window, autostart).
+    /// Machine-specific settings (devices, window, autostart) stay as they are when a profile
+    /// is loaded: a profile from another PC must not point mixes at devices this one lacks.
+    fn keep_local_settings(&self, p: &mut Self) {
+        p.active_hw_mic = self.active_hw_mic.clone();
+        p.monitor_output = self.monitor_output.clone();
+        // Output devices belong to this machine, not to the profile.
+        p.mix_output_devices = self.mix_output_devices.clone();
+        for m in &mut p.custom_mixes {
+            m.output_device = self.custom_mixes.iter().find(|c| c.id == m.id).and_then(|c| c.output_device.clone());
+        }
+        p.window_width = self.window_width;
+        p.window_height = self.window_height;
+        p.autostart = self.autostart;
+        p.autostart_minimized = self.autostart_minimized;
+        p.start_minimized = self.start_minimized;
+    }
+
     pub fn load_profile(&self, name: &str) -> std::io::Result<Self> {
         let safe = sanitize_profile_name(name)
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid profile name"))?;
@@ -981,13 +1062,7 @@ impl StudioMicConfig {
         let content = fs::read_to_string(&path)?;
         let mut p: Self = serde_json::from_str(&content)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        p.active_hw_mic = self.active_hw_mic.clone();
-        p.monitor_output = self.monitor_output.clone();
-        p.window_width = self.window_width;
-        p.window_height = self.window_height;
-        p.autostart = self.autostart;
-        p.autostart_minimized = self.autostart_minimized;
-        p.start_minimized = self.start_minimized;
+        self.keep_local_settings(&mut p);
         p.normalize();
         Ok(p)
     }
@@ -1011,6 +1086,9 @@ impl StudioMicConfig {
         out
     }
 }
+
+/// Ids a custom mix may not take: they name the built-in buses.
+pub const RESERVED_MIX_IDS: [&str; 4] = ["monitor", "stream", "vod", "voice"];
 
 pub fn sanitize_channel_id(id: &str) -> String {
     let mut s: String = id
@@ -1171,6 +1249,42 @@ mod tests {
     }
 
     #[test]
+    fn profile_load_keeps_local_outputs() {
+        let mut here = StudioMicConfig::default();
+        here.mix_output_devices.insert("stream".into(), "alsa_output.here".into());
+        here.custom_mixes.push(CustomMixConfig { id: "guest".into(), name: "Guest".into(), icon: "alt_route".into(), color: "#fff".into(), output_device: Some("alsa_output.here_hp".into()) });
+        let mut p = StudioMicConfig::default();
+        p.mix_output_devices.insert("vod".into(), "alsa_output.other_pc".into());
+        p.custom_mixes.push(CustomMixConfig { id: "guest".into(), name: "Guest".into(), icon: "alt_route".into(), color: "#fff".into(), output_device: Some("alsa_output.other_pc".into()) });
+        p.custom_mixes.push(CustomMixConfig { id: "new".into(), name: "New".into(), icon: "alt_route".into(), color: "#fff".into(), output_device: Some("alsa_output.other_pc".into()) });
+        here.keep_local_settings(&mut p);
+        assert_eq!(p.mix_output_devices, here.mix_output_devices);
+        assert_eq!(p.custom_mixes[0].output_device.as_deref(), Some("alsa_output.here_hp"));
+        assert_eq!(p.custom_mixes[1].output_device, None, "a mix unknown here gets no device");
+    }
+
+    #[test]
+    fn reserved_mix_ids_are_renamed() {
+        let mut s = StudioMicConfig::default();
+        let mk = |id: &str| CustomMixConfig { id: id.into(), name: id.into(), icon: "alt_route".into(), color: "#fff".into(), output_device: None };
+        s.custom_mixes = vec![mk("stream"), mk("Monitor"), mk("stream_2")];
+        s.mic.mix.sends.insert("stream".into(), SendCell { gain_db: -6.0, muted: false });
+        s.normalize();
+        let ids: Vec<&str> = s.custom_mixes.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids, ["stream_2", "monitor_2", "stream_2_2"]);
+        assert_eq!(s.mic.mix.sends["stream_2"].gain_db, -6.0, "sends follow the rename");
+    }
+
+    #[test]
+    fn normalize_clears_stale_voice_routed() {
+        let mut s = StudioMicConfig::default();
+        s.virtual_channels = vec![preset_channel("voice")];
+        s.virtual_channels[0].mix.voice_routed = true;
+        s.normalize();
+        assert!(!s.virtual_channels[0].mix.voice_routed, "the voice-chat channel never feeds Voice Chat");
+    }
+
+    #[test]
     fn custom_mixes_and_sends_are_normalized() {
         let mut s = StudioMicConfig::default();
         s.custom_mixes.push(CustomMixConfig { id: "Guest Mix!".into(), name: "Guest Mix".into(), icon: "alt_route".into(), color: "#fff".into(), output_device: Some("StudioMic_Monitor_Mix".into()) });
@@ -1184,8 +1298,10 @@ mod tests {
         assert_eq!(s.mic.mix.sends.len(), 1, "sends into deleted mixes are dropped");
         assert_eq!(s.mic.mix.sends["guest_mix"].gain_db, 12.0);
         assert_eq!(s.mix_output_devices.len(), 1);
-        assert!(s.voice_eligible("mic2") && !s.voice_eligible("game"));
-        assert!(s.virtual_channels.iter().filter(|c| c.kind == "hardware").all(|c| s.voice_eligible(&c.id)));
+        s.virtual_channels = ["game", "voice", "music", "browser", "capture", "apps"].iter().map(|p| preset_channel(p)).collect();
+        assert!(s.virtual_channels.iter().all(|c| s.voice_eligible(&c.id) != c.is_comms()), "echo guard: everything but comms");
+        assert!(!s.voice_eligible("voice") && s.voice_eligible("browser"));
+        assert!(s.voice_eligible("mic2") && !s.voice_eligible("nope"));
     }
 
     #[test]
@@ -1198,14 +1314,50 @@ mod tests {
         s.view_mode = "matrix".into();
         s.normalize();
         assert_eq!(s.view_mode, "matrix");
-        s.view_mode = "bogus".into();
+        for old in ["normal", "simple", "bogus"] {
+            s.view_mode = old.into();
+            s.normalize();
+            assert_eq!(s.view_mode, "matrix", "Tab 1 is matrix-only");
+        }
+    }
+
+    #[test]
+    fn new_setups_start_clean_and_old_files_get_window_defaults() {
+        assert!(StudioMicConfig::default().virtual_channels.is_empty(), "clean slate for new setups");
+        let mut s = StudioMicConfig::default();
+        let mut v = serde_json::to_value(&s).unwrap();
+        for k in ["ui_size", "widget_mode", "widget_width", "widget_height", "always_on_top"] {
+            v.as_object_mut().unwrap().remove(k);
+        }
+        v["virtual_channels"] = serde_json::json!([preset_channel("game")]);
+        let old: StudioMicConfig = serde_json::from_value(v).unwrap();
+        assert_eq!(old.virtual_channels.len(), 1, "existing channels are kept");
+        assert_eq!((old.ui_size.as_str(), old.widget_mode, old.widget_width, old.widget_height, old.always_on_top), ("medium", false, 480.0, 185.0, true));
+        s.ui_size = "huge".into();
+        s.widget_width = f64::NAN;
         s.normalize();
-        assert_eq!(s.view_mode, "normal");
+        assert_eq!(s.ui_size, "medium");
+        assert_eq!(s.widget_width, 480.0);
+        s.ui_size = "large".into();
+        s.normalize();
+        assert_eq!(s.ui_size, "large");
+    }
+
+    #[test]
+    fn apps_preset_is_an_auto_routed_virtual_channel() {
+        let c = preset_channel("apps");
+        assert_eq!((c.id.as_str(), c.name.as_str(), c.kind.as_str(), c.route_mode.as_str()), ("apps", "Apps & Media", "virtual", "auto"));
+        assert!(!c.apps.is_empty());
+        assert_eq!(preset_channel("capture").name, "Line In");
     }
 
     #[test]
     fn resolve_channel_by_name_or_id() {
-        let cfg = StudioMicConfig::default();
+        let mut cfg = StudioMicConfig::default();
+        cfg.virtual_channels = ["game", "music"].iter().map(|p| preset_channel(p)).collect();
+        let mut cap = preset_channel("capture");
+        cap.name = "Capture Card".into();
+        cfg.virtual_channels.push(cap);
         assert_eq!(cfg.resolve_channel("Capture Card").as_deref(), Some("capture"));
         assert_eq!(cfg.resolve_channel("Microphone").as_deref(), Some("mic"));
         assert_eq!(cfg.resolve_channel("music").as_deref(), Some("music"));

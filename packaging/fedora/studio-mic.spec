@@ -33,7 +33,6 @@ gcc %{optflags} -fPIC -shared -o libspeex_ladspa.so plugins/speex-ladspa/speex_l
 
 %install
 install -Dm755 target/release/StudioMic-Package %{buildroot}%{_bindir}/studiomic
-ln -s studiomic %{buildroot}%{_bindir}/studio-mic
 install -Dm644 studiomic.desktop %{buildroot}%{_datadir}/applications/studiomic.desktop
 install -Dm644 assets/studiomic.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/studiomic.svg
 install -Dm644 studiomic.service %{buildroot}%{_userunitdir}/studiomic.service
@@ -57,7 +56,6 @@ fi
 
 %files
 %{_bindir}/studiomic
-%{_bindir}/studio-mic
 %{_datadir}/applications/studiomic.desktop
 %{_datadir}/icons/hicolor/scalable/apps/studiomic.svg
 %{_userunitdir}/studiomic.service

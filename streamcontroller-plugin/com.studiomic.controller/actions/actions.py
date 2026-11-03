@@ -127,15 +127,16 @@ class ThemeSwitcher(StudioMicAction):
 
 
 class DspToggle(StudioMicAction):
-    """clipguard | view | autoduck:<Channel> | denoiser:<deepfilter|rnnoise|speex|off>"""
-    SETTINGS = [("toggle", "clipguard | view | autoduck:Channel | denoiser:engine", "clipguard")]
+    """clipguard | widget | autoduck:<Channel> | denoiser:<deepfilter|rnnoise|speex|off>
+    ("view" is the old name of "widget"; Tab 1 is matrix-only now.)"""
+    SETTINGS = [("toggle", "clipguard | widget | autoduck:Channel | denoiser:engine", "clipguard")]
 
     def on_key_down(self):
         t = self.setting("toggle", "clipguard")
         if t == "clipguard":
             self.run("--toggle-clipguard")
-        elif t == "view":
-            self.run("--toggle-view")
+        elif t in ("widget", "view"):
+            self.run("--toggle-widget")
         elif t.startswith("autoduck:"):
             self.run("--toggle-autoduck", t.split(":", 1)[1])
         elif t.startswith("denoiser:"):
@@ -153,5 +154,5 @@ class DspToggle(StudioMicAction):
             ch = t.split(":", 1)[1]
             on, label = st.get("channels", {}).get(ch.lower(), {}).get("autoduck", False), f"DUCK {ch[:6]}"
         else:
-            on, label = st.get("view_mode") == "simple", "SIMPLE"
+            on, label = st.get("widget_mode", False), "WIDGET"
         self.show("toggle_on" if on else "toggle_off", label)

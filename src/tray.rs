@@ -179,6 +179,15 @@ impl Tray for StudioMicTray {
                 ..Default::default()
             }
             .into(),
+            CheckmarkItem {
+                label: "Mini Widget".into(),
+                checked: s.widget_mode,
+                activate: Box::new(|t: &mut Self| {
+                    let _ = t.controller.set_widget(None);
+                }),
+                ..Default::default()
+            }
+            .into(),
             MenuItem::Separator,
             CheckmarkItem {
                 label: "Mute Microphone".into(),

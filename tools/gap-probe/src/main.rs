@@ -8,7 +8,7 @@
 //! (> 5 ms of digital silence inside the tone) or click (sample step > 0.1 on a tone whose largest
 //! natural step is ~0.007). Move sliders, toggle stages and switch denoisers while it runs.
 //! To test the mic chain, inject into its current input:
-//!   gap-probe live --inject "$(studio-mic --status --json --runtime | jq -r .runtime.mic_input_node)"
+//!   gap-probe live --inject "$(studiomic --status --json --runtime | jq -r .runtime.mic_input_node)"
 //! Safety: `live` mutes StudioMic_Monitor_Mix and verifies the mute before playing anything
 //! (restored afterwards); it aborts if the mute cannot be confirmed.
 //! Exit code: 0 clean, 1 problems found, 2 usage / IO error.

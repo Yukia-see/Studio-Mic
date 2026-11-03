@@ -1,7 +1,7 @@
 """Studio Mic plugin for StreamController.
 
 Untested against a live StreamController in this repo's CI; the protocol side (socket + CLI
-fallback) is shared with `studio-mic --status --json` and is covered by the Studio Mic test plan.
+fallback) is shared with `studiomic --status --json` and is covered by the Studio Mic test plan.
 """
 from src.backend.PluginManager.PluginBase import PluginBase
 from src.backend.PluginManager.ActionHolder import ActionHolder

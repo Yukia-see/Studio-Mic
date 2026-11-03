@@ -41,7 +41,6 @@ package() {
     local bin="$s/target/release/StudioMic-Package"
     [ -f "$bin" ] || bin="$srcdir/target/release/StudioMic-Package"
     install -Dm755 "$bin" "$pkgdir/usr/bin/studiomic"
-    ln -s studiomic "$pkgdir/usr/bin/studio-mic"
     install -Dm644 "$s/studiomic.desktop" "$pkgdir/usr/share/applications/studiomic.desktop"
     install -Dm644 "$s/assets/studiomic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/studiomic.svg"
     install -Dm644 "$s/studiomic.service" "$pkgdir/usr/lib/systemd/user/studiomic.service"

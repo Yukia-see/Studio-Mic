@@ -13,12 +13,16 @@
 //! Channel add/remove/rename only (re)starts that channel's strip.
 //!
 //! The Tier-1 buses (`StudioMic_Voice_Out`, `_Stream_Mix`, `_VOD_Mix`, `_Monitor_Mix`) and the
-//! legacy `studiomic_processed_mic` alias are lingering nodes owned by the main PipeWire daemon:
+//! custom mix buses are lingering nodes owned by the main PipeWire daemon:
 //! reused if present, recreated if missing, never torn down by Studio Mic. A maintenance pass
 //! every 2 s re-creates missing buses, rebuilds stages that exited or were disconnected (PipeWire
 //! restart), restores links and runs app auto-routing.
 
-use crate::audio::filter_chain::{self as fc, Plugins, BUSES, LEGACY_MIC_ALIAS, MIC2_IN, MIC2_OUT};
+use crate::audio::filter_chain::{self as fc, Plugins, BUSES, MIC2_IN, MIC2_OUT};
+
+/// The pre-v0.2 output name. No longer created; any copy left by an older version (or by its
+/// login drop-in) is removed at startup so no stray "Studio Mic (Legacy Alias)" device remains.
+const REMOVED_LEGACY_ALIAS: &str = "studiomic_processed_mic";
 use crate::audio::pw::{self, db_to_lin, lin_to_db, PARAMS};
 use crate::config::{cache_dir, StudioMicConfig};
 use crate::models::microphone::FilterType;
@@ -479,7 +483,7 @@ impl Engine {
         Self::save_pids(procs);
     }
 
-    /// Creates any missing Tier-1 bus (and the legacy alias) as lingering nodes. Idempotent:
+    /// Creates any missing Tier-1 bus as a lingering node. Idempotent:
     /// existing nodes are reused, duplicates left by older builds are removed.
     pub fn ensure_buses(&self) {
         let nodes = pw::nodes();
@@ -487,14 +491,17 @@ impl Engine {
             .iter()
             .map(|(k, class, desc, _)| (fc::bus_node(k), *class, desc.to_string()))
             .collect();
-        wanted.push((LEGACY_MIC_ALIAS.to_string(), "Audio/Source/Virtual", "Studio Mic (Legacy Alias)".to_string()));
         let custom = self.state.lock().unwrap().custom_mixes.clone();
         for m in &custom {
-            wanted.push((fc::bus_node(&fc::mix_bus_key(&m.id)), "Audio/Source/Virtual", format!("Studio Mic · {}", m.name.replace('"', "'"))));
+            wanted.push((fc::bus_node(&fc::mix_bus_key(&m.id)), "Audio/Source/Virtual", format!("Studio Mic · {}", m.name)));
         }
         // Lingering buses of mixes that were deleted (`StudioMic_Mix_<id>`; the _Sum/_Lim stage
         // nodes belong to the mix's own process and go away with it).
         for n in &nodes {
+            if n.name == REMOVED_LEGACY_ALIAS {
+                pw::destroy_node(n.id);
+                println!("Removed the old {} alias (use \"Studio Mic (Microphone Only)\")", n.name);
+            }
             if let Some(id) = n.name.strip_prefix("StudioMic_Mix_") {
                 if !id.ends_with("_Sum") && !id.ends_with("_Lim") && !custom.iter().any(|m| m.id == id) {
                     pw::destroy_node(n.id);
@@ -616,8 +623,8 @@ impl Engine {
         v
     }
 
-    /// Sources of a send stage, in port order. Voice Chat extras: Mic 2 and hardware inputs
-    /// (the main mic has its own direct path; app channels never reach Discord). Custom mixes:
+    /// Sources of a send stage, in port order. Voice Chat extras: Mic 2 and every channel except
+    /// the voice-chat one (echo guard; the main mic has its own direct path). Custom mixes:
     /// every source.
     fn send_sources(s: &StudioMicConfig, t: &SendTarget) -> Vec<String> {
         let mut v = Vec::new();
@@ -628,15 +635,19 @@ impl Engine {
             v.push("mic2".to_string());
         }
         for ch in &s.virtual_channels {
-            if matches!(t, SendTarget::Custom { .. }) || ch.kind == "hardware" {
+            if matches!(t, SendTarget::Custom { .. }) || !ch.is_comms() {
                 v.push(ch.id.clone());
             }
         }
         v
     }
 
-    /// Linear gain of `src` into a send target (0 = not routed / muted).
-    fn send_gain(s: &StudioMicConfig, t: &SendTarget, src: &str) -> f32 {
+    /// Linear gain of `src` into a send target (0 = not routed / muted). While the isolated
+    /// preview runs, the main mic is silent in every send (as it is in the built-in mixes).
+    fn send_gain(s: &StudioMicConfig, t: &SendTarget, src: &str, preview: bool) -> f32 {
+        if preview && src == "mic" {
+            return 0.0;
+        }
         let Some(m) = s.mix(src) else { return 0.0 };
         // The mic's master mute (Stream Mute) silences it in every broadcast mix.
         if (src == "mic" || src == "mic2") && m.stream_muted {
@@ -653,9 +664,9 @@ impl Engine {
         }
     }
 
-    fn send_gains(s: &StudioMicConfig, t: &SendTarget) -> Vec<(String, f32)> {
+    fn send_gains(s: &StudioMicConfig, t: &SendTarget, preview: bool) -> Vec<(String, f32)> {
         Self::send_sources(s, t).into_iter().map(|src| {
-            let g = Self::send_gain(s, t, &src);
+            let g = Self::send_gain(s, t, &src, preview);
             (src, g)
         }).collect()
     }
@@ -701,7 +712,7 @@ impl Engine {
             }
         }
         for t in targets {
-            let gains = Self::send_gains(s, &t);
+            let gains = Self::send_gains(s, &t, self.preview_active.load(Ordering::SeqCst));
             let sig = format!(
                 "{}|{}|{}",
                 gains.iter().map(|(src, _)| src.as_str()).collect::<Vec<_>>().join(","),
@@ -812,14 +823,12 @@ impl Engine {
                 }
             }
         }
-        // Bus limiters -> lingering buses (+ legacy alias for old OBS/Discord setups)
+        // Bus limiters -> lingering buses
         for (key, ..) in BUSES.iter() {
             let (il, ir) = fc::bus_inputs(key);
             v.push((p(&fc::bus_lim(key), "output_FL"), p(&fc::bus_node(key), il)));
             v.push((p(&fc::bus_lim(key), "output_FR"), p(&fc::bus_node(key), ir)));
         }
-        v.push((p(&fc::bus_lim("Voice_Out"), "output_FL"), p(LEGACY_MIC_ALIAS, "input_FL")));
-        v.push((p(&fc::bus_lim("Voice_Out"), "output_FR"), p(LEGACY_MIC_ALIAS, "input_FR")));
         // Monitor mix -> headphones
         if let Some(out) = self.monitor_target(s) {
             v.extend(Self::output_device_links(&fc::bus_node("Monitor_Mix"), "monitor", &out));
@@ -954,8 +963,10 @@ impl Engine {
         }
         self.sync_raw_links(&s);
         let mon = fc::bus_node("Monitor_Mix");
-        let keep_mon: Vec<(String, String)> =
-            desired.iter().filter(|(o, _)| o.starts_with(&format!("{}:", mon))).cloned().collect();
+        let mon_prefix = format!("{}:", mon);
+        let mut keep_mon: Vec<(String, String)> = desired.iter().filter(|(o, _)| o.starts_with(&mon_prefix)).cloned().collect();
+        // Keep the headphone meter tap (`bus:monitor`); it's linked by WirePlumber, not by us.
+        keep_mon.extend(pw::links().into_iter().filter(|(o, i)| o.starts_with(&mon_prefix) && i.starts_with("StudioMic_Meter_")));
         pw::unlink_outputs_of(&mon, &keep_mon);
         // Other mixes: drop only links into physical outputs that are no longer chosen. Never
         // touch app links (OBS, Discord, recorders): their ports aren't Audio/Sink devices.
@@ -973,8 +984,8 @@ impl Engine {
                 pw::unlink(&o, &i);
             }
         }
-        // Hard firewall: only the mic limiter may feed Voice_Out / the legacy alias.
-        for node in [fc::bus_node("Voice_Out"), LEGACY_MIC_ALIAS.to_string(), fc::bus_sum("Voice_Out")] {
+        // Hard firewall: only the Voice Chat limiter (mic + allowed inputs) may feed Voice_Out.
+        for node in [fc::bus_node("Voice_Out"), fc::bus_sum("Voice_Out")] {
             pw::unlink_inputs_of(&node, &keep_into(&node));
         }
         let mic_missing = s.active_hw_mic.as_ref().map(|h| !Self::hw_mic_present(h)).unwrap_or(true);
@@ -1173,8 +1184,9 @@ impl Engine {
             let (st, vd, mo) = fc::route_gains(&s.dual_mic.mix, 0.0, solo);
             self.send(MIC2_IN, &fc::channel_controls(st, vd, mo, &s.dual_mic.mix), ramp);
         }
+        let preview = self.preview_active.load(Ordering::SeqCst);
         for t in Self::send_targets(&s) {
-            self.send(&fc::send_in(&t.key()), &fc::send_controls(&Self::send_gains(&s, &t)), ramp);
+            self.send(&fc::send_in(&t.key()), &fc::send_controls(&Self::send_gains(&s, &t, preview)), ramp);
         }
     }
 
@@ -1513,7 +1525,7 @@ impl Engine {
                 m.insert("mic2".to_string(), (format!("{}:output_AUX6", MIC2_OUT), None, 1, 48000));
             }
             // What OBS actually receives (after the bus limiters), recorded the same way OBS does.
-            for (key, bus) in [("bus:stream", "Stream_Mix"), ("bus:vod", "VOD_Mix")] {
+            for (key, bus) in [("bus:stream", "Stream_Mix"), ("bus:vod", "VOD_Mix"), ("bus:monitor", "Monitor_Mix")] {
                 m.insert(key.to_string(), (String::new(), Some(fc::bus_node(bus)), 2, 48000));
             }
         }
@@ -1567,7 +1579,15 @@ impl Engine {
             }
             // Without dont-fallback a meter whose device vanished is silently moved to the
             // default source (measured: a missing mic's meter recorded the default mic).
-            cmd.args(["--target", t, "-P", &format!("{{ node.name = {} node.dont-fallback = true node.dont-reconnect = true }}", node_name)]);
+            let props = if key == "bus:monitor" {
+                // Monitor_Mix is a sink: record its monitor ports (post master volume / mute).
+                // WirePlumber never links a capture-of-sink stream that has dont-fallback or
+                // dont-reconnect (measured), and the bus is a lingering node checked just above.
+                format!("{{ node.name = {} stream.capture.sink = true }}", node_name)
+            } else {
+                format!("{{ node.name = {} node.dont-fallback = true node.dont-reconnect = true }}", node_name)
+            };
+            cmd.args(["--target", t, "-P", &props]);
         } else {
             if src_port.is_empty() {
                 return None;
@@ -1657,7 +1677,8 @@ impl Engine {
     ///   `out:<strip>`  what that strip sends to the Stream bus (post-fader, before the bus limiter)
     ///   `raw`          hardware mic input level
     ///   `raw_clip`     1 while the hardware input is really clipping (flat tops), else -80
-    ///   `bus:stream`, `bus:vod`  the buses OBS records (after their limiters)
+    ///   `bus:stream`, `bus:vod`  the buses OBS records (after their limiters); `bus:monitor` the headphone mix
+    ///   `pad`          Clipguard hardware auto-pad in dB (0 = none)
     pub fn peak_map(&self) -> BTreeMap<String, f32> {
         let round = |v: f32| (v * 10.0).round() / 10.0;
         let gains = self.stream_send_gains();
@@ -1676,6 +1697,8 @@ impl Engine {
             }
         }
         map.insert("duck".into(), round(self.duck_db()));
+        // Clipguard hardware auto-pad currently applied (0 = none), for the "PAD -N dB" badge.
+        map.insert("pad".into(), round(self.autopad_db()));
         map
     }
 
@@ -2192,7 +2215,18 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use super::{block_peak_db, has_flat_top, is_our_child, meter_format_args};
+    use super::{block_peak_db, has_flat_top, is_our_child, meter_format_args, Engine, SendTarget};
+    use crate::config::{CustomMixConfig, SendCell, StudioMicConfig};
+
+    #[test]
+    fn preview_silences_the_mic_in_custom_mixes() {
+        let mut s = StudioMicConfig::default();
+        s.custom_mixes.push(CustomMixConfig { id: "guest".into(), name: "Guest".into(), icon: "alt_route".into(), color: "#fff".into(), output_device: None });
+        s.mic.mix.sends.insert("guest".into(), SendCell { gain_db: 0.0, muted: false });
+        let t = SendTarget::Custom { id: "guest".into(), name: "Guest".into() };
+        assert_eq!(Engine::send_gain(&s, &t, "mic", false), 1.0);
+        assert_eq!(Engine::send_gain(&s, &t, "mic", true), 0.0, "preview must not leak into a mix");
+    }
 
     #[test]
     fn meters_read_raw_native_samples() {

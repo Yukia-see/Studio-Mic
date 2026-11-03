@@ -100,33 +100,46 @@ Refer to [`CLAUDE.md`](file:///home/yukia/Documents/StudioMic-Package/CLAUDE.md)
 
 Reference the working interactive prototype in [`wave_matrix_example.html`](file:///home/yukia/Documents/StudioMic-Package/wave_matrix_example.html).
 
-### 3.1 View Switcher in Tab 1
-In `mic-studio-mockup.html`, expand the view toggle on Tab 1 to include:
-- `[ ≡ Matrix ]` (Wave Link 2D Routing Grid)
-- `[ 🎛️ Cards ]` (Current Normal view mode with waveforms)
-- `[ ⚡ Compact ]` (Simple minimalist sliders)
+### 3.1 Tab 1 Architecture: Matrix by Default (Cards View Removed)
+- **Cards Section Removed**: The legacy card-based layout in Tab 1 is completely removed. The 2D Routing Matrix table is the primary, default view when Studio Mic opens.
+- **Top Bar Button Size Adjuster**: A dedicated button / toggle on the top header (`[Button Size: Small | Medium | Large]`) allows users to scale button padding, font-size, icon dimensions, and fader heights dynamically across the interface.
+- **Clean Slate (Empty by Default except Microphone)**:
+  - On launch or clean state, only the primary **Broadcast Mic** (`AM8 / Mic 1`) is loaded in the matrix.
+  - No dummy/pre-created channels are instantiated, preventing interface clutter and saving PipeWire node overhead.
+  - An empty-state card prompts the user: *"No extra virtual channels created. Choose only what you need."* with a prominent **`+ Add Channel`** button.
+- **On-Demand Port Creation Modal**:
+  - Clicking `+ Add Channel` opens an interactive modal with 1-click presets:
+    1. `💬 Discord / Voice Chat` (PipeWire sink: `StudioMic_Ch_voice`)
+    2. `🎮 Games` (PipeWire sink: `StudioMic_Ch_game`)
+    3. `🌐 Web Browser` (PipeWire sink: `StudioMic_Ch_browser`)
+    4. `🎵 Music` (PipeWire sink: `StudioMic_Ch_music`)
+    5. `📱 Apps & Media` (PipeWire sink: `StudioMic_Ch_apps`)
+    6. `🎙️ Second Mic / Line In` (Hardware XLR/USB input node)
+    7. `⚙️ Custom Virtual Port` (User-defined custom sink name)
+  - Selected ports are instantiated on demand in PipeWire and added as rows in the matrix table.
+  - Each created channel features a trash/delete icon on its row to remove the virtual port when no longer needed.
 
-### 3.2 2D Matrix Grid Structure & Monitoring Controls
+### 3.2 2D Matrix Grid Structure & Zero-Restriction Routing
 Implement `renderMixerMatrix()` in the v1 runtime script of `mic-studio-mockup.html`:
 - **Columns (Destinations)**:
-  1. `Audio Channels` (Source name, DSP badge, app chips, hardware input dropdowns)
+  1. `Audio Channels (Inputs)` (Source name, DSP badge, sink node name, trash button)
   2. `🎧 My Mix` (`Monitor_Mix` / Headphones) &rarr; binds to `ch.mix.monitor_gain_db` and `ch.mix.monitor_muted`
   3. `📡 Stream` (`Stream_Mix` / OBS Track 1) &rarr; binds to `ch.mix.stream_gain_db` and `ch.mix.stream_muted`
   4. `🎬 Recording · VOD` (`VOD_Mix` / OBS Track 2 DMCA) &rarr; binds to `ch.mix.vod`
-  5. `👥 Voice Chat` (`Voice_Out` / Discord) &rarr; allows `Mic 1`, `Mic 2` (Second Microphone), and hardware input devices
+  5. `👥 Voice Chat` (`Voice_Out` / Discord) &rarr; **100% Unrestricted**: any input channel (including Web Browser, Games, Music, 2nd Mic) can route into Discord!
   6. **`+ Add Mix` Header Button**: Positioned directly beside `Voice Chat`, opens `openAddMixModal()` to create new destination output mixes/buses.
 
 - **Cross-Point Cell Interaction Design**:
   - **Active (Routed) State**:
     - **Mute Button**: Click toggles mute. In `Recording · VOD` (or when muted), displays a **glowing red badge** with `volume_off` and red-tinted cell background (signature Elgato DMCA protection styling).
-    - **Fader Slider**: Horizontal slider with glowing real-time audio meter integrated into the slider track.
+    - **Fader Slider**: Horizontal dual-track slider with glowing real-time audio meter integrated above the slider track.
     - **Small `x` Remove Button**: A visible small `x` in the upper corner of each active cell to disconnect that channel from that mix with one click (right-click also supported).
   - **Inactive (Unrouted) State**:
     - Cell is **clean and blank with a centered `+` button**.
     - **Left-Click to Activate**: Clicking the `+` activates that input for that mix, revealing the active fader, mute button, and small `x`.
 
 - **Comprehensive Monitoring Controls**:
-  - **Master Monitor Controls (My Mix Header/Footer)**:
+  - **Master Monitor Controls (Header Bar & My Mix Header)**:
     - Master Monitor Mute button: One-click master headphone mute toggle (`headphones` / `headset_off`), syncing with `s.monitor_muted`.
     - Master Monitor Gain fader: Controls master headphone volume (`s.monitor_gain_db`), with 0.0 dB snap and dB readout.
     - Output Device Selector: Dropdown to choose the physical DAC/headphones for `My Mix`.
@@ -134,18 +147,39 @@ Implement `renderMixerMatrix()` in the v1 runtime script of `mic-studio-mockup.h
   - **Per-Channel Monitor Controls**:
     - Every active channel under `My Mix` features its own channel monitor fader (`ch.mix.monitor_gain_db`) and mute button (`ch.mix.monitor_muted`).
 
-- **Universal `+ Add Channel` Access**:
-  - Add explicit `+ Add Channel` buttons at the bottom of the matrix channels list and on Tab 1's top controls to allow adding channels from any view.
-
-- **Voice Chat Second Microphone & Input Device Support**:
-  - In `src/audio/daemon.rs:desired_links`, route `MIC2_OUT` and any hardware input channel into `fc::bus_sum("Voice_Out")` when activated.
-  - In `mic-studio-mockup.html`, allow selecting a Hardware Input Device for the Voice Chat channel, and allow clicking `+` on `Mic 2` to route it into Voice Chat.
+- **Total Routing Freedom (Web Browser to Discord, etc.)**:
+  - In `src/audio/daemon.rs:desired_links`: When `ch.mix.voice_routed` is true for ANY channel (whether Web Browser, Music, Games, or 2nd Mic), establish PipeWire links from `fc::channel_out(&ch.id)` into `fc::bus_sum("Voice_Out")`.
+  - Zero restrictions on which audio sources can be sent to Discord.
 
 - **Per-Mix Independent Hardware Output Device Routing**:
   - Allow each mix (built-in or custom) to target a specific hardware audio output device (e.g., Headphones for games/voice on Mix 1, Desktop Speakers for music on Mix 2) rather than only sharing the default device.
   - In `src/config.rs`: Persist `output_device: Option<String>` per custom mix, and `mix_output_devices: BTreeMap<String, Option<String>>`.
   - In `src/audio/daemon.rs:desired_links`: If a mix has an assigned physical `output_device`, establish PipeWire stereo pairs directly between that mix bus's output ports and the target device's playback ports.
   - In `mic-studio-mockup.html`: Display an Output Device selector dropdown in each mix column header, populated with all detected output sinks.
+
+- **Small Adjustable Floating HUD Widget & De-duplicated Top Bar**:
+  - **Eliminate Duplications**: Consolidate the redundant Quick Access Bar and Active Broadcast Microphone Hero Card (currently taking ~260px) into a single unified 68px studio strip in full app mode.
+    - Remove duplicate `Comp` status pill (merge into a single DSP badge with live GR readout).
+    - Remove duplicate `Hear Myself` button (merge into the dedicated Headphone Monitor strip).
+    - Remove duplicate textual `Peak: -inf dB` badge (merge into the Wave Link dual-track meter).
+  - **Wave Link-Style Dual-Track Fader**:
+    - Left: 36x36px tactile Mute button (glowing red when muted).
+    - Top track: 6px live LED VU meter with gradient (green -> amber -> red clip).
+    - Bottom track: Precision hardware/digital gain slider with circular knob.
+  - **Mini HUD Floating Widget Mode**:
+    - Compact floating window preset (~420px–560px wide, 180px tall) containing:
+      1. Primary Mic strip (Tactile Mute, AM8 name, dB display, top VU meter, bottom Gain slider).
+      2. Headphone Monitor strip (Tactile Mute, Hear Myself toggle badge, top VU meter, bottom Volume slider).
+      3. Non-duplicated Quick Mute row (`[MIC] [GAME] [VOICE] [MUSIC] [CAPTURE]`).
+      4. DSP status badges (`[CLIPGUARD]`, `[RNNOISE]`, `[COMP]`).
+    - Tao window management in `src/main.rs`: IPC message `toggle_widget_mode` shrinks Tao window to `480x185` using `window.set_inner_size()`, caches prior window dimensions, and supports `window.set_always_on_top()`.
+    - Persist in `src/config.rs`: `widget_mode: bool`, `widget_width: f64`, `widget_height: f64`, `always_on_top: bool`.
+  - **Dynamic Peak & Clip Detection on Status / Mute Buttons**:
+    - The status dots/buttons (`[• MIC]`, `[• GAME]`, etc.) and the tactile mute button ring dynamically reflect signal levels:
+      - Normal ($< -6.0\text{ dBFS}$): Solid green (`#10b981`).
+      - Loud / Hot ($-6.0\text{ dBFS}$ to $-1.0\text{ dBFS}$): Amber warning (`#f59e0b`).
+      - Peaking / Clip ($\ge -1.0\text{ dBFS}$): Flashing crimson red (`#ef4444 animate-ping`), label changes to `PEAK!` with an 800ms peak-hold timer, and triggers the Clipguard auto-pad badge (`PAD -3dB`).
+      - Muted: Solid red (`#ef4444`) with slash icon and `MUTED` text.
 
 ---
 

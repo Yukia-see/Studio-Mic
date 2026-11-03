@@ -416,7 +416,7 @@ pub fn create_lingering_null_node(name: &str, class: &str, description: &str) ->
         "{{ factory.name=support.null-audio-sink node.name=\"{}\" node.description=\"{}\" media.class={} \
          audio.position=[FL FR] audio.rate=48000 object.linger=true node.pause-on-idle=false \
          monitor.channel-volumes=true priority.session=0 priority.driver=0 node.group=studiomic }}",
-        name, description, class
+        name, crate::audio::filter_chain::spa_string_safe(description), class
     );
     Command::new("pw-cli")
         .args(["create-node", "adapter", &props])

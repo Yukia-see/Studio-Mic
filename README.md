@@ -12,15 +12,25 @@
 ```bash
 ./install.sh            # asks to fetch PipeWire/LADSPA deps, builds, installs for your user
 studiomic               # open the app (or `studiomic --background` for the tray only)
-studio-mic --status     # control it from a terminal / Stream Deck (see `studio-mic --help`)
+studiomic --status      # control it from a terminal / Stream Deck (see `studiomic --help`)
 ```
 
 * **Buses for OBS / Discord:** `Studio Mic (Microphone Only)` for Discord, `Studio Mic (Stream Mix)`
   for OBS Track 1, `Studio Mic (VOD Track - DMCA Safe)` for Track 2, and `Studio Mic (Monitor Mix)`
-  is what you hear. The old `studiomic_processed_mic` name still works.
+  is what you hear. (The pre-v0.2 `studiomic_processed_mic` device is gone: switch old OBS or
+  Discord settings to "Studio Mic (Microphone Only)".)
 * **Nothing interrupts audio:** sliders and toggles change the running chain in place.
 * **Settings** live in `~/.config/studio-mic/state.json` (your old `~/.config/studiomic/config.json` is
-  migrated automatically and kept as `config.json.bak`). Named profiles: `studio-mic --save-profile NAME`.
+  migrated automatically and kept as `config.json.bak`). Named profiles: `studiomic --save-profile NAME`.
+* **Mixer (Tab 1)** is a routing matrix: channels down the side, mixes across the top. A new setup
+  starts with only your mic; **+ Add Channel** offers one-click presets (Discord, Games, Browser,
+  Music, Apps & Media, Line In, Custom) and every channel has a delete button. Any channel can feed
+  Voice Chat except the voice-chat channel itself (that would echo Discord back to itself).
+* **Mini widget:** `studiomic --toggle-widget` (or the Widget button / tray item) shrinks the window
+  to a small always-on-top strip with the mic and headphone faders and quick mutes. On Hyprland the
+  app floats and pins it itself; you can also add a window rule, e.g. in `~/.config/hypr/hyprland.lua`
+  (Lua config): `o.window({ title = "^Studio Mic Widget$" }, { float = true, pin = true, size = { 480, 185 } })`.
+* **Control size:** Small / Medium / Large from the top bar, or `studiomic --set-size small`.
 * **Stream Deck:** the StreamController plugin in `streamcontroller-plugin/` is linked by the installer.
 * Docs: `docs/audit-report.md` (what changed), `docs/verified-apis.md`, `docs/perf.md`.
 

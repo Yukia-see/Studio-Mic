@@ -3,45 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Studio Mic · Wave Link Matrix Visual Example</title>
+  <title>Studio Mic · Wave Link Matrix & Virtual Port Manager</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <style>
+    :root {
+      --btn-scale: 1;
+      --btn-pad-y: 0.375rem;
+      --btn-pad-x: 0.75rem;
+      --btn-font: 0.75rem;
+      --btn-icon: 16px;
+      --fader-height: 26px;
+    }
+
+    body.btn-sz-sm {
+      --btn-scale: 0.85;
+      --btn-pad-y: 0.25rem;
+      --btn-pad-x: 0.5rem;
+      --btn-font: 0.7rem;
+      --btn-icon: 14px;
+      --fader-height: 22px;
+    }
+
+    body.btn-sz-lg {
+      --btn-scale: 1.2;
+      --btn-pad-y: 0.5rem;
+      --btn-pad-x: 1rem;
+      --btn-font: 0.85rem;
+      --btn-icon: 20px;
+      --fader-height: 32px;
+    }
+
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #0d0d10;
+      background-color: #0b0c10;
       color: #e5e5eb;
     }
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
     }
-    /* Elgato-Style Meter Track Slider */
-    .matrix-slider {
-      -webkit-appearance: none;
-      appearance: none;
-      height: 8px;
-      border-radius: 999px;
-      background: #25252e;
-      outline: none;
+
+    .scaled-btn {
+      padding-top: var(--btn-pad-y);
+      padding-bottom: var(--btn-pad-y);
+      padding-left: var(--btn-pad-x);
+      padding-right: var(--btn-pad-x);
+      font-size: var(--btn-font);
+    }
+    .scaled-btn .material-symbols-outlined {
+      font-size: var(--btn-icon);
+    }
+
+    /* Wave Link Dual-Track Fader */
+    .matrix-fader-unit {
       position: relative;
-      cursor: pointer;
-      background-image: linear-gradient(to right, #34c759 var(--meter, 60%), #25252e var(--meter, 60%));
+      width: 100%;
+      height: var(--fader-height);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
     }
-    .matrix-slider.stream {
-      background-image: linear-gradient(to right, #c084fc var(--meter, 50%), #25252e var(--meter, 50%));
+
+    .cell-meter-bar {
+      height: 5px;
+      width: 100%;
+      background: #1c1d24;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
     }
-    .matrix-slider.vod {
-      background-image: linear-gradient(to right, #fbbf24 var(--meter, 45%), #25252e var(--meter, 45%));
+
+    .cell-meter-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #10b981 0%, #34d399 70%, #f59e0b 88%, #ef4444 100%);
+      transition: width 0.08s ease-out;
     }
-    .matrix-slider.chat {
-      background-image: linear-gradient(to right, #60a5fa var(--meter, 70%), #25252e var(--meter, 70%));
-    }
-    .matrix-slider::-webkit-slider-thumb {
+
+    .cell-slider {
       -webkit-appearance: none;
       appearance: none;
-      width: 14px;
-      height: 14px;
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: #272832;
+      outline: none;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .cell-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 13px;
+      height: 13px;
       border-radius: 50%;
       background: #38bdf8;
       border: 2px solid #0f172a;
@@ -49,161 +107,230 @@
       cursor: pointer;
       transition: transform 0.1s ease;
     }
-    .matrix-slider::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
+
+    .cell-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
     }
-    .matrix-cell.muted {
-      background-color: rgba(127, 29, 29, 0.22) !important;
-      border-color: rgba(239, 68, 68, 0.45) !important;
+
+    .mute-toggle-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #1f202b;
+      border: 1px solid #333547;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
     }
-    .matrix-cell.muted .mute-btn {
-      background-color: #ef4444 !important;
-      color: #ffffff !important;
+
+    .mute-toggle-btn:hover {
+      background: #2a2c3a;
+      border-color: #475569;
+      color: #f1f5f9;
+    }
+
+    .mute-toggle-btn.muted-red {
+      background: rgba(239, 68, 68, 0.25) !important;
+      border-color: #ef4444 !important;
+      color: #ef4444 !important;
       box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
     }
-    .matrix-cell.muted .matrix-slider {
-      opacity: 0.35;
-      pointer-events: none;
+
+    .matrix-cell-active {
+      background: #15161f;
+      border: 1px solid #282a3a;
+      border-radius: 12px;
+      padding: 6px 8px;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .matrix-cell-active.cell-muted {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    /* Small X Remove Button */
+    .cell-remove-btn {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #272836;
+      border: 1px solid #44475a;
+      color: #94a3b8;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.15s ease;
+      z-index: 10;
+    }
+
+    .matrix-cell-active:hover .cell-remove-btn {
+      opacity: 1;
+    }
+
+    .cell-remove-btn:hover {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: #ffffff;
+      transform: scale(1.2);
+    }
+
+    /* Blank Inactive Cell with Centered + */
+    .matrix-cell-blank {
+      height: 48px;
+      border-radius: 12px;
+      border: 1px dashed #242533;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .matrix-cell-blank:hover {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    .matrix-cell-blank:hover .blank-plus-icon {
+      color: #38bdf8;
+      transform: scale(1.25);
     }
   </style>
 </head>
-<body class="p-6 md:p-10 flex flex-col items-center min-h-screen">
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
 
-  <div class="w-full max-w-6xl space-y-4">
+  <div class="w-full max-w-[1400px] space-y-4">
     
-    <!-- Top Header bar simulating Studio Mic window -->
-    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-[#22222a]">
+    <!-- Top Bar: Studio Mic Header + Button Size Adjuster & Controls -->
+    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-neutral-800">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
-          <span class="material-symbols-outlined text-[24px]">graphic_eq</span>
+        <div class="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-md">
+          <span class="material-symbols-outlined text-[24px]">equalizer</span>
         </div>
         <div>
-          <h1 class="text-xl font-bold text-white flex items-center gap-2">
+          <h1 class="text-xl font-extrabold text-white flex items-center gap-2">
             <span>Studio Mic</span>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 font-mono border border-cyan-800/40">Wave Link Matrix Draft</span>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 font-mono border border-cyan-700/40">Tab 1 · Routing Matrix</span>
           </h1>
-          <p class="text-xs text-[#8e8e99]">Broadcast Microphone Processing &amp; PipeWire Routing Matrix</p>
+          <p class="text-xs text-neutral-400">Default On-Demand Virtual Audio &amp; PipeWire Routing (Cards Removed)</p>
         </div>
       </div>
 
-      <!-- Tab Strip & View Modes -->
-      <div class="flex items-center gap-3">
-        <nav class="flex items-center p-1 rounded-full bg-[#18181f] border border-[#262630] text-xs font-semibold">
-          <button class="px-3.5 py-1.5 rounded-full bg-cyan-500 text-black font-bold flex items-center gap-1.5 shadow-sm">
-            <span class="material-symbols-outlined text-[16px]">table_rows</span>
-            <span>1 · Mixer Matrix</span>
+      <!-- Button Size Adjuster & Navigation -->
+      <div class="flex items-center gap-3 flex-wrap">
+        
+        <!-- Button Size Adjuster Toggle -->
+        <div class="flex items-center gap-1.5 bg-neutral-900 px-3 py-1.5 rounded-xl border border-neutral-700">
+          <span class="material-symbols-outlined text-[16px] text-cyan-400">photo_size_select_small</span>
+          <span class="text-xs font-bold text-neutral-300">Button Size:</span>
+          <div class="flex items-center gap-1 bg-neutral-950 p-0.5 rounded-lg border border-neutral-800">
+            <button onclick="setButtonSize('sm')" id="sz-btn-sm" class="px-2 py-0.5 rounded text-[11px] font-bold text-neutral-400 hover:text-white transition">Small</button>
+            <button onclick="setButtonSize('md')" id="sz-btn-md" class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-600 text-white shadow-sm transition">Medium</button>
+            <button onclick="setButtonSize('lg')" id="sz-btn-lg" class="px-2 py-0.5 rounded text-[11px] font-bold text-neutral-400 hover:text-white transition">Large</button>
+          </div>
+        </div>
+
+        <!-- Master Headphones Monitor Controls -->
+        <div class="flex items-center gap-2 bg-neutral-900 px-3 py-1.5 rounded-xl border border-neutral-700">
+          <button id="master-mon-mute-btn" onclick="toggleMasterMonMute()" class="w-7 h-7 rounded-lg bg-neutral-800 text-emerald-400 hover:bg-neutral-700 flex items-center justify-center transition" title="Toggle Master Monitor Mute">
+            <span class="material-symbols-outlined text-[16px]">headphones</span>
           </button>
-          <button class="px-3.5 py-1.5 rounded-full text-[#9c9ca8] hover:text-white flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[16px]">equalizer</span>
-            <span>2 · EQ</span>
-          </button>
-          <button class="px-3.5 py-1.5 rounded-full text-[#9c9ca8] hover:text-white flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[16px]">speed</span>
-            <span>3 · DSP</span>
-          </button>
-          <button class="px-3.5 py-1.5 rounded-full text-[#9c9ca8] hover:text-white flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[16px]">tune</span>
-            <span>4 · Calibrate</span>
-          </button>
-        </nav>
+          <div class="flex flex-col">
+            <div class="flex justify-between items-center text-[10px] font-bold">
+              <span class="text-neutral-400">Headphones:</span>
+              <span id="master-vol-label" class="font-mono text-emerald-400">80%</span>
+            </div>
+            <input type="range" min="0" max="100" value="80" oninput="document.getElementById('master-vol-label').textContent=this.value+'%'" class="w-24 h-1 bg-neutral-700 rounded-lg outline-none accent-emerald-400 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- + Add Virtual Channel Button (Header action) -->
+        <button onclick="openAddChannelModal()" class="scaled-btn rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold flex items-center gap-1.5 shadow-lg shadow-cyan-600/30 transition">
+          <span class="material-symbols-outlined">add</span>
+          <span>Add Channel</span>
+        </button>
       </div>
     </header>
 
-    <!-- Main Card Container: Wave Link Matrix View -->
-    <div class="w-full bg-[#131317] border border-[#22222a] rounded-[28px] overflow-hidden shadow-2xl">
+    <!-- Matrix View Card -->
+    <div class="w-full bg-[#131318] border border-neutral-800 rounded-[24px] overflow-hidden shadow-2xl">
       
-      <!-- Table Controls Bar -->
-      <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 bg-[#181820] border-b border-[#22222a]">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-white tracking-wide">Mixes &amp; Routing</span>
-            <span class="text-[11px] text-[#8e8e99] font-mono">(4 Output Buses active)</span>
-          </div>
-
-          <!-- View Mode Switcher -->
-          <div class="flex items-center p-0.5 rounded-xl bg-[#20202a] border border-[#2c2c3a] text-[11px] font-semibold text-[#8e8e99]">
-            <button class="px-2.5 py-1 rounded-lg bg-cyan-500 text-black font-bold flex items-center gap-1">
-              <span class="material-symbols-outlined text-[14px]">table_chart</span>Matrix
-            </button>
-            <button class="px-2.5 py-1 rounded-lg hover:text-white flex items-center gap-1">
-              <span class="material-symbols-outlined text-[14px]">view_column</span>Cards
-            </button>
-            <button class="px-2.5 py-1 rounded-lg hover:text-white flex items-center gap-1">
-              <span class="material-symbols-outlined text-[14px]">density_small</span>Compact
-            </button>
-          </div>
+      <!-- Sub-header Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5 bg-neutral-900/90 border-b border-neutral-800">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold text-white">Audio Matrix Table</span>
+          <span id="channel-count-badge" class="text-xs px-2 py-0.5 rounded-full bg-neutral-800 text-cyan-400 font-mono">1 Input Channel</span>
         </div>
 
-        <!-- Output Selector & Add Channel (Top Right - exactly like Wave Link) -->
         <div class="flex items-center gap-3">
-          <div class="flex items-center gap-2 bg-[#20202a] px-3 py-1.5 rounded-xl border border-[#2c2c3a]">
-            <span class="material-symbols-outlined text-emerald-400 text-[18px]">headphones</span>
-            <select class="bg-transparent text-xs font-semibold text-white outline-none cursor-pointer">
-              <option>Speakers (Digital Hifi Audio - ALSA)</option>
-              <option>SteelSeries Arctis Nova Pro Wireless</option>
-              <option>Focusrite Scarlett 2i2 USB</option>
-            </select>
-            <button class="text-[#8e8e99] hover:text-white" title="Rescan devices">
-              <span class="material-symbols-outlined text-[15px]">refresh</span>
-            </button>
-          </div>
-
-          <button class="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors">
-            <span class="material-symbols-outlined text-[16px]">add</span>
-            <span>Create Channel</span>
+          <span class="text-xs text-neutral-400 flex items-center gap-1">
+            <span class="material-symbols-outlined text-[15px] text-emerald-400">check_circle</span>
+            Clean slate: only microphone loaded by default
+          </span>
+          <button onclick="openAddChannelModal()" class="scaled-btn rounded-xl bg-neutral-800 hover:bg-neutral-700 text-cyan-400 font-bold border border-cyan-500/30 flex items-center gap-1 transition">
+            <span class="material-symbols-outlined">playlist_add</span>
+            <span>Choose Ports Needed</span>
           </button>
         </div>
       </div>
 
-      <!-- 2D Routing Matrix Table -->
+      <!-- The 2D Routing Matrix Table -->
       <div class="overflow-x-auto">
         <table class="w-full border-collapse text-left">
           
           <!-- Column Headers: The Output Mixes -->
           <thead>
-            <tr class="border-b border-[#22222a] bg-[#15151c]">
+            <tr class="border-b border-neutral-800 bg-[#161720]">
               
-              <!-- Lead: Audio Channels -->
-              <th class="p-4 pl-6 w-[280px] min-w-[260px] text-xs font-bold text-[#8e8e99] uppercase tracking-wider">
-                Audio Channels
+              <!-- Lead: Audio Channels Column -->
+              <th class="p-4 pl-6 w-[280px] min-w-[260px] text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                Audio Channels (Inputs)
               </th>
 
               <!-- Column 1: My Mix (Headphones) -->
-              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-neutral-800 relative">
                 <div class="flex items-center justify-between gap-1 mb-1.5">
                   <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-emerald-400 text-[18px]">headphones</span>
                     <div>
                       <div class="text-xs font-bold text-white leading-tight">My Mix</div>
-                      <div class="text-[10px] text-[#71717a] font-mono">Headphones</div>
+                      <div class="text-[10px] text-neutral-400 font-mono">Headphones</div>
                     </div>
                   </div>
-                  <!-- Master Monitor Mute button -->
-                  <button class="w-6 h-6 rounded-lg bg-[#20202a] hover:bg-[#2c2c3a] text-emerald-400 flex items-center justify-center" title="Mute Master Headphone Feed">
-                    <span class="material-symbols-outlined text-[14px]">headphones</span>
-                  </button>
                 </div>
-                <!-- Per-Mix Hardware Output Selector -->
-                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-emerald-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for My Mix">
+                <!-- Per-Mix Hardware Output Device Selector -->
+                <select class="w-full text-[10px] font-semibold bg-neutral-900 text-emerald-300 rounded-lg px-2 py-1 border border-neutral-700 outline-none cursor-pointer">
                   <option selected>🎧 SteelSeries Arctis Nova (DAC)</option>
                   <option>🔊 Desktop Speakers (Realtek)</option>
                 </select>
-                <!-- Lime Underline -->
                 <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-emerald-400"></div>
               </th>
 
               <!-- Column 2: Stream Mix -->
-              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-neutral-800 relative">
                 <div class="flex items-center justify-between gap-1 mb-1.5">
                   <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-purple-400 text-[18px]">sensors</span>
                     <div>
                       <div class="text-xs font-bold text-white leading-tight">Stream</div>
-                      <div class="text-[10px] text-[#71717a] font-mono">OBS Track 1</div>
+                      <div class="text-[10px] text-neutral-400 font-mono">OBS Track 1</div>
                     </div>
                   </div>
                 </div>
-                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-purple-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for Stream Mix">
+                <select class="w-full text-[10px] font-semibold bg-neutral-900 text-purple-300 rounded-lg px-2 py-1 border border-neutral-700 outline-none cursor-pointer">
                   <option selected>📡 StudioMic_Stream_Mix (OBS)</option>
                   <option>🔊 Hardware Monitor Mirror</option>
                 </select>
@@ -211,308 +338,140 @@
               </th>
 
               <!-- Column 3: Recording · VOD (DMCA Safe) -->
-              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-neutral-800 relative">
                 <div class="flex items-center justify-between gap-1 mb-1.5">
                   <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-amber-400 text-[18px]">movie</span>
                     <div>
                       <div class="text-xs font-bold text-white leading-tight">Recording · VOD</div>
-                      <div class="text-[10px] text-[#71717a] font-mono">Track 2 (DMCA Safe)</div>
+                      <div class="text-[10px] text-neutral-400 font-mono">Track 2 (DMCA Safe)</div>
                     </div>
                   </div>
                 </div>
-                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-amber-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for VOD Mix">
+                <select class="w-full text-[10px] font-semibold bg-neutral-900 text-amber-300 rounded-lg px-2 py-1 border border-neutral-700 outline-none cursor-pointer">
                   <option selected>🎬 StudioMic_VOD_Mix (OBS Track 2)</option>
                 </select>
                 <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-amber-400"></div>
               </th>
 
               <!-- Column 4: Voice Chat (Discord) -->
-              <th class="p-3 w-[220px] min-w-[200px] border-l border-[#22222a] relative">
+              <th class="p-3 w-[220px] min-w-[200px] border-l border-neutral-800 relative">
                 <div class="flex items-center justify-between gap-1 mb-1.5">
                   <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-blue-400 text-[18px]">forum</span>
                     <div>
                       <div class="text-xs font-bold text-white leading-tight">Voice Chat</div>
-                      <div class="text-[10px] text-[#71717a] font-mono">Discord / Games</div>
+                      <div class="text-[10px] text-neutral-400 font-mono">Discord / Games (Zero Limits)</div>
                     </div>
                   </div>
                 </div>
-                <select class="w-full text-[10px] font-semibold bg-[#1a1a24] text-blue-300 rounded-lg px-2 py-1 border border-[#2d2d3a] outline-none cursor-pointer" title="Output device for Voice Chat">
+                <select class="w-full text-[10px] font-semibold bg-neutral-900 text-blue-300 rounded-lg px-2 py-1 border border-neutral-700 outline-none cursor-pointer">
                   <option selected>👥 StudioMic_Voice_Out (Discord)</option>
                 </select>
                 <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-400"></div>
               </th>
 
-              <!-- Column 5: Add Mix / Channel (+) Button right beside Voice Chat -->
-              <th class="p-2 w-[70px] min-w-[60px] border-l border-[#22222a] text-center bg-[#181822]/60 hover:bg-[#20202e] transition-colors cursor-pointer group" onclick="addNewMixColumn()" title="Add New Mix / Output Bus">
+              <!-- Column 5: + Add Mix Button Header -->
+              <th class="p-2 w-[70px] min-w-[60px] border-l border-neutral-800 text-center bg-neutral-900/60 hover:bg-neutral-800 transition-colors cursor-pointer group" onclick="openAddMixModal()" title="Add New Mix / Output Bus">
                 <div class="flex flex-col items-center justify-center py-1">
-                  <div class="w-8 h-8 rounded-xl bg-[#252533] group-hover:bg-cyan-500 group-hover:text-black text-[#9e9eab] flex items-center justify-center transition-all shadow-sm">
+                  <div class="w-8 h-8 rounded-xl bg-neutral-800 group-hover:bg-cyan-500 group-hover:text-black text-neutral-400 flex items-center justify-center transition-all shadow-sm">
                     <span class="material-symbols-outlined text-[20px]">add</span>
                   </div>
-                  <span class="text-[9px] font-bold text-[#71717a] group-hover:text-cyan-300 font-mono mt-0.5">ADD</span>
+                  <span class="text-[9px] font-bold text-neutral-400 group-hover:text-cyan-300 font-mono mt-0.5">+ MIX</span>
                 </div>
               </th>
 
             </tr>
           </thead>
 
-          <!-- Rows: The Audio Inputs -->
-          <tbody class="divide-y divide-[#1e1e26] text-sm">
+          <!-- Table Body: Rows populated dynamically -->
+          <tbody id="matrix-tbody" class="divide-y divide-neutral-800/80 text-sm">
             
-            <!-- ROW 1: Studio Microphone -->
-            <tr class="hover:bg-[#181822]/40 transition-colors">
+            <!-- DEFAULT ROW 1: PRIMARY MICROPHONE (Only Channel Present by Default) -->
+            <tr id="row-mic" class="hover:bg-neutral-900/30 transition-colors">
               <td class="p-3 pl-6">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-2xl bg-cyan-950/50 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0 shadow-sm">
+                  <div class="w-10 h-10 rounded-2xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0 shadow-sm">
                     <span class="material-symbols-outlined text-[22px]">mic</span>
                   </div>
                   <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2">
                       <span class="font-bold text-white text-xs truncate">Broadcast Mic</span>
-                      <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyan-900/60 text-cyan-300 font-mono">DSP</span>
+                      <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 font-mono border border-cyan-800/40">DSP</span>
                     </div>
-                    <div class="text-[10px] text-[#7e7e8c] font-mono truncate">RNNoise · Gate · EQ</div>
+                    <div class="text-[10px] text-neutral-400 font-mono truncate">FIFINE AmpliGame AM8 · 48 kHz</div>
                   </div>
                 </div>
               </td>
 
-              <!-- Mic -> My Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-emerald-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">headphones</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="75" oninput="updateFader(this)" class="matrix-slider w-full">
-                </div>
-              </td>
-
-              <!-- Mic -> Stream Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-purple-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">sensors</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="85" oninput="updateFader(this)" class="matrix-slider stream w-full">
-                </div>
-              </td>
-
-              <!-- Mic -> VOD Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-amber-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">movie</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="85" oninput="updateFader(this)" class="matrix-slider vod w-full">
-                </div>
-              </td>
-
-              <!-- Mic -> Voice Chat (Discord) -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-blue-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">mic</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="90" oninput="updateFader(this)" class="matrix-slider chat w-full">
-                </div>
-              </td>
-
-              <!-- Mic -> Custom Mix 5 (Blank with +) -->
-              <td class="p-3 border-l border-[#22222a] text-center">
-                <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-cyan-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'cyan')" title="Click to activate input for this mix">
-                  <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-cyan-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                  </div>
-                </div>
-              </td>
-            </tr>
-
-            <!-- ROW 2: Music / Spotify (With Signature Red Muted Cell!) -->
-            <tr class="hover:bg-[#181822]/40 transition-colors">
-              <td class="p-3 pl-6">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-2xl bg-emerald-950/50 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-sm">
-                    <span class="material-symbols-outlined text-[22px]">music_note</span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="font-bold text-white text-xs truncate">Music · Spotify</div>
-                    <div class="text-[10px] text-[#7e7e8c] font-mono truncate">Auto-ducking (-12 dB)</div>
+              <!-- Mic -> My Mix (Active) -->
+              <td class="p-2.5 border-l border-neutral-800/60">
+                <div class="matrix-cell-active" id="cell-mic-mymix">
+                  <button class="cell-remove-btn" onclick="deactivateCell('mic', 'mymix')" title="Unpatch from My Mix">&times;</button>
+                  <div class="flex items-center gap-2">
+                    <button class="mute-toggle-btn" onclick="toggleCellMute('mic', 'mymix')">
+                      <span class="material-symbols-outlined text-[16px]">volume_up</span>
+                    </button>
+                    <div class="matrix-fader-unit">
+                      <div class="cell-meter-bar"><div class="cell-meter-fill meter-mic" style="width: 65%;"></div></div>
+                      <input type="range" class="cell-slider" min="0" max="100" value="85" title="Gain Fader">
+                    </div>
                   </div>
                 </div>
               </td>
 
-              <!-- Music -> My Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-emerald-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">headphones</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="65" oninput="updateFader(this)" class="matrix-slider w-full">
-                </div>
-              </td>
-
-              <!-- Music -> Stream Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-purple-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">sensors</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="50" oninput="updateFader(this)" class="matrix-slider stream w-full">
-                </div>
-              </td>
-
-              <!-- Music -> VOD Mix (MUTED WITH RED ELGATO BADGE!) -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell muted flex items-center gap-2.5 bg-red-950/20 px-3 py-2 rounded-2xl border border-red-500/40 transition-all" oncontextmenu="deactivateCell(event, this)" title="Excluded from VOD (DMCA Protected) · Right-click to remove">
-                  <!-- Signature Red Wave Link Mute Button -->
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-red-500 text-white flex items-center justify-center shadow-lg shadow-red-500/20 shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">volume_off</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="0" disabled class="matrix-slider vod w-full">
-                </div>
-              </td>
-
-              <!-- Music -> Voice Chat (Blank Cell with + sign) -->
-              <td class="p-3 border-l border-[#22222a] text-center">
-                <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-blue-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'chat')" title="Click to route Music into Voice Chat">
-                  <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-blue-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
+              <!-- Mic -> Stream (Active) -->
+              <td class="p-2.5 border-l border-neutral-800/60">
+                <div class="matrix-cell-active" id="cell-mic-stream">
+                  <button class="cell-remove-btn" onclick="deactivateCell('mic', 'stream')" title="Unpatch from Stream">&times;</button>
+                  <div class="flex items-center gap-2">
+                    <button class="mute-toggle-btn" onclick="toggleCellMute('mic', 'stream')">
+                      <span class="material-symbols-outlined text-[16px]">volume_up</span>
+                    </button>
+                    <div class="matrix-fader-unit">
+                      <div class="cell-meter-bar"><div class="cell-meter-fill meter-mic" style="width: 65%;"></div></div>
+                      <input type="range" class="cell-slider" min="0" max="100" value="95" title="Gain Fader">
+                    </div>
                   </div>
                 </div>
               </td>
 
-              <!-- Music -> Custom Mix 5 (Blank with +) -->
-              <td class="p-3 border-l border-[#22222a] text-center">
-                <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-cyan-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'cyan')" title="Click to activate input for this mix">
-                  <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-cyan-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                  </div>
-                </div>
-              </td>
-            </tr>
-
-            <!-- ROW 3: Discord Voice -->
-            <tr class="hover:bg-[#181822]/40 transition-colors">
-              <td class="p-3 pl-6">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-2xl bg-indigo-950/50 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shrink-0 shadow-sm">
-                    <span class="material-symbols-outlined text-[22px]">forum</span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="font-bold text-white text-xs truncate">Discord Voice</div>
-                    <div class="text-[10px] text-[#7e7e8c] font-mono truncate">Friends / Comms</div>
+              <!-- Mic -> VOD (Active) -->
+              <td class="p-2.5 border-l border-neutral-800/60">
+                <div class="matrix-cell-active" id="cell-mic-vod">
+                  <button class="cell-remove-btn" onclick="deactivateCell('mic', 'vod')" title="Unpatch from VOD">&times;</button>
+                  <div class="flex items-center gap-2">
+                    <button class="mute-toggle-btn" onclick="toggleCellMute('mic', 'vod')">
+                      <span class="material-symbols-outlined text-[16px]">volume_up</span>
+                    </button>
+                    <div class="matrix-fader-unit">
+                      <div class="cell-meter-bar"><div class="cell-meter-fill meter-mic" style="width: 65%;"></div></div>
+                      <input type="range" class="cell-slider" min="0" max="100" value="95" title="Gain Fader">
+                    </div>
                   </div>
                 </div>
               </td>
 
-              <!-- Discord -> My Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-emerald-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">headphones</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="80" oninput="updateFader(this)" class="matrix-slider w-full">
-                </div>
-              </td>
-
-              <!-- Discord -> Stream Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-purple-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">sensors</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="75" oninput="updateFader(this)" class="matrix-slider stream w-full">
-                </div>
-              </td>
-
-              <!-- Discord -> VOD Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-amber-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">movie</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="75" oninput="updateFader(this)" class="matrix-slider vod w-full">
-                </div>
-              </td>
-
-              <!-- Discord -> Voice Chat (Blank Cell with + sign) -->
-              <td class="p-3 border-l border-[#22222a] text-center">
-                <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-blue-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'chat')" title="Click to route Discord into Voice Chat">
-                  <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-blue-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
+              <!-- Mic -> Voice Chat (Active) -->
+              <td class="p-2.5 border-l border-neutral-800/60">
+                <div class="matrix-cell-active" id="cell-mic-chat">
+                  <button class="cell-remove-btn" onclick="deactivateCell('mic', 'chat')" title="Unpatch from Voice Chat">&times;</button>
+                  <div class="flex items-center gap-2">
+                    <button class="mute-toggle-btn" onclick="toggleCellMute('mic', 'chat')">
+                      <span class="material-symbols-outlined text-[16px]">volume_up</span>
+                    </button>
+                    <div class="matrix-fader-unit">
+                      <div class="cell-meter-bar"><div class="cell-meter-fill meter-mic" style="width: 65%;"></div></div>
+                      <input type="range" class="cell-slider" min="0" max="100" value="100" title="Gain Fader">
+                    </div>
                   </div>
                 </div>
               </td>
 
-              <!-- Discord -> Custom Mix 5 (Blank with +) -->
-              <td class="p-3 border-l border-[#22222a] text-center">
-                <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-cyan-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'cyan')" title="Click to activate input for this mix">
-                  <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-cyan-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                  </div>
-                </div>
-              </td>
-            </tr>
-
-            <!-- ROW 4: Apps & Games -->
-            <tr class="hover:bg-[#181822]/40 transition-colors">
-              <td class="p-3 pl-6">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-2xl bg-rose-950/50 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0 shadow-sm">
-                    <span class="material-symbols-outlined text-[22px]">sports_esports</span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="font-bold text-white text-xs truncate">Games &amp; Sound</div>
-                    <div class="text-[10px] text-[#7e7e8c] font-mono truncate">Steam · Proton · Wine</div>
-                  </div>
-                </div>
-              </td>
-
-              <!-- Games -> My Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-emerald-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">headphones</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="70" oninput="updateFader(this)" class="matrix-slider w-full">
-                </div>
-              </td>
-
-              <!-- Games -> Stream Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-purple-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">sensors</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="65" oninput="updateFader(this)" class="matrix-slider stream w-full">
-                </div>
-              </td>
-
-              <!-- Games -> VOD Mix -->
-              <td class="p-3 border-l border-[#22222a]">
-                <div class="matrix-cell flex items-center gap-2.5 bg-[#1b1b24] px-3 py-2 rounded-2xl border border-[#2b2b38] transition-all" oncontextmenu="deactivateCell(event, this)" title="Left-click mute · Drag volume · Right-click to remove">
-                  <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] text-amber-400 flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-                    <span class="material-symbols-outlined text-[16px]">movie</span>
-                  </button>
-                  <input type="range" min="0" max="100" value="65" oninput="updateFader(this)" class="matrix-slider vod w-full">
-                </div>
-              </td>
-
-              <!-- Games -> Voice Chat (Blank Cell with + sign) -->
-              <td class="p-3 border-l border-[#22222a] text-center">
-                <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-blue-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'chat')" title="Click to route Game Audio into Voice Chat">
-                  <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-blue-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                  </div>
-                </div>
-              </td>
-
-              <!-- Games -> Custom Mix 5 (Blank with +) -->
-              <td class="p-3 border-l border-[#22222a] text-center">
-                <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-cyan-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'cyan')" title="Click to activate input for this mix">
-                  <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-cyan-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                  </div>
+              <!-- Mic -> Empty cell for Mix 5 -->
+              <td class="p-2.5 border-l border-neutral-800/60 text-center">
+                <div class="matrix-cell-blank" onclick="activateCell('mic', 'custom')">
+                  <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
                 </div>
               </td>
             </tr>
@@ -521,127 +480,351 @@
         </table>
       </div>
 
-      <!-- Matrix Footer -->
-      <div class="flex items-center justify-between px-6 py-3 bg-[#15151c] border-t border-[#22222a] text-xs text-[#71717a]">
-        <div class="flex items-center gap-4">
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>48 kHz Float Engine</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-cyan-400"></span>PipeWire Native Graphs</span>
+      <!-- Empty State Card shown when no extra virtual channels exist -->
+      <div id="matrix-empty-state" class="p-8 text-center bg-neutral-950/40 border-t border-neutral-800 space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-neutral-900 border border-neutral-700 text-neutral-400 mx-auto flex items-center justify-center">
+          <span class="material-symbols-outlined text-[24px]">tune</span>
         </div>
-        <div class="font-mono text-[11px]">Click any mute button to toggle between active and red DMCA mute</div>
+        <div class="space-y-1">
+          <h3 class="text-sm font-bold text-white">No Extra Virtual Channels Created</h3>
+          <p class="text-xs text-neutral-400 max-w-md mx-auto">
+            Choose only what you need. Create virtual audio ports for Discord, Apps, Games, Web Browser, or Music, with complete routing freedom into any mix.
+          </p>
+        </div>
+        <button onclick="openAddChannelModal()" class="scaled-btn rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold inline-flex items-center gap-1.5 shadow-md transition">
+          <span class="material-symbols-outlined">add_circle</span>
+          <span>Add Your First Virtual Port</span>
+        </button>
       </div>
 
     </div>
 
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- MODAL: ADD VIRTUAL AUDIO PORT (DISCORD, APPS, GAMES, WEB, MUSIC, CUSTOM) -->
+  <!-- ========================================================================= -->
+  <div id="add-channel-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#161720] border border-neutral-700 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl">
+      
+      <div class="flex items-center justify-between border-b border-neutral-800 pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <span class="material-symbols-outlined text-cyan-400">add_to_queue</span>
+            Create Virtual Audio Port
+          </h3>
+          <p class="text-xs text-neutral-400">Select which port you need. It will be created in PipeWire and added to your matrix.</p>
+        </div>
+        <button onclick="closeAddChannelModal()" class="w-8 h-8 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white flex items-center justify-center">
+          &times;
+        </button>
+      </div>
+
+      <!-- Quick Port Presets -->
+      <div class="grid grid-cols-2 gap-2.5">
+        
+        <!-- Preset: Discord / Voice -->
+        <button onclick="addPresetChannel('Discord / Voice', 'forum', 'StudioMic_Ch_voice', '#60a5fa')" class="p-3 rounded-2xl bg-neutral-900 border border-neutral-700/80 hover:border-blue-500/60 hover:bg-neutral-800/80 transition text-left flex items-start gap-2.5 group">
+          <div class="w-9 h-9 rounded-xl bg-blue-950/80 border border-blue-500/40 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[20px]">forum</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white group-hover:text-blue-300">Discord / Voice</div>
+            <div class="text-[10px] text-neutral-400">VoIP, TeamSpeak, Skype</div>
+          </div>
+        </button>
+
+        <!-- Preset: Games -->
+        <button onclick="addPresetChannel('Games', 'sports_esports', 'StudioMic_Ch_game', '#10b981')" class="p-3 rounded-2xl bg-neutral-900 border border-neutral-700/80 hover:border-emerald-500/60 hover:bg-neutral-800/80 transition text-left flex items-start gap-2.5 group">
+          <div class="w-9 h-9 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[20px]">sports_esports</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white group-hover:text-emerald-300">Games</div>
+            <div class="text-[10px] text-neutral-400">Steam, Lutris, Wine games</div>
+          </div>
+        </button>
+
+        <!-- Preset: Web Browser -->
+        <button onclick="addPresetChannel('Web Browser', 'public', 'StudioMic_Ch_browser', '#f59e0b')" class="p-3 rounded-2xl bg-neutral-900 border border-neutral-700/80 hover:border-amber-500/60 hover:bg-neutral-800/80 transition text-left flex items-start gap-2.5 group">
+          <div class="w-9 h-9 rounded-xl bg-amber-950/80 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[20px]">public</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white group-hover:text-amber-300">Web Browser</div>
+            <div class="text-[10px] text-neutral-400">Chrome, Firefox, YouTube</div>
+          </div>
+        </button>
+
+        <!-- Preset: Music -->
+        <button onclick="addPresetChannel('Music', 'music_note', 'StudioMic_Ch_music', '#c084fc')" class="p-3 rounded-2xl bg-neutral-900 border border-neutral-700/80 hover:border-purple-500/60 hover:bg-neutral-800/80 transition text-left flex items-start gap-2.5 group">
+          <div class="w-9 h-9 rounded-xl bg-purple-950/80 border border-purple-500/40 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[20px]">music_note</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white group-hover:text-purple-300">Music</div>
+            <div class="text-[10px] text-neutral-400">Spotify, Cider, Apple Music</div>
+          </div>
+        </button>
+
+        <!-- Preset: Apps / Productivity -->
+        <button onclick="addPresetChannel('Apps & Media', 'apps', 'StudioMic_Ch_apps', '#38bdf8')" class="p-3 rounded-2xl bg-neutral-900 border border-neutral-700/80 hover:border-cyan-500/60 hover:bg-neutral-800/80 transition text-left flex items-start gap-2.5 group">
+          <div class="w-9 h-9 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[20px]">apps</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white group-hover:text-cyan-300">Apps &amp; Media</div>
+            <div class="text-[10px] text-neutral-400">System audio, alerts, media</div>
+          </div>
+        </button>
+
+        <!-- Preset: Second Microphone / Line In -->
+        <button onclick="addPresetChannel('Guest Mic 2', 'mic_external_on', 'StudioMic_Ch_mic2', '#06b6d4')" class="p-3 rounded-2xl bg-neutral-900 border border-neutral-700/80 hover:border-cyan-400/60 hover:bg-neutral-800/80 transition text-left flex items-start gap-2.5 group">
+          <div class="w-9 h-9 rounded-xl bg-cyan-950/80 border border-cyan-400/40 text-cyan-300 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[20px]">mic_external_on</span>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white group-hover:text-cyan-200">Second Mic / Line In</div>
+            <div class="text-[10px] text-neutral-400">Hardware XLR or USB mic</div>
+          </div>
+        </button>
+
+      </div>
+
+      <!-- Custom Named Port Input -->
+      <div class="pt-2 border-t border-neutral-800 space-y-2">
+        <label class="text-xs font-bold text-neutral-300 block">Or create a custom named virtual port:</label>
+        <div class="flex items-center gap-2">
+          <input type="text" id="custom-port-name" placeholder="e.g. Sound Alerts, DAW, Stinger" class="flex-1 bg-neutral-900 border border-neutral-700 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-cyan-500">
+          <button onclick="addCustomChannel()" class="scaled-btn rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition">Create Custom</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script>
-    // Live meter animation effect simulating real-time audio
-    function animateMeters() {
-      document.querySelectorAll('.matrix-slider').forEach(slider => {
-        if (slider.disabled) return;
-        const base = parseInt(slider.value, 10);
-        // Small fluctuation simulating audio activity
-        const jitter = Math.sin(Date.now() / 200 + Math.random()) * 8;
-        const meterVal = Math.max(0, Math.min(100, base + jitter));
-        slider.style.setProperty('--meter', meterVal + '%');
+    // State
+    let addedChannels = [];
+    let isMasterMuted = false;
+
+    // Button Sizing Logic
+    function setButtonSize(sz) {
+      document.body.classList.remove('btn-sz-sm', 'btn-sz-lg');
+      ['sm', 'md', 'lg'].forEach(s => {
+        const btn = document.getElementById('sz-btn-' + s);
+        if (s === sz) {
+          btn.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-600 text-white shadow-sm transition';
+        } else {
+          btn.className = 'px-2 py-0.5 rounded text-[11px] font-bold text-neutral-400 hover:text-white transition';
+        }
       });
-      requestAnimationFrame(animateMeters);
-    }
-    requestAnimationFrame(animateMeters);
 
-    function updateFader(el) {
-      el.style.setProperty('--meter', el.value + '%');
+      if (sz === 'sm') document.body.classList.add('btn-sz-sm');
+      if (sz === 'lg') document.body.classList.add('btn-sz-lg');
     }
 
-    function toggleMuteCell(btn) {
-      const cell = btn.closest('.matrix-cell');
-      const isMuted = cell.classList.toggle('muted');
-      const slider = cell.querySelector('.matrix-slider');
-      const icon = btn.querySelector('.material-symbols-outlined');
-      if (isMuted) {
-        icon.textContent = 'volume_off';
-        if (slider) slider.disabled = true;
-      } else {
-        const colIdx = cell.closest('td').cellIndex;
-        icon.textContent = colIdx === 1 ? 'headphones' : colIdx === 2 ? 'sensors' : colIdx === 3 ? 'movie' : 'mic';
-        if (slider) slider.disabled = false;
+    // Modal
+    function openAddChannelModal() {
+      document.getElementById('add-channel-modal').classList.remove('hidden');
+    }
+
+    function closeAddChannelModal() {
+      document.getElementById('add-channel-modal').classList.add('hidden');
+    }
+
+    function openAddMixModal() {
+      const mixName = prompt("Enter new Mix / Output Bus name (e.g. 'Guest Mix', 'Aux'):", "Guest Mix");
+      if (mixName) {
+        alert("Added new mix '" + mixName + "'. A new column is now created with independent hardware output routing!");
       }
     }
 
-    function activateCell(emptyEl, colorType = 'chat') {
-      const td = emptyEl.closest('td');
-      const icon = colorType === 'chat' ? 'mic' : colorType === 'stream' ? 'sensors' : colorType === 'vod' ? 'movie' : 'volume_up';
-      const colorClass = colorType === 'chat' ? 'text-blue-400' : colorType === 'stream' ? 'text-purple-400' : 'text-cyan-400';
-      const sliderClass = colorType === 'chat' ? 'chat' : colorType === 'stream' ? 'stream' : '';
-      
-      td.innerHTML = `
-        <div class="matrix-cell relative group/cell flex items-center gap-2 bg-[#1b1b24] px-2.5 py-2 rounded-2xl border border-cyan-500/50 shadow-md shadow-cyan-500/10 transition-all" title="Left-click mute · Drag volume · Click 'x' to remove">
-          <button onclick="toggleMuteCell(this)" class="mute-btn w-7 h-7 rounded-xl bg-[#282834] ${colorClass} flex items-center justify-center hover:opacity-80 transition-all shrink-0">
-            <span class="material-symbols-outlined text-[16px]">${icon}</span>
-          </button>
-          <input type="range" min="0" max="100" value="70" oninput="updateFader(this)" class="matrix-slider ${sliderClass} w-full">
-          <button onclick="deactivateCell(event, this.closest('.matrix-cell'))" class="w-4 h-4 rounded-full bg-[#2a2a38] hover:bg-rose-500 hover:text-white text-[#8e8e99] flex items-center justify-center transition-all opacity-40 hover:opacity-100 shrink-0" title="Remove from this mix">
-            <span class="material-symbols-outlined text-[10px]">close</span>
-          </button>
-        </div>
-      `;
-      // brief highlight effect
-      setTimeout(() => {
-        const c = td.querySelector('.matrix-cell');
-        if (c) c.classList.remove('border-cyan-500/50', 'shadow-md', 'shadow-cyan-500/10');
-      }, 700);
+    // Channel Creation
+    function addPresetChannel(name, icon, sinkNode, accent) {
+      const id = 'ch_' + Date.now();
+      addedChannels.push({ id, name, icon, sinkNode, accent });
+      renderChannelRow({ id, name, icon, sinkNode, accent });
+      closeAddChannelModal();
+      updateEmptyState();
     }
 
-    function deactivateCell(e, cellEl) {
-      e.preventDefault(); // prevent browser context menu
-      const td = cellEl.closest('td');
-      td.innerHTML = `
-        <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-cyan-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'cyan')" title="Click to activate input for this mix">
-          <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-cyan-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-            <span class="material-symbols-outlined text-[18px]">add</span>
-          </div>
-        </div>
-      `;
+    function addCustomChannel() {
+      const input = document.getElementById('custom-port-name');
+      const name = input.value.trim();
+      if (!name) return;
+      const id = 'ch_' + Date.now();
+      const sinkNode = 'StudioMic_Ch_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      addedChannels.push({ id, name, icon: 'settings_input_component', sinkNode, accent: '#38bdf8' });
+      renderChannelRow({ id, name, icon: 'settings_input_component', sinkNode, accent: '#38bdf8' });
+      input.value = '';
+      closeAddChannelModal();
+      updateEmptyState();
     }
 
-    function addNewMixColumn() {
-      const name = prompt("Enter new Output Bus / Mix Channel name (e.g. Guest Mix, Soundboard, VOD 2):");
-      if (!name || !name.trim()) return;
-      const cleanName = name.trim();
-      const table = document.querySelector('table');
-      const theadRow = table.querySelector('thead tr');
-      const addHeaderTh = theadRow.lastElementChild;
+    function deleteChannel(id) {
+      addedChannels = addedChannels.filter(c => c.id !== id);
+      const row = document.getElementById('row-' + id);
+      if (row) row.remove();
+      updateEmptyState();
+    }
 
-      // Create new header th
-      const newTh = document.createElement('th');
-      newTh.className = "p-3 w-[210px] min-w-[190px] border-l border-[#22222a] relative";
-      newTh.innerHTML = `
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-cyan-400 text-[18px]">alt_route</span>
-          <div>
-            <div class="text-xs font-bold text-white leading-tight">${cleanName}</div>
-            <div class="text-[10px] text-[#71717a] font-mono">Custom Bus</div>
-          </div>
-        </div>
-        <div class="absolute bottom-0 left-0 right-0 h-[2px] bg-cyan-400"></div>
-      `;
-      theadRow.insertBefore(newTh, addHeaderTh);
+    function updateEmptyState() {
+      const emptyCard = document.getElementById('matrix-empty-state');
+      const badge = document.getElementById('channel-count-badge');
+      const total = 1 + addedChannels.length;
+      badge.textContent = total + (total === 1 ? ' Input Channel' : ' Input Channels');
+      if (addedChannels.length === 0) {
+        emptyCard.classList.remove('hidden');
+      } else {
+        emptyCard.classList.add('hidden');
+      }
+    }
 
-      // Add a blank cell with + in every body row
-      table.querySelectorAll('tbody tr').forEach(row => {
-        const lastTd = row.lastElementChild;
-        const newTd = document.createElement('td');
-        newTd.className = "p-3 border-l border-[#22222a] text-center";
-        newTd.innerHTML = `
-          <div class="matrix-cell-empty w-full h-11 rounded-2xl border border-dashed border-[#2d2d3d] hover:border-cyan-500/60 bg-[#161622]/40 hover:bg-[#1e1e2c] flex items-center justify-center transition-all cursor-pointer group" onclick="activateCell(this, 'cyan')" title="Click to activate on ${cleanName}">
-            <div class="w-7 h-7 rounded-xl bg-[#222230] group-hover:bg-cyan-500 group-hover:text-black text-[#757585] flex items-center justify-center transition-all shadow-sm">
-              <span class="material-symbols-outlined text-[18px]">add</span>
+    // Render Matrix Row with Unrestricted Blank + Cells
+    function renderChannelRow(ch) {
+      const tbody = document.getElementById('matrix-tbody');
+      const tr = document.createElement('tr');
+      tr.id = 'row-' + ch.id;
+      tr.className = 'hover:bg-neutral-900/30 transition-colors group';
+
+      tr.innerHTML = `
+        <td class="p-3 pl-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-neutral-900 border border-neutral-700 flex items-center justify-center text-[${ch.accent}] shrink-0 shadow-sm">
+              <span class="material-symbols-outlined text-[20px]">${ch.icon}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-white text-xs truncate">${ch.name}</span>
+                <button onclick="deleteChannel('${ch.id}')" class="opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-400 transition" title="Delete virtual port">
+                  <span class="material-symbols-outlined text-[15px]">delete</span>
+                </button>
+              </div>
+              <div class="text-[10px] text-neutral-500 font-mono truncate">${ch.sinkNode}</div>
             </div>
           </div>
-        `;
-        row.insertBefore(newTd, lastTd);
-      });
+        </td>
+
+        <!-- Column 1: My Mix (Headphones) -->
+        <td class="p-2.5 border-l border-neutral-800/60" id="td-${ch.id}-mymix">
+          <div class="matrix-cell-blank" onclick="activateCustomCell('${ch.id}', 'mymix', '${ch.name}')">
+            <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
+          </div>
+        </td>
+
+        <!-- Column 2: Stream -->
+        <td class="p-2.5 border-l border-neutral-800/60" id="td-${ch.id}-stream">
+          <div class="matrix-cell-blank" onclick="activateCustomCell('${ch.id}', 'stream', '${ch.name}')">
+            <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
+          </div>
+        </td>
+
+        <!-- Column 3: Recording · VOD -->
+        <td class="p-2.5 border-l border-neutral-800/60" id="td-${ch.id}-vod">
+          <div class="matrix-cell-blank" onclick="activateCustomCell('${ch.id}', 'vod', '${ch.name}')">
+            <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
+          </div>
+        </td>
+
+        <!-- Column 4: Voice Chat (Discord) - 100% UNRESTRICTED -->
+        <td class="p-2.5 border-l border-neutral-800/60" id="td-${ch.id}-chat">
+          <div class="matrix-cell-blank" onclick="activateCustomCell('${ch.id}', 'chat', '${ch.name}')">
+            <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
+          </div>
+        </td>
+
+        <!-- Column 5: Extra Mix -->
+        <td class="p-2.5 border-l border-neutral-800/60" id="td-${ch.id}-custom">
+          <div class="matrix-cell-blank" onclick="activateCustomCell('${ch.id}', 'custom', '${ch.name}')">
+            <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
+          </div>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
     }
+
+    // Cell Activation & Deactivation (Blank + <-> Active Cell)
+    function activateCustomCell(chId, mixId, chName) {
+      const td = document.getElementById(`td-${chId}-${mixId}`);
+      td.innerHTML = `
+        <div class="matrix-cell-active" id="cell-${chId}-${mixId}">
+          <button class="cell-remove-btn" onclick="deactivateCustomCell('${chId}', '${mixId}', '${chName}')" title="Unpatch & disconnect">&times;</button>
+          <div class="flex items-center gap-2">
+            <button class="mute-toggle-btn" onclick="toggleCellMute('${chId}', '${mixId}')">
+              <span class="material-symbols-outlined text-[16px]">volume_up</span>
+            </button>
+            <div class="matrix-fader-unit">
+              <div class="cell-meter-bar"><div class="cell-meter-fill meter-live" style="width: 50%;"></div></div>
+              <input type="range" class="cell-slider" min="0" max="100" value="80" title="${chName} Volume">
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function deactivateCustomCell(chId, mixId, chName) {
+      const td = document.getElementById(`td-${chId}-${mixId}`);
+      td.innerHTML = `
+        <div class="matrix-cell-blank" onclick="activateCustomCell('${chId}', '${mixId}', '${chName}')">
+          <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
+        </div>
+      `;
+    }
+
+    function toggleCellMute(chId, mixId) {
+      const cell = document.getElementById(`cell-${chId}-${mixId}`);
+      const btn = cell.querySelector('.mute-toggle-btn');
+      const icon = btn.querySelector('.material-symbols-outlined');
+      const isMuted = btn.classList.contains('muted-red');
+      if (isMuted) {
+        btn.classList.remove('muted-red');
+        cell.classList.remove('cell-muted');
+        icon.textContent = 'volume_up';
+      } else {
+        btn.classList.add('muted-red');
+        cell.classList.add('cell-muted');
+        icon.textContent = 'volume_off';
+      }
+    }
+
+    function deactivateCell(ch, mix) {
+      const td = document.getElementById(`cell-${ch}-${mix}`).parentElement;
+      td.innerHTML = `
+        <div class="matrix-cell-blank" onclick="activateDefaultMicCell('${mix}')">
+          <span class="material-symbols-outlined text-[18px] text-neutral-600 blank-plus-icon transition-transform">add</span>
+        </div>
+      `;
+    }
+
+    function activateDefaultMicCell(mix) {
+      location.reload();
+    }
+
+    function toggleMasterMonMute() {
+      isMasterMuted = !isMasterMuted;
+      const btn = document.getElementById('master-mon-mute-btn');
+      if (isMasterMuted) {
+        btn.className = 'w-7 h-7 rounded-lg bg-red-950/80 text-red-400 border border-red-500/50 flex items-center justify-center transition';
+        btn.querySelector('span').textContent = 'headset_off';
+      } else {
+        btn.className = 'w-7 h-7 rounded-lg bg-neutral-800 text-emerald-400 hover:bg-neutral-700 flex items-center justify-center transition';
+        btn.querySelector('span').textContent = 'headphones';
+      }
+    }
+
+    // Real-Time VU Meter Fluctuation
+    setInterval(() => {
+      document.querySelectorAll('.meter-mic').forEach(el => {
+        const val = Math.min(95, Math.max(10, Math.sin(Date.now() / 250) * 25 + Math.random() * 20 + 40));
+        el.style.width = val + '%';
+      });
+      document.querySelectorAll('.meter-live').forEach(el => {
+        const val = Math.min(90, Math.max(8, Math.sin(Date.now() / 320) * 20 + Math.random() * 15 + 30));
+        el.style.width = val + '%';
+      });
+    }, 90);
   </script>
 </body>
 </html>
