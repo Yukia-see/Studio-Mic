@@ -112,6 +112,7 @@ export global Matrix {
     callback rename(int, string);
     callback remove-channel(int);
     callback remove-mix(int);
+    callback rename-mix(int, string);
     callback master-mute();
     callback open-add-channel();
     callback pick-preset(int);
@@ -244,6 +245,7 @@ component MxCell inherits Rectangle {
 component MxHead inherits Rectangle {
     in property <MxColData> data;
     in property <int> index;
+    property <bool> editing;
     border-radius: 14 * Theme.u;
     background: Theme.surface-low;
     border-width: 1px;
@@ -263,10 +265,25 @@ component MxHead inherits Rectangle {
             }
             VerticalLayout {
                 horizontal-stretch: 1;
-                Label {
+                if !root.editing: Label {
                     text: root.data.name;
                     size: 12;
                     font-weight: 700;
+                    TouchArea {
+                        double-clicked => {
+                            if (root.data.custom) { root.editing = true; }
+                        }
+                    }
+                }
+                if root.editing: Field {
+                    text: root.data.name;
+                    height: 24 * Theme.u;
+                    init => { self.focus-all(); }
+                    accepted => {
+                        Matrix.rename-mix(root.index, self.text);
+                        root.editing = false;
+                    }
+                    cancelled => { root.editing = false; }
                 }
                 Label {
                     text: root.data.sub;
@@ -599,7 +616,7 @@ export component MatrixView inherits Rectangle {
                 }
             }
             Label {
-                text: "Click: mute · Drag: volume · Double-click: 0 dB · x or right-click: remove from a mix · +: add.  VOD follows each channel's Stream fader · Voice Chat takes everything except the voice-chat channel (echo guard).";
+                text: "Click: mute · Drag: volume · Double-click a fader: 0 dB · Double-click a channel or mix name: rename · x or right-click: remove from a mix · +: add.  VOD follows each channel's Stream fader · Voice Chat takes everything except the voice-chat channel (echo guard).";
                 size: 10;
                 color: Theme.on-surface-variant;
                 wrap: word-wrap;

@@ -805,6 +805,16 @@ pub(super) fn wire(ctx: &Rc<Ctx>) {
             );
         }
     }));
+    m.on_rename_mix(cb!(|c, j, name| {
+        let v = name.trim().to_string();
+        let key = c.mx.col_keys.borrow().get(j as usize).cloned();
+        let old = c.mx.cols.row_data(j as usize).map(|x| x.name.to_string());
+        if let (Some(id), Some(old)) = (key.as_deref().and_then(|k| k.strip_prefix("x_")), old) {
+            if !v.is_empty() && v != old {
+                c.post(format!("mix_rename:{id}:{v}"));
+            }
+        }
+    }));
     m.on_master_mute(cb!(|c| c.win.global::<Strip>().invoke_mon_mute()));
     m.on_open_add_channel(cb!(|c| c.mx_open_add_channel()));
     m.on_pick_preset(cb!(|c, i| c.mx_pick_preset(i)));

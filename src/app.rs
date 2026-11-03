@@ -580,6 +580,25 @@ impl Controller {
         r
     }
 
+    /// Renames a custom mix in the UI. Its PipeWire bus keeps its node name (OBS stays
+    /// connected); the description shown in OBS updates when the bus is next created, since a
+    /// lingering node's description can't change without recreating it (live-change rule).
+    pub fn rename_mix(&self, id: &str, name: &str) -> Reply {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("mix name required".into());
+        }
+        let r = self.mutate(|s| {
+            let m = s.custom_mixes.iter_mut().find(|m| m.id == id).ok_or_else(|| format!("unknown mix '{}'", id))?;
+            m.name = name.to_string();
+            Ok(format!("Mix renamed to {}", name))
+        });
+        if r.is_ok() {
+            self.sync_ui();
+        }
+        r
+    }
+
     pub fn remove_mix(&self, id: &str) -> Reply {
         let r = self.mutate(|s| {
             let before = s.custom_mixes.len();
@@ -1404,6 +1423,7 @@ impl Controller {
                 }
             }
             "mix_remove" => self.remove_mix(rest),
+            "mix_rename" => self.rename_mix(arg(0), &rest[arg(0).len().min(rest.len())..].trim_start_matches(':')),
             "mix_output" => self.set_mix_output(arg(0), rest.split_once(':').map(|x| x.1).unwrap_or("")),
             "channel_rename" => self.rename_channel(arg(0), &rest[arg(0).len().min(rest.len())..].trim_start_matches(':')),
             "channel_hw" => self.set_channel_hw(arg(0), &rest[arg(0).len().min(rest.len())..].trim_start_matches(':')),
