@@ -85,3 +85,12 @@ Tried and rejected:
 * Warm-up while unlinked: PipeWire does not schedule an unlinked chain, so nothing warms.
 * Warm-up on a private null-sink driver: DeepFilterNet ran, but locking the period size fought OBS's
   own period changes and produced MORE xruns.
+
+## DeepFilterNet removed
+
+Measured on 2026-11-08 under a loaded desktop (load average 4-10): the mic chain with DeepFilterNet used
+47-61 % of a core (one thread), against about 8 % with RNNoise. Raising the plugin's min processing
+threshold to 15 dB cut it to about 15 % while the mic was idle, but speech frames cannot be skipped,
+and Max ERB / Max DF / Min Processing Buffer made no measurable difference. DeepFilterNet was removed
+from the app, CLI, packages and setup script. A saved `deepfilter` engine is migrated to RNNoise. The
+older numbers above that mention DeepFilterNet are historical.

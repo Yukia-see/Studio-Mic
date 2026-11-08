@@ -74,7 +74,6 @@ pub const CLI_COMMANDS: &[&str] = &[
     "--mic-monitor",
     "--toggle-autoduck",
     "--set-denoiser",
-    "--download-deepfilter",
     "--set-preset",
     "--set-theme",
     "--load-profile",
@@ -226,8 +225,7 @@ starting a background instance first if none is running)
   --cell-delay <Channel> <stream|monitor> <ms>
   --toggle-clipguard              --toggle-autoduck <Channel>
   --mic-monitor <processed|raw|on|off>   hear yourself through the chain or the zero-latency tap
-  --set-denoiser <deepfilter|rnnoise|speex|off>
-  --download-deepfilter           fetch the pinned DeepFilterNet plugin (SHA256-checked, ~54 MB)
+  --set-denoiser <rnnoise|speex|off>
   --set-preset <EQPresetName>     --set-theme <oled_black|material_dark|midnight_slate|light>
   --load-profile <Name>           --save-profile <Name>      --list-profiles
   --toggle-widget                 mini floating widget on/off (--toggle-view is an alias)

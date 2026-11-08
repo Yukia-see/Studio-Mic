@@ -178,7 +178,6 @@ export component Meter inherits Rectangle {
         background: root.state == Level.peak ? Theme.clip
             : root.state == Level.hot ? Theme.hot
             : @linear-gradient(90deg, #10b981 0%, #34d399 70%, #f59e0b 100%);
-        animate width { duration: 70ms; }
     }
     Rectangle {
         visible: root.hold > 0.01;

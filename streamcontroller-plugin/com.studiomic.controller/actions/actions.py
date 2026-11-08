@@ -127,7 +127,7 @@ class ThemeSwitcher(StudioMicAction):
 
 
 class DspToggle(StudioMicAction):
-    """clipguard | widget | autoduck:<Channel> | denoiser:<deepfilter|rnnoise|speex|off>
+    """clipguard | widget | autoduck:<Channel> | denoiser:<rnnoise|speex|off>
     ("view" is the old name of "widget"; Tab 1 is matrix-only now.)"""
     SETTINGS = [("toggle", "clipguard | widget | autoduck:Channel | denoiser:engine", "clipguard")]
 

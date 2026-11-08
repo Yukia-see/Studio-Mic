@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Studio Mic - dependency installer
 #   * native packages for Arch/CachyOS, Fedora, Debian/Ubuntu (via /etc/os-release)
-#   * precompiled LADSPA plugins (DeepFilterNet, RNNoise) into ~/.local/lib/ladspa,
+#   * precompiled LADSPA plugins (RNNoise) into ~/.local/lib/ladspa,
 #     pinned by SHA256 - any mismatch aborts immediately
 #   * stages the verified RNNoise plugin in assets/plugins/ so the build embeds it; the Speex
 #     plugin is built from plugins/speex-ladspa by build.rs (needs the speexdsp headers)
@@ -12,10 +12,6 @@
 #   --vendor       run `cargo vendor` so packages can be built offline
 #   -y             do not ask before using sudo
 set -euo pipefail
-
-DF_VERSION="0.5.6"
-DF_URL="https://github.com/Rikorose/DeepFilterNet/releases/download/v${DF_VERSION}/libdeep_filter_ladspa-${DF_VERSION}-x86_64-unknown-linux-gnu.so"
-DF_SHA256="2ca3205c2911d389604a826a240e745597d50252b5cab81c8248252b335e2236"
 
 RN_VERSION="1.10"
 RN_URL="https://github.com/werman/noise-suppression-for-voice/releases/download/v${RN_VERSION}/linux-rnnoise.zip"
@@ -46,7 +42,7 @@ warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
 if [ "$(uname -m)" != "x86_64" ]; then
-    warn "Precompiled plugins are x86_64 only; install DeepFilterNet/RNNoise LADSPA from your distro instead."
+    warn "Precompiled plugins are x86_64 only; install RNNoise LADSPA from your distro instead."
 fi
 
 SUDO=""
@@ -150,19 +146,6 @@ install_plugins() {
     local tmp
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' RETURN
-
-    if [ -n "$STAGE_DIR" ] && matches_sha256 "$STAGE_DIR/libdeep_filter_ladspa.so" "$DF_SHA256"; then
-        say "DeepFilterNet LADSPA already present in $STAGE_DIR"
-    elif existing="$(find_plugin libdeep_filter_ladspa.so)" && matches_sha256 "$existing" "$DF_SHA256"; then
-        say "DeepFilterNet LADSPA found: $existing"
-        if [ -n "$STAGE_DIR" ]; then install -Dm644 "$existing" "$STAGE_DIR/libdeep_filter_ladspa.so"; fi
-    else
-        say "Downloading DeepFilterNet LADSPA ${DF_VERSION}"
-        fetch "$DF_URL" "$tmp/libdeep_filter_ladspa.so"
-        verify "$tmp/libdeep_filter_ladspa.so" "$DF_SHA256"
-        user_install "$tmp/libdeep_filter_ladspa.so"
-        if [ -n "$STAGE_DIR" ]; then install -Dm644 "$tmp/libdeep_filter_ladspa.so" "$STAGE_DIR/libdeep_filter_ladspa.so"; fi
-    fi
 
     if [ -n "$STAGE_DIR" ] && matches_sha256 "$STAGE_DIR/librnnoise_ladspa.so" "$RN_SO_SHA256"; then
         say "RNNoise LADSPA already present in $STAGE_DIR"

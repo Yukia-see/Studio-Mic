@@ -5,7 +5,7 @@
 use super::*;
 use crate::config::NoiseCleanConfig;
 
-const ENGINES: [&str; 4] = ["deepfilter", "rnnoise", "speex", "off"];
+const ENGINES: [&str; 3] = ["rnnoise", "speex", "off"];
 const EDIT_HOLD: Duration = Duration::from_millis(1000);
 
 #[derive(Default)]
@@ -63,10 +63,9 @@ impl Ctx {
         t.set_comp_makeup(nc.compressor_makeup_db);
         t.set_limiter_on(nc.limiter_enabled);
         let d = &s.denoiser;
-        let engine = ENGINES.iter().position(|e| *e == d.engine).unwrap_or(3);
+        let engine = ENGINES.iter().position(|e| *e == d.engine).unwrap_or(2);
         t.set_engine(engine as i32);
-        t.set_engine_status(if engine == 3 { SharedString::new() } else { "ACTIVE".into() });
-        t.set_df_atten(d.df_attenuation_db);
+        t.set_engine_status(if engine == 2 { SharedString::new() } else { "ACTIVE".into() });
         t.set_rn_vad(d.rn_vad_threshold);
         t.set_rn_grace(d.rn_vad_grace_ms);
         t.set_sx_suppress(d.speex_suppress_db);

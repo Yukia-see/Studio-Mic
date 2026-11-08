@@ -297,10 +297,6 @@ impl Controller {
                 self.push(UiPush::TrayRefresh);
             }
             EngineEvent::MonitorMaster => self.sync_ui(),
-            EngineEvent::PluginsChanged(json) => {
-                self.js(format!("window.onPluginsChanged && window.onPluginsChanged({})", json));
-                self.push(UiPush::Plugins(json));
-            }
             EngineEvent::Notice(msg) => self.notice(msg),
             EngineEvent::GateMeasured(None) => {
                 self.js(
@@ -661,18 +657,16 @@ impl Controller {
     pub fn set_denoiser(&self, engine: &str) -> Reply {
         let e = engine.trim().to_lowercase();
         let e = match e.as_str() {
-            "deep" | "deepfilternet" | "deep_filter" => "deepfilter".to_string(),
             other => other.to_string(),
         };
         if !config::DENOISERS.contains(&e.as_str()) {
-            return Err("denoiser must be deepfilter|rnnoise|speex|off".into());
+            return Err("denoiser must be rnnoise|speex|off".into());
         }
         if !self.engine.plugins().denoiser_available(&e) {
             return Err(format!("{} plugin is not installed; run setup-deps.sh", e));
         }
         let r = self.mutate(|s| {
             s.denoiser.engine = e.clone();
-            s.noise_clean.deep_filter_enabled = e == "deepfilter";
             Ok(format!("Noise remover: {}", e))
         });
         self.enqueue(Job::Denoiser);
@@ -684,7 +678,6 @@ impl Controller {
         let r = self.mutate(|s| {
             let d = &mut s.denoiser;
             match name {
-                "df_attenuation_db" => d.df_attenuation_db = value,
                 "rn_vad_threshold" => d.rn_vad_threshold = value,
                 "rn_vad_grace_ms" => d.rn_vad_grace_ms = value,
                 "speex_suppress_db" => d.speex_suppress_db = value,
@@ -1287,7 +1280,6 @@ impl Controller {
                 self.sync_ui();
                 r
             }
-            "--download-deepfilter" => self.engine.download_deepfilter(),
             "--set-preset" => {
                 need(1)?;
                 self.set_preset(&a[1..].join(" "))
@@ -1505,7 +1497,6 @@ impl Controller {
                 }
                 r
             }
-            "denoiser_download" => self.engine.download_deepfilter(),
             "denoiser_param" => match arg(1).parse::<f32>() {
                 Ok(v) => self.set_denoiser_param(arg(0), v),
                 Err(e) => Err(e.to_string()),

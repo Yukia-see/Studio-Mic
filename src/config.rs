@@ -15,7 +15,7 @@ use crate::models::microphone::{EqBand, FilterType};
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const THEMES: [&str; 4] = ["oled_black", "material_dark", "midnight_slate", "light"];
-pub const DENOISERS: [&str; 4] = ["deepfilter", "rnnoise", "speex", "off"];
+pub const DENOISERS: [&str; 3] = ["rnnoise", "speex", "off"];
 
 // ---------------------------------------------------------------------------------------------
 // Per-channel mixer state (shared by the microphone, Mic 2 and every virtual / hardware channel)
@@ -252,12 +252,6 @@ impl Default for MicState {
 pub struct DenoiserConfig {
     #[serde(default = "default_denoiser_engine")]
     pub engine: String,
-    #[serde(default = "default_deep_attenuation")]
-    pub df_attenuation_db: f32,
-    #[serde(default = "default_deep_threshold")]
-    pub df_min_threshold_db: f32,
-    #[serde(default = "default_df_max_erb")]
-    pub df_max_erb_threshold_db: f32,
     #[serde(default = "default_rn_vad")]
     pub rn_vad_threshold: f32,
     #[serde(default = "default_rn_grace")]
@@ -268,8 +262,7 @@ pub struct DenoiserConfig {
     pub speex_suppress_db: f32,
 }
 
-fn default_denoiser_engine() -> String { "deepfilter".into() }
-fn default_df_max_erb() -> f32 { 30.0 }
+fn default_denoiser_engine() -> String { "rnnoise".into() }
 fn default_rn_vad() -> f32 { 50.0 }
 fn default_rn_grace() -> f32 { 200.0 }
 fn default_speex_db() -> f32 { -30.0 }
@@ -278,9 +271,6 @@ impl Default for DenoiserConfig {
     fn default() -> Self {
         Self {
             engine: default_denoiser_engine(),
-            df_attenuation_db: default_deep_attenuation(),
-            df_min_threshold_db: default_deep_threshold(),
-            df_max_erb_threshold_db: default_df_max_erb(),
             rn_vad_threshold: default_rn_vad(),
             rn_vad_grace_ms: default_rn_grace(),
             rn_retro_grace_ms: 0.0,
@@ -785,8 +775,8 @@ impl StudioMicConfig {
         cfg.mic.mix.monitor_muted = !cfg.sidetone_default;
         cfg.mic.clipguard = cfg.noise_clean.limiter_enabled;
         cfg.noise_clean.limiter_ceiling_db = -0.5;
-        cfg.denoiser.engine = if cfg.noise_clean.deep_filter_enabled { "deepfilter".into() } else { "off".into() };
-        cfg.denoiser.df_attenuation_db = cfg.noise_clean.deep_filter_attenuation_db;
+        // DeepFilterNet was removed (too heavy for a streaming PC): the old "on" maps to RNNoise.
+        cfg.denoiser.engine = if cfg.noise_clean.deep_filter_enabled { "rnnoise".into() } else { "off".into() };
 
         // Old channels had only id/name/icon: derive kind, apps and mixer defaults.
         let routes = cfg.assigned_channel_routes.clone();
@@ -846,16 +836,17 @@ impl StudioMicConfig {
         }
         self.widget_width = if self.widget_width.is_finite() { self.widget_width.clamp(320.0, 1600.0) } else { default_widget_w() };
         self.widget_height = if self.widget_height.is_finite() { self.widget_height.clamp(120.0, 900.0) } else { default_widget_h() };
+        // DeepFilterNet was removed: a saved "deepfilter" moves to RNNoise (the light default).
+        if self.denoiser.engine == "deepfilter" {
+            self.denoiser.engine = "rnnoise".into();
+        }
         if !DENOISERS.contains(&self.denoiser.engine.as_str()) {
             self.denoiser.engine = "off".into();
         }
         // Fine-tune values without a control any more are locked to their defaults, so an old
-        // setting can't linger where the user can no longer change it: DeepFilterNet's
-        // thresholds, RNNoise's retroactive grace, and the compressor's attack (10 ms) /
+        // setting can't linger where the user can no longer change it: RNNoise's retroactive grace, and the compressor's attack (10 ms) /
         // release (80 ms) broadcast vocal timing.
         let (dd, nd) = (DenoiserConfig::default(), NoiseCleanConfig::default());
-        self.denoiser.df_min_threshold_db = dd.df_min_threshold_db;
-        self.denoiser.df_max_erb_threshold_db = dd.df_max_erb_threshold_db;
         self.denoiser.rn_retro_grace_ms = dd.rn_retro_grace_ms;
         self.noise_clean.compressor_attack_ms = nd.compressor_attack_ms;
         self.noise_clean.compressor_release_ms = nd.compressor_release_ms;
@@ -955,9 +946,6 @@ impl StudioMicConfig {
         }
         let (d, n, c) = (DenoiserConfig::default(), NoiseCleanConfig::default(), CalibrationConfig::default());
         let dn = &mut self.denoiser;
-        fix(&mut dn.df_attenuation_db, d.df_attenuation_db);
-        fix(&mut dn.df_min_threshold_db, d.df_min_threshold_db);
-        fix(&mut dn.df_max_erb_threshold_db, d.df_max_erb_threshold_db);
         fix(&mut dn.rn_vad_threshold, d.rn_vad_threshold);
         fix(&mut dn.rn_vad_grace_ms, d.rn_vad_grace_ms);
         fix(&mut dn.rn_retro_grace_ms, d.rn_retro_grace_ms);
@@ -1266,8 +1254,7 @@ mod tests {
         assert_eq!(cfg.active_hw_mic.as_deref(), Some("alsa_input.usb-Saramonic_MV_Pod-01.analog-stereo"));
         assert_eq!(cfg.preset_name, "Live Streamer Pro (Music Mix)");
         assert_eq!(cfg.virtual_channels.len(), 5);
-        assert_eq!(cfg.denoiser.engine, "deepfilter");
-        assert_eq!(cfg.denoiser.df_attenuation_db, 70.0);
+        assert_eq!(cfg.denoiser.engine, "rnnoise", "legacy DeepFilterNet-on maps to RNNoise");
         assert!(cfg.mic.mix.monitor_muted);
         let cap = cfg.channel("capture").unwrap();
         assert_eq!(cap.kind, "hardware");
@@ -1393,13 +1380,11 @@ mod tests {
         let mut s = StudioMicConfig::default();
         s.noise_clean.compressor_attack_ms = 45.0;
         s.noise_clean.compressor_release_ms = 600.0;
-        s.denoiser.df_min_threshold_db = 20.0;
-        s.denoiser.df_max_erb_threshold_db = -5.0;
         s.denoiser.rn_retro_grace_ms = 150.0;
         s.noise_clean.deesser_amount_db = -9.0;
         s.normalize();
         assert_eq!((s.noise_clean.compressor_attack_ms, s.noise_clean.compressor_release_ms), (10.0, 80.0));
-        assert_eq!((s.denoiser.df_min_threshold_db, s.denoiser.df_max_erb_threshold_db, s.denoiser.rn_retro_grace_ms), (-15.0, 30.0, 0.0));
+        assert_eq!(s.denoiser.rn_retro_grace_ms, 0.0);
         assert_eq!(s.noise_clean.deesser_amount_db, -9.0, "the de-esser amount is kept (calibration sets it)");
     }
 

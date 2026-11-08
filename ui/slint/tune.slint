@@ -10,9 +10,8 @@ export global Tune {
     in property <float> rumble-freq;
     in property <bool> hiss-on;
     in property <float> hiss-freq;
-    in property <int> engine;           // 0 DeepFilterNet, 1 RNNoise, 2 Speex, 3 off
+    in property <int> engine;           // 0 RNNoise, 1 Speex, 2 off
     in property <string> engine-status;
-    in property <float> df-atten;
     in property <float> rn-vad;
     in property <float> rn-grace;
     in property <float> sx-suppress;
@@ -177,13 +176,13 @@ component NoiseStage inherits Stage {
     title: "3. Noise Remover";
     body: "Only the selected engine runs. Switching swaps the chain with a short crossfade, so Discord and OBS never disconnect.";
     switchable: false;
-    on: Tune.engine != 3;
+    on: Tune.engine != 2;
     HorizontalLayout {
         spacing: 8 * Theme.u;
         Select {
             horizontal-stretch: 1;
             height: 30 * Theme.u;
-            options: ["DeepFilterNet · best quality, heavier", "RNNoise · light, low latency", "Speex", "Off"];
+            options: ["RNNoise · light, low latency", "Speex", "Off"];
             current: Tune.engine;
             tooltip: "Noise remover engine";
             selected(i) => { Tune.set-engine(i); }
@@ -196,21 +195,7 @@ component NoiseStage inherits Stage {
             color: Theme.ok;
         }
     }
-    if Tune.engine == 0: Label {
-        text: "Adds about 30 ms of voice latency and uses the most CPU. If you hear dropouts or delay, use RNNoise.";
-        size: 10;
-        color: Theme.hot;
-        wrap: word-wrap;
-    }
     if Tune.engine == 0: Knob {
-        label: "Attenuation limit";
-        readout: round(self.value) + " dB";
-        minimum: 0;
-        maximum: 100;
-        model-value: Tune.df-atten;
-        moved(v) => { Tune.dn-param("df_attenuation_db", v); }
-    }
-    if Tune.engine == 1: Knob {
         label: "Voice detection threshold";
         readout: round(self.value) + " %";
         minimum: 0;
@@ -218,7 +203,7 @@ component NoiseStage inherits Stage {
         model-value: Tune.rn-vad;
         moved(v) => { Tune.dn-param("rn_vad_threshold", v); }
     }
-    if Tune.engine == 1: Knob {
+    if Tune.engine == 0: Knob {
         label: "Voice detection grace";
         readout: round(self.value) + " ms";
         minimum: 0;
@@ -227,7 +212,7 @@ component NoiseStage inherits Stage {
         model-value: Tune.rn-grace;
         moved(v) => { Tune.dn-param("rn_vad_grace_ms", v); }
     }
-    if Tune.engine == 2: Knob {
+    if Tune.engine == 1: Knob {
         label: "Suppression";
         readout: round(self.value) + " dB";
         minimum: -60;
@@ -253,7 +238,6 @@ component GateStage inherits Stage {
             x: 0;
             width: parent.width * clamp(Tune.gate-level, 0, 1);
             background: Tune.gate-level >= (gk.value + 60) / 60 ? Theme.ok : Theme.on-surface-variant.with-alpha(0.5);
-            animate width { duration: 70ms; }
         }
         Rectangle {
             x: parent.width * clamp((gk.value + 60) / 60, 0, 1);

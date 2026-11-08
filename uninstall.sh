@@ -46,7 +46,7 @@ rm -f "$DESKTOP_DIR/studiomic.desktop" "$TARGET_HOME/.config/autostart/studiomic
 rm -f "$ICON_DIR/studiomic.svg" "$PW_DROPIN" "$UNIT"
 rm -rf "$SHARE_DIR"
 rm -f "$TARGET_HOME/.config/environment.d/60-studio-mic-ladspa.conf"
-# The Speex wrapper is Studio Mic's own build (nothing else uses it); RNNoise/DeepFilterNet stay.
+# The Speex wrapper is Studio Mic's own build (nothing else uses it); RNNoise stays.
 rm -f "$TARGET_HOME/.local/lib/ladspa/libspeex_ladspa.so"
 for dir in "$TARGET_HOME/.local/share/StreamController/plugins" "$TARGET_HOME/.var/app/com.core447.StreamController/data/plugins"; do
     rm -rf "$dir/com.studiomic.controller"

@@ -462,7 +462,6 @@ impl Ctx {
                 id: "denoiser".into(),
                 label: match engine {
                     "off" | "" => "NOISE OFF".into(),
-                    "deepfilter" => "DEEPFILTER".into(),
                     "rnnoise" => "RNNOISE".into(),
                     "speex" => "SPEEX".into(),
                     other => other.to_uppercase().into(),
@@ -895,7 +894,7 @@ mod snapshot {
         t.set_rumble_freq(nc.rumble_freq);
         t.set_hiss_on(false);
         t.set_hiss_freq(nc.hiss_freq);
-        t.set_engine(1);
+        t.set_engine(0);
         t.set_engine_status("ACTIVE".into());
         t.set_rn_vad(50.0);
         t.set_rn_grace(200.0);

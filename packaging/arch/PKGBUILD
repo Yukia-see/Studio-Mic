@@ -23,7 +23,7 @@ options=('!lto' '!debug')
 _src() { echo "${STUDIOMIC_SRC:?set STUDIOMIC_SRC to the studio-mic checkout}"; }
 
 prepare() {
-    # Pinned, checksum-verified DeepFilterNet + RNNoise LADSPA plugins.
+    # Pinned, checksum-verified RNNoise LADSPA plugins.
     "$(_src)/setup-deps.sh" --no-packages --stage "$srcdir/ladspa" -y
 }
 
@@ -45,7 +45,6 @@ package() {
     install -Dm644 "$s/assets/studiomic.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/studiomic.svg"
     install -Dm644 "$s/studiomic.service" "$pkgdir/usr/lib/systemd/user/studiomic.service"
     install -Dm644 "$s/pipewire-conf/60-studio-mic-buses.conf" "$pkgdir/usr/share/pipewire/pipewire.conf.d/60-studio-mic-buses.conf"
-    install -Dm755 "$srcdir/ladspa/libdeep_filter_ladspa.so" "$pkgdir/usr/lib/ladspa/libdeep_filter_ladspa.so"
     install -Dm755 "$srcdir/ladspa/librnnoise_ladspa.so" "$pkgdir/usr/lib/ladspa/librnnoise_ladspa.so"
     install -Dm755 "$srcdir/libspeex_ladspa.so" "$pkgdir/usr/lib/ladspa/libspeex_ladspa.so"
     mkdir -p "$pkgdir/usr/share/studio-mic"

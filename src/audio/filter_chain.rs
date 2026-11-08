@@ -52,7 +52,6 @@ pub fn post_out(generation: u32) -> String { format!("StudioMic_Mic_g{}", genera
 #[derive(Debug, Clone, Default)]
 pub struct Plugins {
     pub lsp: Option<String>,
-    pub deepfilter: Option<String>,
     pub rnnoise: Option<String>,
     pub speex: Option<String>,
 }
@@ -97,7 +96,6 @@ impl Plugins {
         crate::audio::plugins_bundle::ensure_embedded_plugins(&ladspa_search_path());
         Self {
             lsp: find_ladspa(&["lsp-plugins-ladspa.so", "lsp-plugins/lsp-plugins-ladspa.so"]),
-            deepfilter: find_ladspa(&["libdeep_filter_ladspa.so"]),
             rnnoise: find_ladspa(&["librnnoise_ladspa.so"]),
             // No distro packages a Speex LADSPA wrapper; Studio Mic bundles its own (plugins/speex-ladspa).
             speex: find_ladspa(&["libspeex_ladspa.so", "speex_preprocess.so"]),
@@ -106,7 +104,6 @@ impl Plugins {
 
     pub fn denoiser_available(&self, engine: &str) -> bool {
         match engine {
-            "deepfilter" => self.deepfilter.is_some(),
             "rnnoise" => self.rnnoise.is_some(),
             "speex" => self.speex.is_some(),
             "off" => true,
@@ -385,11 +382,6 @@ pub fn pre_gains(mic: &MicState, trim_db: f32) -> (f32, f32) {
 
 pub fn denoiser_controls(d: &DenoiserConfig, engine: &str) -> Vec<(String, f32)> {
     match engine {
-        "deepfilter" => vec![
-            ("dn:Attenuation Limit (dB)".into(), d.df_attenuation_db.clamp(0.0, 100.0)),
-            ("dn:Min processing threshold (dB)".into(), d.df_min_threshold_db.clamp(-15.0, 35.0)),
-            ("dn:Max ERB processing threshold (dB)".into(), d.df_max_erb_threshold_db.clamp(-15.0, 35.0)),
-        ],
         "rnnoise" => vec![
             ("dn:VAD Threshold (%)".into(), d.rn_vad_threshold.clamp(0.0, 99.0)),
             ("dn:VAD Grace Period (ms)".into(), d.rn_vad_grace_ms.clamp(0.0, 1000.0)),
@@ -408,7 +400,6 @@ fn denoiser_node(p: &Plugins, d: &DenoiserConfig, engine: &str) -> Option<Node> 
         .collect::<Vec<_>>()
         .join(" ");
     match engine {
-        "deepfilter" => Some(ladspa("dn", p.deepfilter.as_ref()?, "deep_filter_mono", &controls, "Audio In", "Audio Out")),
         "rnnoise" => Some(ladspa("dn", p.rnnoise.as_ref()?, "noise_suppressor_mono", &controls, "Input", "Output")),
         "speex" => Some(ladspa("dn", p.speex.as_ref()?, "speex_preprocess", &controls, "Input", "Output")),
         _ => None,
@@ -826,13 +817,13 @@ mod tests {
     #[test]
     fn post_conf_contains_all_stages_and_outputs() {
         let p = Plugins { lsp: Some("/x/lsp.so".into()), ..Default::default() };
-        let p = Plugins { deepfilter: Some("/x/df.so".into()), ..p };
-        let conf = mic_post_conf(&p, 3, "deepfilter", &DenoiserConfig::default(), &bands(), &NoiseCleanConfig::default(), &MicState::default(), 0.0, (1.0, 1.0, 1.0, 0.0));
-        for needle in ["deep_filter_mono", "name = mono label = mixer", "gate_mono", "bq_highpass", "compressor_mono", "limiter_mono", "\"Hysteresis\" = 1", "\"Sidechain lookahead (ms)\" = 3.0", "\"Hysteresis zone size (G)\" = 0.707", "\"Curve zone size (G)\" = 0.707", "\"Hold time (ms)\" = 250", "StudioMic_Mic_g3_In", "AUX8", "\"tap:Out\"", "\"Gain boost\" = 0"] {
+        let p = Plugins { rnnoise: Some("/x/rn.so".into()), ..p };
+        let conf = mic_post_conf(&p, 3, "rnnoise", &DenoiserConfig::default(), &bands(), &NoiseCleanConfig::default(), &MicState::default(), 0.0, (1.0, 1.0, 1.0, 0.0));
+        for needle in ["noise_suppressor_mono", "name = mono label = mixer", "gate_mono", "bq_highpass", "compressor_mono", "limiter_mono", "\"Hysteresis\" = 1", "\"Sidechain lookahead (ms)\" = 3.0", "\"Hysteresis zone size (G)\" = 0.707", "\"Curve zone size (G)\" = 0.707", "\"Hold time (ms)\" = 250", "StudioMic_Mic_g3_In", "AUX8", "\"tap:Out\"", "\"Gain boost\" = 0"] {
             assert!(conf.contains(needle), "missing {}", needle);
         }
         // Without LSP the chain degrades gracefully to builtin-only stages.
-        let conf2 = mic_post_conf(&Plugins::default(), 1, "deepfilter", &DenoiserConfig::default(), &bands(), &NoiseCleanConfig::default(), &MicState::default(), 0.0, (1.0, 1.0, 1.0, 0.0));
+        let conf2 = mic_post_conf(&Plugins::default(), 1, "rnnoise", &DenoiserConfig::default(), &bands(), &NoiseCleanConfig::default(), &MicState::default(), 0.0, (1.0, 1.0, 1.0, 0.0));
         assert!(!conf2.contains("ladspa"));
         assert!(conf2.contains("name = deess label = bq_peaking"));
     }

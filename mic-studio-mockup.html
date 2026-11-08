@@ -1105,20 +1105,11 @@
               Only the selected engine is loaded. Switching engines swaps the chain behind the buses with a 40 ms crossfade, so Discord and OBS never disconnect.
             </p>
             <select id="dn-engine" onchange="setDenoiserEngine(this.value)" class="w-full text-xs font-bold rounded-xl px-3 py-1.5 outline-none cursor-pointer">
-              <option value="deepfilter">Deep Noise Remover (DeepFilterNet) · best quality, heavier</option>
               <option value="rnnoise">RNNoise · light, low latency</option>
               <option value="speex">Speex</option>
               <option value="off">Off</option>
             </select>
-            <div id="dn-group-deepfilter" class="dn-group space-y-2">
-              <div class="flex gap-2 p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-[10.5px] leading-relaxed text-amber-200">
-                <span class="material-symbols-outlined text-[16px] text-amber-400 shrink-0">warning</span>
-                <span><b>Heavier AI model.</b> DeepFilterNet adds about 30 ms of voice latency (≈58 ms mic-to-headphones vs ≈28 ms without it) and uses the most CPU. On slower PCs it can fall behind: for the first ~10–20 s after you switch it on, all audio may drop out once for ~20 ms. Only applies while DeepFilterNet is selected. If you hear dropouts or delay, use RNNoise instead.</span>
-              </div>
-              <div class="flex justify-between text-[10px] text-cyan-200"><span>Attenuation Limit (dB)</span><span id="dn-df-atten-lbl" class="font-mono font-bold">80 dB</span></div>
-              <input type="range" id="dn-df-atten" min="0" max="100" step="1" value="80" class="w-full m3-slider" oninput="onDenoiserParam('df_attenuation_db', this)">
-            </div>
-            <div id="dn-group-rnnoise" class="dn-group hidden space-y-2">
+            <div id="dn-group-rnnoise" class="dn-group space-y-2">
               <div class="flex justify-between text-[10px] text-cyan-200"><span>VAD Threshold (%)</span><span id="dn-rn-vad-lbl" class="font-mono font-bold">50 %</span></div>
               <input type="range" id="dn-rn-vad" min="0" max="99" step="1" value="50" class="w-full m3-slider" oninput="onDenoiserParam('rn_vad_threshold', this)">
               <div class="flex justify-between text-[10px] text-cyan-200"><span>VAD Grace Period (ms)</span><span id="dn-rn-grace-lbl" class="font-mono font-bold">200 ms</span></div>
@@ -5191,8 +5182,8 @@
         `
         <div class="space-y-2">
           <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
-            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-cyan-300">psychology</span>DeepFilterNet AI</span>
-            <span class="text-cyan-300 font-mono font-bold">80 dB Attenuation</span>
+            <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-cyan-300">psychology</span>RNNoise</span>
+            <span class="text-cyan-300 font-mono font-bold">Noise remover on</span>
           </div>
           <div class="flex items-center justify-between py-1 border-b border-[var(--md-sys-color-outline-variant)]/40">
             <span class="font-bold text-white flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-emerald-300">door_sliding</span>Auto Noise Gate</span>
@@ -6014,7 +6005,7 @@
       g('sm-dsp-clipguard')?.classList.toggle('on', mic.clipguard !== false);
       const dn = (c.denoiser || {}).engine || 'off';
       const dnb = g('sm-dsp-denoiser');
-      if (dnb) { dnb.classList.toggle('on', dn !== 'off'); dnb.textContent = dn === 'off' ? 'NOISE OFF' : ({ deepfilter: 'DEEPFILTER', rnnoise: 'RNNOISE', speex: 'SPEEX' }[dn] || dn.toUpperCase()); }
+      if (dnb) { dnb.classList.toggle('on', dn !== 'off'); dnb.textContent = dn === 'off' ? 'NOISE OFF' : ({ rnnoise: 'RNNOISE', speex: 'SPEEX' }[dn] || dn.toUpperCase()); }
       g('qa-comp-btn')?.classList.toggle('on', !!window.isCompressorActive);
       g('sm-pin-btn')?.classList.toggle('on', c.always_on_top !== false);
       const t = g('sm-size-text');
@@ -6386,25 +6377,18 @@
       sel.value = d.engine || 'off';
       document.querySelectorAll('.dn-group').forEach(g => g.classList.toggle('hidden', g.id !== 'dn-group-' + sel.value));
       const set = (id, v, unit) => { const el = document.getElementById(id); if (el && v !== undefined) { el.value = v; const l = document.getElementById(id + '-lbl'); if (l) l.textContent = `${v} ${unit}`; } };
-      set('dn-df-atten', d.df_attenuation_db, 'dB');
       set('dn-rn-vad', d.rn_vad_threshold, '%'); set('dn-rn-grace', d.rn_vad_grace_ms, 'ms');
       set('dn-sx', d.speex_suppress_db, 'dB');
       const st = document.getElementById('dn-status');
       if (st) st.textContent = (d.engine || 'off') === 'off' ? 'OFF' : 'ACTIVE';
       const note = document.getElementById('dn-note');
       if (note) {
-        const missing = ['deepfilter', 'rnnoise', 'speex'].filter(e => !plugins[e]);
-        // Speex and RNNoise are bundled in the app; DeepFilterNet (~54 MB) can be fetched in one click.
+        const missing = ['rnnoise', 'speex'].filter(e => !plugins[e]);
+        // Speex and RNNoise are bundled in the app.
         note.innerHTML = missing.length ? `Not installed: ${missing.join(', ')}. ` +
-          (plugins.deepfilter ? 'Run ./setup-deps.sh to add them.'
-            : `<button class="sm-btn" id="dn-download" onclick="downloadDeepFilter()"><span class="material-symbols-outlined">download</span>Download DeepFilterNet (54 MB)</button>`) : '';
+          'Run ./setup-deps.sh to add them.' : '';
         note.classList.toggle('hidden', !missing.length);
       }
-    }
-    function downloadDeepFilter() {
-      const b = document.getElementById('dn-download');
-      if (b) { b.disabled = true; b.lastChild.textContent = 'Downloading…'; }
-      post('denoiser_download');
     }
     window.onPluginsChanged = function (plugins) {
       window.__PLUGINS__ = plugins || {};

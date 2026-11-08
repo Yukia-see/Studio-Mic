@@ -37,7 +37,6 @@ install -Dm644 studiomic.desktop %{buildroot}%{_datadir}/applications/studiomic.
 install -Dm644 assets/studiomic.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/studiomic.svg
 install -Dm644 studiomic.service %{buildroot}%{_userunitdir}/studiomic.service
 install -Dm644 pipewire-conf/60-studio-mic-buses.conf %{buildroot}%{_datadir}/pipewire/pipewire.conf.d/60-studio-mic-buses.conf
-install -Dm755 ladspa-staging/libdeep_filter_ladspa.so %{buildroot}%{_libdir}/ladspa/libdeep_filter_ladspa.so
 install -Dm755 ladspa-staging/librnnoise_ladspa.so %{buildroot}%{_libdir}/ladspa/librnnoise_ladspa.so
 install -Dm755 libspeex_ladspa.so %{buildroot}%{_libdir}/ladspa/libspeex_ladspa.so
 mkdir -p %{buildroot}%{_datadir}/studio-mic
@@ -60,7 +59,6 @@ fi
 %{_datadir}/icons/hicolor/scalable/apps/studiomic.svg
 %{_userunitdir}/studiomic.service
 %{_datadir}/pipewire/pipewire.conf.d/60-studio-mic-buses.conf
-%{_libdir}/ladspa/libdeep_filter_ladspa.so
 %{_libdir}/ladspa/librnnoise_ladspa.so
 %{_libdir}/ladspa/libspeex_ladspa.so
 %{_datadir}/studio-mic/

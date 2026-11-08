@@ -148,14 +148,13 @@ impl Tray for StudioMicTray {
                 .into(),
             );
         }
-        let denoisers: Vec<MenuItem<Self>> = ["deepfilter", "rnnoise", "speex", "off"]
+        let denoisers: Vec<MenuItem<Self>> = ["rnnoise", "speex", "off"]
             .iter()
             .filter(|e| self.controller.engine.plugins().denoiser_available(e))
             .map(|e| {
                 let e = e.to_string();
                 CheckmarkItem {
                     label: match e.as_str() {
-                        "deepfilter" => "Deep Noise Remover (DeepFilterNet)".into(),
                         "rnnoise" => "RNNoise".into(),
                         "speex" => "Speex".into(),
                         _ => "Off".into(),

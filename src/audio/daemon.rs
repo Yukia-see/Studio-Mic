@@ -50,18 +50,6 @@ pub enum EngineEvent {
     /// Loudest keystroke (dB at the chain input), or None if the mic gave no signal at all.
     GateMeasured(Option<f32>),
     MicMissing(bool),
-    /// LADSPA plugins were re-scanned (payload: `plugins_json`).
-    PluginsChanged(String),
-}
-
-/// DeepFilterNet LADSPA download, pinned like setup-deps.sh (a test keeps the two in sync).
-pub const DF_VERSION: &str = "0.5.6";
-pub const DF_SHA256: &str = "2ca3205c2911d389604a826a240e745597d50252b5cab81c8248252b335e2236";
-pub fn df_url() -> String {
-    format!(
-        "https://github.com/Rikorose/DeepFilterNet/releases/download/v{0}/libdeep_filter_ladspa-{0}-x86_64-unknown-linux-gnu.so",
-        DF_VERSION
-    )
 }
 
 struct Procs {
@@ -116,7 +104,7 @@ struct MeterProc {
 
 pub struct Engine {
     pub state: Arc<Mutex<StudioMicConfig>>,
-    /// Re-scanned after an in-app plugin download (`rescan_plugins`).
+    /// LADSPA plugins found at startup.
     plugins: RwLock<Plugins>,
     ops: Mutex<()>,
     /// Held for the whole of `swap_mic_chain`. `relink_all` and `apply_mixer` wait on it, so the
@@ -146,7 +134,6 @@ pub struct Engine {
     monitor_set_at: Mutex<Instant>,
     mic_missing: AtomicBool,
     raw_linked: AtomicBool,
-    downloading: AtomicBool,
     events: Mutex<Option<Box<dyn Fn(EngineEvent) + Send>>>,
 }
 
@@ -198,33 +185,6 @@ fn is_our_child(args: &[String]) -> bool {
         }
         _ => false,
     }
-}
-
-/// Downloads `url` to `dir/name` only if its SHA256 matches; the file appears atomically.
-fn fetch_verified(url: &str, sha256: &str, dir: &std::path::Path, name: &str) -> Result<PathBuf, String> {
-    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    let tmp = dir.join(format!(".{}.part", name));
-    let _ = std::fs::remove_file(&tmp);
-    let ok = |c: &mut Command| c.stdout(Stdio::null()).stderr(Stdio::null()).status().map(|s| s.success()).unwrap_or(false);
-    let fetched = ok(Command::new("curl").args(["-fsSL", "--retry", "2", "-o"]).arg(&tmp).arg(url))
-        || ok(Command::new("wget").args(["-q", "-O"]).arg(&tmp).arg(url));
-    if !fetched {
-        let _ = std::fs::remove_file(&tmp);
-        return Err("could not download (needs curl or wget and a network connection)".into());
-    }
-    let got = Command::new("sha256sum")
-        .arg(&tmp)
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8_lossy(&o.stdout).split_whitespace().next().map(|s| s.to_string()))
-        .unwrap_or_default();
-    if got != sha256 {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(format!("checksum mismatch (got {}), file discarded", if got.is_empty() { "nothing" } else { &got }));
-    }
-    let dest = dir.join(name);
-    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())?;
-    Ok(dest)
 }
 
 /// pw-record arguments for a meter that streams samples to stdout.
@@ -428,9 +388,8 @@ impl Engine {
     pub fn start(state: Arc<Mutex<StudioMicConfig>>) -> Arc<Engine> {
         let plugins = Plugins::discover();
         println!(
-            "LADSPA: lsp={} deepfilter={} rnnoise={} speex={} (bundled in this build: {:?})",
+            "LADSPA: lsp={} rnnoise={} speex={} (bundled in this build: {:?})",
             plugins.lsp.is_some(),
-            plugins.deepfilter.is_some(),
             plugins.rnnoise.is_some(),
             plugins.speex.is_some(),
             crate::audio::plugins_bundle::embedded_names()
@@ -470,7 +429,6 @@ impl Engine {
             monitor_set_at: Mutex::new(Instant::now() - Duration::from_secs(10)),
             mic_missing: AtomicBool::new(false),
             raw_linked: AtomicBool::new(false),
-            downloading: AtomicBool::new(false),
             events: Mutex::new(None),
         });
 
@@ -1564,8 +1522,11 @@ impl Engine {
         let mut applied = 0.0f32;
         let mut hold_until = Instant::now();
         let mut last = Instant::now();
+        let mut idle = false;
         while self.running.load(Ordering::SeqCst) {
-            std::thread::sleep(Duration::from_millis(20));
+            // 50 Hz only while ducking; with no autoduck channel a slow check is enough (saves
+            // ~50 wakeups and state locks a second).
+            std::thread::sleep(Duration::from_millis(if idle { 250 } else { 20 }));
             let now = Instant::now();
             let dt = now.duration_since(last).as_secs_f32();
             last = now;
@@ -1573,7 +1534,8 @@ impl Engine {
                 let s = self.state.lock().unwrap();
                 (s.virtual_channels.iter().any(|c| c.mix.autoduck && !c.is_comms()), s.mic.mix.stream_muted)
             };
-            if !any_duck && applied == 0.0 {
+            idle = !any_duck && applied == 0.0;
+            if idle {
                 cur = 0.0;
                 continue;
             }
@@ -1704,8 +1666,8 @@ impl Engine {
         ));
         let p = self.plugins_json();
         out.push(format!(
-            "plugins: lsp {} deepfilter {} rnnoise {} speex {}  denoiser: {}",
-            p["lsp"], p["deepfilter"], p["rnnoise"], p["speex"], s.denoiser.engine
+            "plugins: lsp {} rnnoise {} speex {}  denoiser: {}",
+            p["lsp"], p["rnnoise"], p["speex"], s.denoiser.engine
         ));
 
         out.push("meters (key: running, links in, last reading):".into());
@@ -2385,52 +2347,14 @@ impl Engine {
         self.plugins.read().unwrap().clone()
     }
 
-    /// `{lsp, deepfilter, rnnoise, speex}` availability, as the UI's `window.__PLUGINS__`.
+    /// `{lsp, rnnoise, speex}` availability, as the UI's `window.__PLUGINS__`.
     pub fn plugins_json(&self) -> serde_json::Value {
         let p = self.plugins();
         serde_json::json!({
             "lsp": p.lsp.is_some(),
-            "deepfilter": p.deepfilter.is_some(),
             "rnnoise": p.rnnoise.is_some(),
             "speex": p.speex.is_some(),
         })
-    }
-
-    /// Looks for LADSPA plugins again (after a download). Running stages keep their plugins;
-    /// newly found denoisers become selectable immediately.
-    pub fn rescan_plugins(&self) -> Plugins {
-        let p = Plugins::discover();
-        *self.plugins.write().unwrap() = p.clone();
-        p
-    }
-
-    /// Downloads the pinned DeepFilterNet plugin into ~/.local/lib/ladspa in the background,
-    /// verifies its SHA256, then re-scans so it can be selected straight away.
-    pub fn download_deepfilter(self: &Arc<Self>) -> Result<String, String> {
-        if self.plugins().deepfilter.is_some() {
-            return Ok("DeepFilterNet is already installed".into());
-        }
-        if std::env::consts::ARCH != "x86_64" {
-            return Err("The DeepFilterNet download is x86_64 only; install it from your distro".into());
-        }
-        if self.downloading.swap(true, Ordering::SeqCst) {
-            return Ok("DeepFilterNet download already running".into());
-        }
-        let e = self.clone();
-        std::thread::spawn(move || {
-            let res = fetch_verified(&df_url(), DF_SHA256, &crate::audio::plugins_bundle::user_ladspa_dir(), "libdeep_filter_ladspa.so");
-            e.downloading.store(false, Ordering::SeqCst);
-            match res {
-                Ok(path) => {
-                    println!("DeepFilterNet installed: {}", path.display());
-                    e.rescan_plugins();
-                    e.emit(EngineEvent::PluginsChanged(e.plugins_json().to_string()));
-                    e.emit(EngineEvent::Notice("DeepFilterNet installed. It can be selected now.".into()));
-                }
-                Err(err) => e.emit(EngineEvent::Notice(format!("DeepFilterNet download failed: {}", err))),
-            }
-        });
-        Ok("Downloading DeepFilterNet (about 54 MB)…".into())
     }
 
     pub fn runtime_status(&self) -> serde_json::Value {
@@ -2558,14 +2482,6 @@ mod tests {
         assert_eq!(short.bits(), None);
         assert_eq!(short.clip_rule(), ClipRule::COARSE);
         assert_eq!(run(&vec![0.0; 96000]).bits(), None);
-    }
-
-    #[test]
-    fn deepfilter_pin_matches_setup_deps() {
-        let script = include_str!("../../setup-deps.sh");
-        assert!(script.contains(&format!("DF_VERSION=\"{}\"", super::DF_VERSION)));
-        assert!(script.contains(&format!("DF_SHA256=\"{}\"", super::DF_SHA256)));
-        assert!(super::df_url().contains("libdeep_filter_ladspa-0.5.6-x86_64"));
     }
 
     #[test]

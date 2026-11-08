@@ -1,7 +1,6 @@
 //! Denoiser plugins embedded in the binary (see build.rs), written to `~/.local/lib/ladspa/` on
 //! startup when the system doesn't already have them. Running the bare executable is then enough
-//! for Speex and RNNoise. DeepFilterNet (~54 MB) is not embedded; it comes from setup-deps.sh,
-//! the distro packages, or the in-app download.
+//! for Speex and RNNoise.
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;

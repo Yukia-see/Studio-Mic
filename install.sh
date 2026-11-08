@@ -56,7 +56,7 @@ run_deps="n"
 if [ "$ASSUME_YES" -eq 1 ]; then
     run_deps="y"
 elif [ -t 0 ]; then
-    read -r -p "Would you like to download and install required PipeWire and Noise Suppression dependencies for Studio Mic (DeepFilterNet, RNNoise, Speex)? [Y/n] " run_deps || run_deps="n"
+    read -r -p "Would you like to download and install required PipeWire and Noise Suppression dependencies for Studio Mic (RNNoise, Speex)? [Y/n] " run_deps || run_deps="n"
     run_deps="${run_deps:-y}"
 fi
 case "$run_deps" in
